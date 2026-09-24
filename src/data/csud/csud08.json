@@ -1,0 +1,18 @@
+[
+  { "idnum": 0,  "id": "csud08", "name": "Argentinos Juniors", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#E40F18", "secondaryColor": "#FFFFFF" },
+  { "idnum": 1,  "id": "csud08", "name": "Jaguares",           "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF8800", "secondaryColor": "#000000" },
+  { "idnum": 2,  "id": "csud08", "name": "Boca Juniors",       "attack": 4, "midfield": 4, "defense": 4, "kit": "swe92/0.png", "primaryColor": "#003087", "secondaryColor": "#FFC72C" },
+  { "idnum": 3,  "id": "csud08", "name": "LDU Quito",           "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 4,  "id": "csud08", "name": "Botafogo",            "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#000000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 5,  "id": "csud08", "name": "Sport Áncash",        "attack": 1, "midfield": 2, "defense": 1, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFF00" },
+  { "idnum": 6,  "id": "csud08", "name": "Chivas Guadalajara",  "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#0000FF" },
+  { "idnum": 7,  "id": "csud08", "name": "Athletico Paranaense", "attack": 2, "midfield": 2, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#000000" },
+  { "idnum": 8,  "id": "csud08", "name": "Deportivo Cali",      "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 9,  "id": "csud08", "name": "Palmeiras",           "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 10, "id": "csud08", "name": "Estudiantes",        "attack": 3, "midfield": 3, "defense": 4, "kit": "ecu93/1.png", "primaryColor": "#1B3C7A", "secondaryColor": "#FFFFFF" },
+  { "idnum": 11, "id": "csud08", "name": "Arsenal de Sarandi", "attack": 3, "midfield": 2, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#8B0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 12, "id": "csud08", "name": "Internacional",       "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 13, "id": "csud08", "name": "Universidad Católica", "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#0000FF" },
+  { "idnum": 14, "id": "csud08", "name": "River Plate",        "attack": 3, "midfield": 2, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#CC0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 15, "id": "csud08", "name": "Defensor Sporting",   "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#4B0082", "secondaryColor": "#FFFFFF" }
+]

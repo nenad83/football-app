@@ -1,0 +1,178 @@
+[
+  {
+    "idnum": 0,
+    "id": "rus00",
+    "name": "Spartak Moscow",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "cl94/6.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "rus00",
+    "name": "Lokomotiv Moscow",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/4.png",
+    "primaryColor": "#E52222",
+    "secondaryColor": "#006600"
+  },
+  {
+    "idnum": 2,
+    "id": "rus00",
+    "name": "Torpedo Moscow",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/5.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 3,
+    "id": "rus00",
+    "name": "Anzhi Makhachkala",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#008000"
+  },
+  {
+    "idnum": 4,
+    "id": "rus00",
+    "name": "Dynamo Moscow",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/2.png",
+    "primaryColor": "#005BAA",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "rus00",
+    "name": "Chernomorets Novorossiysk",
+    "attack": 2,
+    "midfield": 1,
+    "defense": 2,
+    "kit": "fra84/1.png",
+    "primaryColor": "#000080",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "rus00",
+    "name": "Zenit St. Petersburg",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#0095DB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "rus00",
+    "name": "CSKA Moscow",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "cl90/20.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#0000FF"
+  },
+  {
+    "idnum": 8,
+    "id": "rus00",
+    "name": "Saturn Moscow Region",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "rus00",
+    "name": "Alania Vladikavkaz",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/5.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "rus00",
+    "name": "Rotor Volgograd",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/3.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "rus00",
+    "name": "Rostselmash Rostov",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#0000FF"
+  },
+  {
+    "idnum": 12,
+    "id": "rus00",
+    "name": "Fakel Voronezh",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "rus00",
+    "name": "Krylya Sovetov",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/6.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "rus00",
+    "name": "Lokomotiv Nizhny Novgorod",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/4.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "rus00",
+    "name": "Uralan Elista",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#0000FF"
+  }
+]

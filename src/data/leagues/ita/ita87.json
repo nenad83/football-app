@@ -1,0 +1,200 @@
+[
+  {
+    "idnum": 0,
+    "id": "ita87",
+    "name": "AC Milan",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "ita87/0.png",
+    "primaryColor": "#FB090B",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 1,
+    "id": "ita87",
+    "name": "Napoli",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "ita87/1.png",
+    "primaryColor": "#0066CC",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "ita87",
+    "name": "Inter Milan",
+    "attack": 4,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "ita87/2.png",
+    "primaryColor": "#003F8C",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 3,
+    "id": "ita87",
+    "name": "Juventus",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 5,
+    "kit": "ita87/3.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "ita87",
+    "name": "Roma",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ita87/4.png",
+    "primaryColor": "#8B1A1A",
+    "secondaryColor": "#F5C518"
+  },
+  {
+    "idnum": 5,
+    "id": "ita87",
+    "name": "Fiorentina",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ita87/5.png",
+    "primaryColor": "#4B0082",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "ita87",
+    "name": "Sampdoria",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ita87/6.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "ita87",
+    "name": "Torino",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ita87/7.png",
+    "primaryColor": "#8B0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "ita87",
+    "name": "Udinese",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita87/8.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "ita87",
+    "name": "Lazio",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita87/9.png",
+    "primaryColor": "#87CEEB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "ita87",
+    "name": "Verona",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita87/10.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#FFD700"
+  },
+  {
+    "idnum": 11,
+    "id": "ita87",
+    "name": "Atalanta",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita87/11.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 12,
+    "id": "ita87",
+    "name": "Genoa",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ita87/12.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#003DA5"
+  },
+  {
+    "idnum": 13,
+    "id": "ita87",
+    "name": "Como",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ita87/13.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "ita87",
+    "name": "Bari",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ita87/14.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "ita87",
+    "name": "Empoli",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ita87/15.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 16,
+    "id": "ita87",
+    "name": "Brescia",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ita87/16.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 17,
+    "id": "ita87",
+    "name": "Pisa",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ita87/17.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#003DA5"
+  }
+]

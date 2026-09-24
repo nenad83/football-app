@@ -1,0 +1,222 @@
+[
+  {
+    "idnum": 0,
+    "id": "fra10",
+    "name": "Lille",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra10/0.png",
+    "primaryColor": "#E2001A",
+    "secondaryColor": "#002040"
+  },
+  {
+    "idnum": 1,
+    "id": "fra10",
+    "name": "Marseille",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra10/1.png",
+    "primaryColor": "#009BDB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "fra10",
+    "name": "Lyon",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra10/2.png",
+    "primaryColor": "#E2001A",
+    "secondaryColor": "#004E9E"
+  },
+  {
+    "idnum": 3,
+    "id": "fra10",
+    "name": "Paris Saint-Germain",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra10/3.png",
+    "primaryColor": "#004170",
+    "secondaryColor": "#E30613"
+  },
+  {
+    "idnum": 4,
+    "id": "fra10",
+    "name": "Sochaux",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra10/4.png",
+    "primaryColor": "#FFCC00",
+    "secondaryColor": "#003399"
+  },
+  {
+    "idnum": 5,
+    "id": "fra10",
+    "name": "Rennes",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra10/5.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 6,
+    "id": "fra10",
+    "name": "Bordeaux",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra10/6.png",
+    "primaryColor": "#002040",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "fra10",
+    "name": "Toulouse",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra10/7.png",
+    "primaryColor": "#5D2C86",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "fra10",
+    "name": "Auxerre",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra10/8.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#005CA9"
+  },
+  {
+    "idnum": 9,
+    "id": "fra10",
+    "name": "Saint-Etienne",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra10/9.png",
+    "primaryColor": "#007D3F",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "fra10",
+    "name": "Lorient",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra10/10.png",
+    "primaryColor": "#FF4500",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 11,
+    "id": "fra10",
+    "name": "Valenciennes",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra10/11.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "fra10",
+    "name": "Nancy",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra10/12.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "fra10",
+    "name": "Montpellier",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra10/13.png",
+    "primaryColor": "#002040",
+    "secondaryColor": "#FF8000"
+  },
+  {
+    "idnum": 14,
+    "id": "fra10",
+    "name": "Caen",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra10/14.png",
+    "primaryColor": "#002E5D",
+    "secondaryColor": "#C70039"
+  },
+  {
+    "idnum": 15,
+    "id": "fra10",
+    "name": "Brest",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra10/15.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 16,
+    "id": "fra10",
+    "name": "Nice",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra10/16.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#E30613"
+  },
+  {
+    "idnum": 17,
+    "id": "fra10",
+    "name": "Monaco",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra10/17.png",
+    "primaryColor": "#CE1126",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 18,
+    "id": "fra10",
+    "name": "Lens",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "fra10/18.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFD700"
+  },
+  {
+    "idnum": 19,
+    "id": "fra10",
+    "name": "Arles-Avignon",
+    "attack": 1,
+    "midfield": 1,
+    "defense": 1,
+    "kit": "fra10/19.png",
+    "primaryColor": "#005CB9",
+    "secondaryColor": "#FFFF00"
+  }
+]

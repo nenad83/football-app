@@ -1,0 +1,200 @@
+[
+  {
+    "idnum": 0,
+    "id": "ger93",
+    "name": "Bayern Munich",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "ger93/0.png",
+    "primaryColor": "#DC052D",
+    "secondaryColor": "#0066B2"
+  },
+  {
+    "idnum": 1,
+    "id": "ger93",
+    "name": "Kaiserslautern",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger93/1.png",
+    "primaryColor": "#E2001A",
+    "secondaryColor": "#E2001A"
+  },
+  {
+    "idnum": 2,
+    "id": "ger93",
+    "name": "Bayer Leverkusen",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger93/2.png",
+    "primaryColor": "#E32219",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 3,
+    "id": "ger93",
+    "name": "Borussia Dortmund",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger93/3.png",
+    "primaryColor": "#FFF200",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 4,
+    "id": "ger93",
+    "name": "Eintracht Frankfurt",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger93/4.png",
+    "primaryColor": "#E2001A",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 5,
+    "id": "ger93",
+    "name": "Karlsruhe",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger93/5.png",
+    "primaryColor": "#005CA9",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "ger93",
+    "name": "Stuttgart",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 4,
+    "kit": "ger93/6.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#E32219"
+  },
+  {
+    "idnum": 7,
+    "id": "ger93",
+    "name": "Werder Bremen",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger93/7.png",
+    "primaryColor": "#009F5D",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "ger93",
+    "name": "Duisburg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 4,
+    "kit": "ger93/8.png",
+    "primaryColor": "#005CA9",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "ger93",
+    "name": "Borussia M'gladbach",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger93/9.png",
+    "primaryColor": "#009F5D",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 10,
+    "id": "ger93",
+    "name": "Cologne",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger93/10.png",
+    "primaryColor": "#E32219",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "ger93",
+    "name": "Hamburg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger93/11.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#E32219"
+  },
+  {
+    "idnum": 12,
+    "id": "ger93",
+    "name": "Dynamo Dresden",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger93/12.png",
+    "primaryColor": "#FFF200",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 13,
+    "id": "ger93",
+    "name": "Schalke 04",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger93/13.png",
+    "primaryColor": "#005CA9",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "ger93",
+    "name": "Freiburg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger93/14.png",
+    "primaryColor": "#E32219",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 15,
+    "id": "ger93",
+    "name": "Nuremberg",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 3,
+    "kit": "ger93/15.png",
+    "primaryColor": "#E32219",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 16,
+    "id": "ger93",
+    "name": "Wattenscheid",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger93/16.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 17,
+    "id": "ger93",
+    "name": "VfB Leipzig",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger93/17.png",
+    "primaryColor": "#005CA9",
+    "secondaryColor": "#FFF200"
+  }
+]

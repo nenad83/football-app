@@ -1,0 +1,20 @@
+[
+  { "idnum": 20, "id": "ita10_d2", "name": "Atalanta", "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/2.png", "primaryColor": "#000000", "secondaryColor": "#0000FF" },
+  { "idnum": 21, "id": "ita10_d2", "name": "Siena", "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#000000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 22, "id": "ita10_d2", "name": "Novara", "attack": 3, "midfield": 2, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 23, "id": "ita10_d2", "name": "Livorno", "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/2.png", "primaryColor": "#B22222", "secondaryColor": "#FFFFFF" },
+  { "idnum": 24, "id": "ita10_d2", "name": "Torino", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#800020", "secondaryColor": "#FFFFFF" },
+  { "idnum": 25, "id": "ita10_d2", "name": "Reggina", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/2.png", "primaryColor": "#800000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 26, "id": "ita10_d2", "name": "Varese", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFFFF", "secondaryColor": "#CC0000" },
+  { "idnum": 27, "id": "ita10_d2", "name": "Pescara", "attack": 2, "midfield": 2, "defense": 1, "kit": "swe92/2.png", "primaryColor": "#0000CC", "secondaryColor": "#FFFFFF" },
+  { "idnum": 28, "id": "ita10_d2", "name": "Empoli", "attack": 2, "midfield": 1, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 29, "id": "ita10_d2", "name": "Sassuolo", "attack": 2, "midfield": 1, "defense": 1, "kit": "swe92/2.png", "primaryColor": "#008000", "secondaryColor": "#000000" },
+  { "idnum": 30, "id": "ita10_d2", "name": "Vicenza", "attack": 1, "midfield": 2, "defense": 2, "kit": "swe92/4.png", "primaryColor": "#CC0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 31, "id": "ita10_d2", "name": "Frosinone", "attack": 1, "midfield": 2, "defense": 1, "kit": "mex86/3.png", "primaryColor": "#FFFF00", "secondaryColor": "#0000FF" },
+  { "idnum": 32, "id": "ita10_d2", "name": "Crotone", "attack": 1, "midfield": 1, "defense": 2, "kit": "swe92/4.png", "primaryColor": "#002F6C", "secondaryColor": "#CC0000" },
+  { "idnum": 33, "id": "ita10_d2", "name": "Albinoleffe", "attack": 1, "midfield": 1, "defense": 1, "kit": "swe92/1.png", "primaryColor": "#0000FF", "secondaryColor": "#87CEEB" },
+  { "idnum": 34, "id": "ita10_d2", "name": "Piacenza", "attack": 1, "midfield": 1, "defense": 1, "kit": "ita01/15.png", "primaryColor": "#E32219", "secondaryColor": "#FFFFFF" },
+  { "idnum": 35, "id": "ita10_d2", "name": "Modena", "attack": 1, "midfield": 1, "defense": 1, "kit": "mex86/3.png", "primaryColor": "#FFFF00", "secondaryColor": "#003DA5" },
+  { "idnum": 36, "id": "ita10_d2", "name": "Cittadella", "attack": 1, "midfield": 1, "defense": 1, "kit": "swe92/0.png", "primaryColor": "#800020", "secondaryColor": "#FFFFFF" },
+  { "idnum": 37, "id": "ita10_d2", "name": "Grosseto", "attack": 1, "midfield": 1, "defense": 1, "kit": "swe92/0.png", "primaryColor": "#CC0000", "secondaryColor": "#FFFFFF" }
+]

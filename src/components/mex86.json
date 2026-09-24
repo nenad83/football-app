@@ -1,0 +1,33 @@
+[
+        {
+            "id" : "arg86",
+            "name" : "Argentina",
+            "attack" : 5,
+            "midfield" : 5,
+            "defense" : 4
+        },
+
+        {
+            "id" : "sou86",
+            "name" : "South Korea",
+            "attack" : 3,
+            "midfield" : 4,
+            "defense" : 3
+        },
+
+        {
+            "id" : "bul86",
+            "name" : "Bulgaria",
+            "attack" : 3,
+            "midfield" : 4,
+            "defense" : 3
+        },
+
+        {
+            "id" : "ita86",
+            "name" : "Italy",
+            "attack" : 4,
+            "midfield" : 4,
+            "defense" : 5
+        }
+    ]

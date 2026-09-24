@@ -1,0 +1,200 @@
+[
+  {
+    "idnum": 0,
+    "id": "ned90",
+    "name": "PSV",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/4.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "ned90",
+    "name": "Ajax",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra84/1.png",
+    "primaryColor": "#DA291C",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "ned90",
+    "name": "Feyenoord",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra84/4.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "ned90",
+    "name": "FC Groningen",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ecu93/2.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "ned90",
+    "name": "Vitesse",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 5,
+    "id": "ned90",
+    "name": "FC Twente",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/4.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#CC0000"
+  },
+  {
+    "idnum": 6,
+    "id": "ned90",
+    "name": "Roda JC",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 7,
+    "id": "ned90",
+    "name": "RKC Waalwijk",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#0000FF"
+  },
+  {
+    "idnum": 8,
+    "id": "ned90",
+    "name": "Willem II",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/3.png",
+    "primaryColor": "#000080",
+    "secondaryColor": "#FF0000"
+  },
+  {
+    "idnum": 9,
+    "id": "ned90",
+    "name": "Fortuna Sittard",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#008000"
+  },
+  {
+    "idnum": 10,
+    "id": "ned90",
+    "name": "Sparta Rotterdam",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/4.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "ned90",
+    "name": "FC Den Haag",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "ecu93/2.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFF00"
+  },
+  {
+    "idnum": 12,
+    "id": "ned90",
+    "name": "MVV Maastricht",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "ned90",
+    "name": "SVV Schiedam",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "fra84/1.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "ned90",
+    "name": "sc Heerenveen",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "swe92/5.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "ned90",
+    "name": "NEC Nijmegen",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "fra84/3.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#008000"
+  },
+  {
+    "idnum": 16,
+    "id": "ned90",
+    "name": "FC Utrecht",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "fra84/1.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 17,
+    "id": "ned90",
+    "name": "FC Volendam",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "swe92/2.png",
+    "primaryColor": "#FF4500",
+    "secondaryColor": "#000000"
+  }
+]

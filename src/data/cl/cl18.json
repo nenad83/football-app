@@ -1,0 +1,41 @@
+[
+  { "idnum": 0,  "id": "cl18", "name": "Atletico Madrid",      "attack": 4, "midfield": 4, "defense": 5, "kit": "esp16/2.png",  "primaryColor": "#CB3524", "secondaryColor": "#0F2E5E", "group": "A" },
+  { "idnum": 1,  "id": "cl18", "name": "Borussia Dortmund",     "attack": 5, "midfield": 4, "defense": 4, "kit": "ger16/2.png",  "primaryColor": "#FDE100", "secondaryColor": "#000000", "group": "A" },
+  { "idnum": 2,  "id": "cl18", "name": "AS Monaco",            "attack": 3, "midfield": 3, "defense": 2, "kit": "fra16/0.png",  "primaryColor": "#CE1126", "secondaryColor": "#FFFFFF", "group": "A" },
+  { "idnum": 3,  "id": "cl18", "name": "Club Brugge",           "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png",  "primaryColor": "#0000FF", "secondaryColor": "#000000", "group": "A" },
+
+  { "idnum": 4,  "id": "cl18", "name": "Barcelona",            "attack": 5, "midfield": 5, "defense": 5, "kit": "esp16/1.png",  "primaryColor": "#004D98", "secondaryColor": "#A50044", "group": "B" },
+  { "idnum": 5,  "id": "cl18", "name": "Tottenham",            "attack": 4, "midfield": 4, "defense": 4, "kit": "eng16/1.png",  "primaryColor": "#132257", "secondaryColor": "#FFFFFF", "group": "B" },
+  { "idnum": 6,  "id": "cl18", "name": "Inter Milan",          "attack": 4, "midfield": 4, "defense": 4, "kit": "ita16/6.png",  "primaryColor": "#003F8C", "secondaryColor": "#000000", "group": "B" },
+  { "idnum": 7,  "id": "cl18", "name": "PSV Eindhoven",         "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png",  "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF", "group": "B" },
+
+  { "idnum": 8,  "id": "cl18", "name": "Paris Saint-Germain",  "attack": 5, "midfield": 5, "defense": 5, "kit": "fra16/1.png",  "primaryColor": "#003E7E", "secondaryColor": "#DA291C", "group": "C" },
+  { "idnum": 9,  "id": "cl18", "name": "Napoli",               "attack": 4, "midfield": 4, "defense": 4, "kit": "ita16/2.png",  "primaryColor": "#11A0D9", "secondaryColor": "#FFFFFF", "group": "C" },
+  { "idnum": 10, "id": "cl18", "name": "Liverpool",            "attack": 5, "midfield": 5, "defense": 5, "kit": "eng16/3.png",  "primaryColor": "#C8102E", "secondaryColor": "#C8102E", "group": "C" },
+  { "idnum": 11, "id": "cl18", "name": "Red Star Belgrade",     "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png",  "primaryColor": "#E30613", "secondaryColor": "#FFFFFF", "group": "C" },
+
+  { "idnum": 12, "id": "cl18", "name": "Porto",                 "attack": 4, "midfield": 4, "defense": 4, "kit": "swe92/0.png",  "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF", "group": "D" },
+  { "idnum": 13, "id": "cl18", "name": "Schalke 04",            "attack": 3, "midfield": 3, "defense": 3, "kit": "ger16/9.png",  "primaryColor": "#004D9E", "secondaryColor": "#FFFFFF", "group": "D" },
+  { "idnum": 14, "id": "cl18", "name": "Galatasaray",           "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png",  "primaryColor": "#800020", "secondaryColor": "#FFD700", "group": "D" },
+  { "idnum": 15, "id": "cl18", "name": "Lokomotiv Moscow",     "attack": 4, "midfield": 4, "defense": 4, "kit": "rus16/6.png",  "primaryColor": "#E52222", "secondaryColor": "#006600", "group": "D" },
+
+  { "idnum": 16, "id": "cl18", "name": "Bayern Munich",         "attack": 5, "midfield": 5, "defense": 5, "kit": "ger16/0.png",  "primaryColor": "#DC052D", "secondaryColor": "#0066B2", "group": "E" },
+  { "idnum": 17, "id": "cl18", "name": "Ajax",                  "attack": 4, "midfield": 4, "defense": 4, "kit": "swe92/2.png",  "primaryColor": "#FFFFFF", "secondaryColor": "#D2122E", "group": "E" },
+  { "idnum": 18, "id": "cl18", "name": "Benfica",               "attack": 4, "midfield": 4, "defense": 3, "kit": "swe92/0.png",  "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF", "group": "E" },
+  { "idnum": 19, "id": "cl18", "name": "AEK Athens",            "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png",  "primaryColor": "#FFFF00", "secondaryColor": "#000000", "group": "E" },
+
+  { "idnum": 20, "id": "cl18", "name": "Manchester City",      "attack": 5, "midfield": 5, "defense": 5, "kit": "eng16/2.png",  "primaryColor": "#6CABDD", "secondaryColor": "#FFFFFF", "group": "F" },
+  { "idnum": 21, "id": "cl18", "name": "Olympique Lyon",        "attack": 4, "midfield": 4, "defense": 4, "kit": "fra16/3.png",  "primaryColor": "#E2001A", "secondaryColor": "#004E9E", "group": "F" },
+  { "idnum": 22, "id": "cl18", "name": "Shakhtar Donetsk",      "attack": 4, "midfield": 3, "defense": 3, "kit": "swe92/0.png",  "primaryColor": "#FF8C00", "secondaryColor": "#000000", "group": "F" },
+  { "idnum": 23, "id": "cl18", "name": "Hoffenheim",            "attack": 3, "midfield": 3, "defense": 3, "kit": "ger16/3.png",  "primaryColor": "#0062AE", "secondaryColor": "#FFFFFF", "group": "F" },
+
+  { "idnum": 24, "id": "cl18", "name": "Real Madrid",          "attack": 5, "midfield": 5, "defense": 4, "kit": "esp16/0.png",  "primaryColor": "#FFFFFF", "secondaryColor": "#FFFFFF", "group": "G" },
+  { "idnum": 25, "id": "cl18", "name": "Roma",                 "attack": 4, "midfield": 4, "defense": 3, "kit": "ita16/1.png",  "primaryColor": "#8E1F2F", "secondaryColor": "#F0C933", "group": "G" },
+  { "idnum": 26, "id": "cl18", "name": "Viktoria Plzen",        "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png",  "primaryColor": "#FF0000", "secondaryColor": "#0000FF", "group": "G" },
+  { "idnum": 27, "id": "cl18", "name": "CSKA Moscow",          "attack": 4, "midfield": 3, "defense": 3, "kit": "rus16/1.png",  "primaryColor": "#E30613", "secondaryColor": "#0000FF", "group": "G" },
+
+  { "idnum": 28, "id": "cl18", "name": "Juventus",              "attack": 5, "midfield": 5, "defense": 5, "kit": "ita16/0.png",  "primaryColor": "#000000", "secondaryColor": "#FFFFFF", "group": "H" },
+  { "idnum": 29, "id": "cl18", "name": "Manchester United",     "attack": 4, "midfield": 4, "defense": 3, "kit": "eng16/5.png",  "primaryColor": "#DA291C", "secondaryColor": "#FFFFFF", "group": "H" },
+  { "idnum": 30, "id": "cl18", "name": "Valencia",             "attack": 4, "midfield": 4, "defense": 4, "kit": "esp16/11.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000", "group": "H" },
+  { "idnum": 31, "id": "cl18", "name": "Young Boys",            "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png",  "primaryColor": "#FFFF00", "secondaryColor": "#000000", "group": "H" }
+]

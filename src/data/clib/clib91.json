@@ -1,0 +1,28 @@
+[
+  { "idnum": 0,  "id": "clib91", "name": "Bolívar",                "group": "A", "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#00BFFF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 1,  "id": "clib91", "name": "Boca Juniors",           "group": "A", "attack": 4, "midfield": 4, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#003087", "secondaryColor": "#FFC72C" },
+  { "idnum": 2,  "id": "clib91", "name": "Oriente Petrolero",     "group": "A", "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 3,  "id": "clib91", "name": "River Plate",            "group": "A", "attack": 4, "midfield": 3, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#CC0000", "secondaryColor": "#FFFFFF" },
+
+  { "idnum": 4,  "id": "clib91", "name": "Colo-Colo",              "group": "B", "attack": 5, "midfield": 4, "defense": 4, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 5,  "id": "clib91", "name": "LDU Quito",              "group": "B", "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#CC0000" },
+  { "idnum": 6,  "id": "clib91", "name": "Deportes Concepción",    "group": "B", "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#4B0082", "secondaryColor": "#FFFFFF" },
+  { "idnum": 7,  "id": "clib91", "name": "Barcelona SC",           "group": "B", "attack": 3, "midfield": 3, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#FFFF00", "secondaryColor": "#000000" },
+
+  { "idnum": 8,  "id": "clib91", "name": "Flamengo",               "group": "C", "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#FF0000", "secondaryColor": "#000000" },
+  { "idnum": 9,  "id": "clib91", "name": "Corinthians",            "group": "C", "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 10, "id": "clib91", "name": "Nacional",               "group": "C", "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#0000FF" },
+  { "idnum": 11, "id": "clib91", "name": "Bella Vista",            "group": "C", "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFF00", "secondaryColor": "#FFFFFF" },
+
+  { "idnum": 12, "id": "clib91", "name": "Atlético Colegiales",    "group": "D", "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 13, "id": "clib91", "name": "Cerro Porteño",          "group": "D", "attack": 3, "midfield": 3, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#FF0000", "secondaryColor": "#0000FF" },
+  { "idnum": 14, "id": "clib91", "name": "Universitario",          "group": "D", "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#FFFDD0", "secondaryColor": "#8B0000" },
+  { "idnum": 15, "id": "clib91", "name": "Sport Boys",             "group": "D", "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFC0CB", "secondaryColor": "#FFFFFF" },
+
+  { "idnum": 16, "id": "clib91", "name": "América de Cali",        "group": "E", "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 17, "id": "clib91", "name": "Atlético Nacional",      "group": "E", "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/2.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 18, "id": "clib91", "name": "Deportivo Táchira",      "group": "E", "attack": 2, "midfield": 2, "defense": 1, "kit": "ger88/0.png", "primaryColor": "#FFFF00", "secondaryColor": "#000000" },
+  { "idnum": 19, "id": "clib91", "name": "Marítimo",               "group": "E", "attack": 2, "midfield": 2, "defense": 1, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#008000" },
+
+  { "idnum": 20, "id": "clib91", "name": "Olimpia",                "group": "bye", "attack": 5, "midfield": 4, "defense": 4, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" }
+]

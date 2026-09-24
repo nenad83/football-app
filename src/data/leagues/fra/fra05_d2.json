@@ -1,0 +1,20 @@
+[
+  { "idnum": 20, "id": "fra05_d2", "name": "Valenciennes", "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 21, "id": "fra05_d2", "name": "Sedan", "attack": 3, "midfield": 2, "defense": 3, "kit": "swe92/2.png", "primaryColor": "#008000", "secondaryColor": "#FF0000" },
+  { "idnum": 22, "id": "fra05_d2", "name": "Lorient", "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/3.png", "primaryColor": "#FF4F00", "secondaryColor": "#000000" },
+  { "idnum": 23, "id": "fra05_d2", "name": "Caen", "attack": 2, "midfield": 3, "defense": 2, "kit": "ger88/1.png", "primaryColor": "#0000FF", "secondaryColor": "#FF0000" },
+  { "idnum": 24, "id": "fra05_d2", "name": "Dijon", "attack": 2, "midfield": 2, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#000000" },
+  { "idnum": 25, "id": "fra05_d2", "name": "Bastia", "attack": 2, "midfield": 2, "defense": 2, "kit": "fra84/1.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 26, "id": "fra05_d2", "name": "Le Havre", "attack": 2, "midfield": 2, "defense": 2, "kit": "ger88/3.png", "primaryColor": "#87CEEB", "secondaryColor": "#000080" },
+  { "idnum": 27, "id": "fra05_d2", "name": "Creteil", "attack": 2, "midfield": 2, "defense": 2, "kit": "fra84/1.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 28, "id": "fra05_d2", "name": "Guingamp", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#000000" },
+  { "idnum": 29, "id": "fra05_d2", "name": "Grenoble", "attack": 2, "midfield": 2, "defense": 2, "kit": "fra84/1.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 30, "id": "fra05_d2", "name": "FC Gueugnon", "attack": 2, "midfield": 2, "defense": 2, "kit": "mex86/3.png", "primaryColor": "#FFFF00", "secondaryColor": "#0000FF" },
+  { "idnum": 31, "id": "fra05_d2", "name": "Montpellier", "attack": 2, "midfield": 2, "defense": 2, "kit": "fra84/1.png", "primaryColor": "#FF5F00", "secondaryColor": "#000080" },
+  { "idnum": 32, "id": "fra05_d2", "name": "Istres", "attack": 2, "midfield": 1, "defense": 2, "kit": "fra84/1.png", "primaryColor": "#4B0082", "secondaryColor": "#00e5ff" },
+  { "idnum": 33, "id": "fra05_d2", "name": "Reims", "attack": 2, "midfield": 2, "defense": 1, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 34, "id": "fra05_d2", "name": "Chateauroux", "attack": 1, "midfield": 2, "defense": 2, "kit": "ger88/1.png", "primaryColor": "#0000FF", "secondaryColor": "#FF0000" },
+  { "idnum": 35, "id": "fra05_d2", "name": "Amiens", "attack": 1, "midfield": 2, "defense": 1, "kit": "swe92/0.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 36, "id": "fra05_d2", "name": "Brest", "attack": 1, "midfield": 1, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 37, "id": "fra05_d2", "name": "Clermont", "attack": 1, "midfield": 1, "defense": 1, "kit": "swe92/0.png", "primaryColor": "#E2001A", "secondaryColor": "#0000FF" }
+]

@@ -1,0 +1,28 @@
+[
+  { "idnum": 0,  "id": "clib98", "name": "América de Cali",      "group": "A", "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 1,  "id": "clib98", "name": "Barcelona SC",          "group": "A", "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#FFFF00", "secondaryColor": "#000000" },
+  { "idnum": 2,  "id": "clib98", "name": "Bucaramanga",           "group": "A", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFF00", "secondaryColor": "#008000" },
+  { "idnum": 3,  "id": "clib98", "name": "Deportivo Quito",      "group": "A", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#FF0000" },
+
+  { "idnum": 4,  "id": "clib98", "name": "Gremio",               "group": "B", "attack": 3, "midfield": 4, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#0099FF", "secondaryColor": "#000000" },
+  { "idnum": 5,  "id": "clib98", "name": "Vasco da Gama",        "group": "B", "attack": 5, "midfield": 4, "defense": 4, "kit": "swe92/0.png", "primaryColor": "#000000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 6,  "id": "clib98", "name": "Club América",         "group": "B", "attack": 4, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FFFF00", "secondaryColor": "#0000FF" },
+  { "idnum": 7,  "id": "clib98", "name": "Guadalajara",          "group": "B", "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+
+  { "idnum": 8,  "id": "clib98", "name": "Olimpia",              "group": "C", "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 9,  "id": "clib98", "name": "Colo-Colo",            "group": "C", "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 10, "id": "clib98", "name": "Cerro Porteño",        "group": "C", "attack": 3, "midfield": 3, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#FF0000", "secondaryColor": "#0000FF" },
+  { "idnum": 11, "id": "clib98", "name": "Universidad Católica",  "group": "C", "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#0000FF" },
+
+  { "idnum": 12, "id": "clib98", "name": "Bolívar",              "group": "D", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#00BFFF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 13, "id": "clib98", "name": "Peñarol",              "group": "D", "attack": 3, "midfield": 3, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#000000", "secondaryColor": "#FFD700" },
+  { "idnum": 14, "id": "clib98", "name": "Nacional",             "group": "D", "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#0000FF" },
+  { "idnum": 15, "id": "clib98", "name": "Oriente Petrolero",    "group": "D", "attack": 2, "midfield": 2, "defense": 1, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+
+  { "idnum": 16, "id": "clib98", "name": "River Plate",          "group": "E", "attack": 4, "midfield": 4, "defense": 4, "kit": "swe92/1.png", "primaryColor": "#CC0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 17, "id": "clib98", "name": "Alianza Lima",         "group": "E", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#000080", "secondaryColor": "#FFFFFF" },
+  { "idnum": 18, "id": "clib98", "name": "Colon",                "group": "E", "attack": 3, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#CC0000", "secondaryColor": "#000000" },
+  { "idnum": 19, "id": "clib98", "name": "Sporting Cristal",     "group": "E", "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#00BFFF", "secondaryColor": "#FFFFFF" },
+
+  { "idnum": 20, "id": "clib98", "name": "Cruzeiro",             "group": "bye", "attack": 4, "midfield": 4, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" }
+]

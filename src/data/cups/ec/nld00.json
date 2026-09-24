@@ -1,0 +1,178 @@
+[
+  {
+    "idnum": 0,
+    "id": "nld00",
+    "name": "Germany",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "nld00/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 1,
+    "id": "nld00",
+    "name": "Romania",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "nld00/1.png",
+    "primaryColor": "#FCD116",
+    "secondaryColor": "#002B7F"
+  },
+  {
+    "idnum": 2,
+    "id": "nld00",
+    "name": "Portugal",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "nld00/2.png",
+    "primaryColor": "#700511",
+    "secondaryColor": "#006600"
+  },
+  {
+    "idnum": 3,
+    "id": "nld00",
+    "name": "England",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "nld00/3.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000080"
+  },
+  {
+    "idnum": 4,
+    "id": "nld00",
+    "name": "Belgium",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "nld00/4.png",
+    "primaryColor": "#E30A17",
+    "secondaryColor": "#FFE000"
+  },
+  {
+    "idnum": 5,
+    "id": "nld00",
+    "name": "Sweden",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "nld00/5.png",
+    "primaryColor": "#FECC00",
+    "secondaryColor": "#006AA7"
+  },
+  {
+    "idnum": 6,
+    "id": "nld00",
+    "name": "Turkey",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "nld00/6.png",
+    "primaryColor": "#E30A17",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "nld00",
+    "name": "Italy",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 5,
+    "kit": "nld00/7.png",
+    "primaryColor": "#113A8C",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "nld00",
+    "name": "Spain",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "nld00/8.png",
+    "primaryColor": "#C60B1E",
+    "secondaryColor": "#FFC400"
+  },
+  {
+    "idnum": 9,
+    "id": "nld00",
+    "name": "Norway",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 4,
+    "kit": "nld00/9.png",
+    "primaryColor": "#EF2B2D",
+    "secondaryColor": "#002868"
+  },
+  {
+    "idnum": 10,
+    "id": "nld00",
+    "name": "Yugoslavia",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "nld00/10.png",
+    "primaryColor": "#0038A8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "nld00",
+    "name": "Slovenia",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "nld00/11.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0050A0"
+  },
+  {
+    "idnum": 12,
+    "id": "nld00",
+    "name": "France",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "nld00/12.png",
+    "primaryColor": "#002395",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "nld00",
+    "name": "Denmark",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "nld00/13.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "nld00",
+    "name": "Netherlands",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "nld00/14.png",
+    "primaryColor": "#F36C21",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "nld00",
+    "name": "Czech Republic",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "nld00/15.png",
+    "primaryColor": "#D7141A",
+    "secondaryColor": "#11457E"
+  }
+]

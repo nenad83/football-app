@@ -1,0 +1,200 @@
+[
+  {
+    "idnum": 0,
+    "id": "rus93",
+    "name": "Spartak Moscow",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "cl94/6.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "rus93",
+    "name": "Rotor Volgograd",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/3.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "rus93",
+    "name": "Dynamo Moscow",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/2.png",
+    "primaryColor": "#005BAA",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "rus93",
+    "name": "Tekstilshchik Kamyshin",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/4.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "rus93",
+    "name": "Lokomotiv Moscow",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/4.png",
+    "primaryColor": "#E52222",
+    "secondaryColor": "#006600"
+  },
+  {
+    "idnum": 5,
+    "id": "rus93",
+    "name": "Dynamo Stavropol",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "rus93",
+    "name": "KAMAZ Naberezhnye Chelny",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/6.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "rus93",
+    "name": "Spartak Vladikavkaz",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/5.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "rus93",
+    "name": "Torpedo Moscow",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/5.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 9,
+    "id": "rus93",
+    "name": "CSKA Moscow",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "cl90/20.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#0000FF"
+  },
+  {
+    "idnum": 10,
+    "id": "rus93",
+    "name": "Lokomotiv Nizhny Novgorod",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/4.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "rus93",
+    "name": "Krylya Sovetov",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/6.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "rus93",
+    "name": "Luch Vladivostok",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "swe92/1.png",
+    "primaryColor": "#0066CC",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "rus93",
+    "name": "Uralmash Yekaterinburg",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "fra84/3.png",
+    "primaryColor": "#FF8C00",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 14,
+    "id": "rus93",
+    "name": "Okean Nakhodka",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "swe92/5.png",
+    "primaryColor": "#000080",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "rus93",
+    "name": "Zhemchuzhina Sochi",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/2.png",
+    "primaryColor": "#FFA500",
+    "secondaryColor": "#008000"
+  },
+  {
+    "idnum": 16,
+    "id": "rus93",
+    "name": "Rostselmash Rostov",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#0000FF"
+  },
+  {
+    "idnum": 17,
+    "id": "rus93",
+    "name": "Asmaral Moscow",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/3.png",
+    "primaryColor": "#003399",
+    "secondaryColor": "#FFFFFF"
+  }
+]

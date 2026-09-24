@@ -1,0 +1,200 @@
+[
+  {
+    "idnum": 0,
+    "id": "por19",
+    "name": "Porto",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/5.png",
+    "primaryColor": "#005BAA",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "por19",
+    "name": "Benfica",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra84/1.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "por19",
+    "name": "Braga",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/4.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "por19",
+    "name": "Sporting CP",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ecu93/2.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "por19",
+    "name": "Rio Ave",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ecu93/2.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "por19",
+    "name": "Famalicão",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/5.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "por19",
+    "name": "Vitória de Guimarães",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 7,
+    "id": "por19",
+    "name": "Moreirense",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ecu93/2.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "por19",
+    "name": "Santa Clara",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "fra84/1.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "por19",
+    "name": "Gil Vicente",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/3.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#0000FF"
+  },
+  {
+    "idnum": 10,
+    "id": "por19",
+    "name": "Boavista",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ecu93/3.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "por19",
+    "name": "Belenenses",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "swe92/5.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "por19",
+    "name": "Tondela",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "ecu93/2.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#008000"
+  },
+  {
+    "idnum": 13,
+    "id": "por19",
+    "name": "Portimonense",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "ger88/5.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "por19",
+    "name": "Marítimo",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "ger88/4.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FF0000"
+  },
+  {
+    "idnum": 15,
+    "id": "por19",
+    "name": "Vitória de Setúbal",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "ecu93/2.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 16,
+    "id": "por19",
+    "name": "Desportivo das Aves",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "fra84/1.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 17,
+    "id": "por19",
+    "name": "Paços de Ferreira",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "ecu93/2.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#008000"
+  }
+]

@@ -1,0 +1,200 @@
+[
+  {
+    "idnum": 0,
+    "id": "fra97",
+    "name": "Lens",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra92/8.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFF200"
+  },
+  {
+    "idnum": 1,
+    "id": "fra97",
+    "name": "Metz",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/4.png",
+    "primaryColor": "#800000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "fra97",
+    "name": "AS Monaco",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra92/14.png",
+    "primaryColor": "#CE1126",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "fra97",
+    "name": "Olympique Marseille",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra92/0.png",
+    "primaryColor": "#009BDB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "fra97",
+    "name": "Girondins Bordeaux",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra92/3.png",
+    "primaryColor": "#003580",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "fra97",
+    "name": "Olympique Lyon",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra92/13.png",
+    "primaryColor": "#E2001A",
+    "secondaryColor": "#004E9E"
+  },
+  {
+    "idnum": 6,
+    "id": "fra97",
+    "name": "Auxerre",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra92/5.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "fra97",
+    "name": "Paris Saint-Germain",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra92/1.png",
+    "primaryColor": "#003E7E",
+    "secondaryColor": "#DA291C"
+  },
+  {
+    "idnum": 8,
+    "id": "fra97",
+    "name": "Bastia",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "fra97",
+    "name": "Le Havre",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra92/10.png",
+    "primaryColor": "#004C97",
+    "secondaryColor": "#87CEEB"
+  },
+  {
+    "idnum": 10,
+    "id": "fra97",
+    "name": "Nantes",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "fra92/12.png",
+    "primaryColor": "#FFF200",
+    "secondaryColor": "#00A651"
+  },
+  {
+    "idnum": 11,
+    "id": "fra97",
+    "name": "Montpellier",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra92/11.png",
+    "primaryColor": "#FF5900",
+    "secondaryColor": "#002C5B"
+  },
+  {
+    "idnum": 12,
+    "id": "fra97",
+    "name": "Strasbourg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra92/4.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "fra97",
+    "name": "Rennes",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra92/17.png",
+    "primaryColor": "#E01020",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 14,
+    "id": "fra97",
+    "name": "Toulouse",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra92/15.png",
+    "primaryColor": "#6A0F8E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "fra97",
+    "name": "Guingamp",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 16,
+    "id": "fra97",
+    "name": "Chateauroux",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 3,
+    "kit": "swe92/1.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#0000FF"
+  },
+  {
+    "idnum": 17,
+    "id": "fra97",
+    "name": "Cannes",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  }
+]

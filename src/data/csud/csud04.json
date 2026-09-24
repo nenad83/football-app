@@ -1,0 +1,10 @@
+[
+  { "idnum": 0, "id": "csud04", "name": "Boca Juniors",         "attack": 5, "midfield": 4, "defense": 4, "kit": "swe92/0.png", "primaryColor": "#003087", "secondaryColor": "#FFC72C" },
+  { "idnum": 1, "id": "csud04", "name": "Bolívar",              "attack": 3, "midfield": 2, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#00BFFF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 2, "id": "csud04", "name": "River Plate",          "attack": 4, "midfield": 4, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#CC0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 3, "id": "csud04", "name": "San Lorenzo",          "attack": 4, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#CC0A12", "secondaryColor": "#0044AA" },
+  { "idnum": 4, "id": "csud04", "name": "Santos",               "attack": 4, "midfield": 4, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 5, "id": "csud04", "name": "Once Caldas",          "attack": 3, "midfield": 3, "defense": 4, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 6, "id": "csud04", "name": "Athletico Paranaense", "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#000000" },
+  { "idnum": 7, "id": "csud04", "name": "Racing Club",          "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#1A5DAD", "secondaryColor": "#FFFFFF" }
+]

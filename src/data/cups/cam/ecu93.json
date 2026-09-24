@@ -1,0 +1,134 @@
+[
+  {
+    "idnum": 0,
+    "id": "ecu93",
+    "name": "Ecuador",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ecu93/0.png",
+    "primaryColor": "#FFDD00",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 1,
+    "id": "ven93",
+    "name": "Venezuela",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ecu93/0.png",
+    "primaryColor": "#800020",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "uru93",
+    "name": "Uruguay",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ecu93/2.png",
+    "primaryColor": "#75AADB",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 3,
+    "id": "usa93",
+    "name": "USA",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ecu93/3.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#0C2340"
+  },
+  {
+    "idnum": 4,
+    "id": "bra93",
+    "name": "Brazil",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ecu93/4.png",
+    "primaryColor": "#FEDF00",
+    "secondaryColor": "#00209F"
+  },
+  {
+    "idnum": 5,
+    "id": "per93",
+    "name": "Peru",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ecu93/5.png",
+    "primaryColor": "#D91A21",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "par93",
+    "name": "Paraguay",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ecu93/6.png",
+    "primaryColor": "#D52B1E",
+    "secondaryColor": "#0038A8"
+  },
+  {
+    "idnum": 7,
+    "id": "chi93",
+    "name": "Chile",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ecu93/7.png",
+    "primaryColor": "#D52B1E",
+    "secondaryColor": "#0039A6"
+  },
+  {
+    "idnum": 8,
+    "id": "arg93",
+    "name": "Argentina",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ecu93/8.png",
+    "primaryColor": "#75AADB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "bol93",
+    "name": "Bolivia",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ecu93/9.png",
+    "primaryColor": "#007A33",
+    "secondaryColor": "#F1CB00"
+  },
+  {
+    "idnum": 10,
+    "id": "col93",
+    "name": "Columbia",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ecu93/10.png",
+    "primaryColor": "#FCD116",
+    "secondaryColor": "#0038A8"
+  },
+  {
+    "idnum": 11,
+    "id": "mex93",
+    "name": "Mexico",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ecu93/11.png",
+    "primaryColor": "#006847",
+    "secondaryColor": "#FFFFFF"
+  }
+]

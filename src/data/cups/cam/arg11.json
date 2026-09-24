@@ -1,0 +1,134 @@
+[
+  {
+    "idnum": 0,
+    "id": "arg11",
+    "name": "Argentina",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "arg11/0.png",
+    "primaryColor": "#75AADB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "arg11",
+    "name": "Bolivia",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "arg11/1.png",
+    "primaryColor": "#007A33",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "arg11",
+    "name": "Colombia",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "arg11/2.png",
+    "primaryColor": "#FCD116",
+    "secondaryColor": "#003893"
+  },
+  {
+    "idnum": 3,
+    "id": "arg11",
+    "name": "Costa Rica",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "arg11/3.png",
+    "primaryColor": "#D52B1E",
+    "secondaryColor": "#002F6C"
+  },
+  {
+    "idnum": 4,
+    "id": "arg11",
+    "name": "Brazil",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "arg11/4.png",
+    "primaryColor": "#FEDF00",
+    "secondaryColor": "#00209F"
+  },
+  {
+    "idnum": 5,
+    "id": "arg11",
+    "name": "Venezuela",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "arg11/5.png",
+    "primaryColor": "#7A1C47",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "arg11",
+    "name": "Paraguay",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 5,
+    "kit": "arg11/6.png",
+    "primaryColor": "#D52B1E",
+    "secondaryColor": "#0038A8"
+  },
+  {
+    "idnum": 7,
+    "id": "arg11",
+    "name": "Ecuador",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "arg11/7.png",
+    "primaryColor": "#FFCC00",
+    "secondaryColor": "#002255"
+  },
+  {
+    "idnum": 8,
+    "id": "arg11",
+    "name": "Uruguay",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 5,
+    "kit": "arg11/8.png",
+    "primaryColor": "#75AADB",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 9,
+    "id": "arg11",
+    "name": "Peru",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 4,
+    "kit": "arg11/9.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#D52B1E"
+  },
+  {
+    "idnum": 10,
+    "id": "arg11",
+    "name": "Chile",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "arg11/10.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#0039A6"
+  },
+  {
+    "idnum": 11,
+    "id": "arg11",
+    "name": "Mexico",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 3,
+    "kit": "arg11/11.png",
+    "primaryColor": "#006847",
+    "secondaryColor": "#FFFFFF"
+  }
+]

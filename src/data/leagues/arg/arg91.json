@@ -1,0 +1,22 @@
+[
+  { "idnum": 0,  "id": "arg91", "name": "Newell's Old Boys",  "attack": 4, "midfield": 4, "defense": 4, "kit": "swe92/0.png", "primaryColor": "#990000", "secondaryColor": "#000000" },
+  { "idnum": 1,  "id": "arg91", "name": "Boca Juniors",       "attack": 4, "midfield": 4, "defense": 4, "kit": "swe92/0.png", "primaryColor": "#003087", "secondaryColor": "#FFC72C" },
+  { "idnum": 2,  "id": "arg91", "name": "River Plate",        "attack": 4, "midfield": 3, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#CC0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 3,  "id": "arg91", "name": "San Lorenzo",        "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#CC0A12", "secondaryColor": "#0044AA" },
+  { "idnum": 4,  "id": "arg91", "name": "Velez Sarsfield",    "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#005EB8", "secondaryColor": "#FFFFFF" },
+  { "idnum": 5,  "id": "arg91", "name": "Independiente",      "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#CC0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 6,  "id": "arg91", "name": "Racing Club",        "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#1A5DAD", "secondaryColor": "#FFFFFF" },
+  { "idnum": 7,  "id": "arg91", "name": "Gimnasia (LP)",      "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000080" },
+  { "idnum": 8,  "id": "arg91", "name": "Lanus",              "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#9B0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 9,  "id": "arg91", "name": "Rosario Central",    "attack": 2, "midfield": 2, "defense": 2, "kit": "ger88/0.png", "primaryColor": "#FFD700", "secondaryColor": "#003087" },
+  { "idnum": 10, "id": "arg91", "name": "Estudiantes",        "attack": 2, "midfield": 2, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#1B3C7A", "secondaryColor": "#FFFFFF" },
+  { "idnum": 11, "id": "arg91", "name": "Huracan",            "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFFFF", "secondaryColor": "#CC0000" },
+  { "idnum": 12, "id": "arg91", "name": "Platense",            "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFFFF", "secondaryColor": "#A0522D" },
+  { "idnum": 13, "id": "arg91", "name": "Belgrano",           "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#87CEEB", "secondaryColor": "#FFFFFF" },
+  { "idnum": 14, "id": "arg91", "name": "Talleres",           "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 15, "id": "arg91", "name": "Argentinos Juniors", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#E40F18", "secondaryColor": "#FFFFFF" },
+  { "idnum": 16, "id": "arg91", "name": "Ferro Carril Oeste", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 17, "id": "arg91", "name": "Deportivo Espanol",  "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFF00" },
+  { "idnum": 18, "id": "arg91", "name": "Deportivo Mandiyu",  "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFFFF", "secondaryColor": "#008000" },
+  { "idnum": 19, "id": "arg91", "name": "Banfield",           "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" }
+]

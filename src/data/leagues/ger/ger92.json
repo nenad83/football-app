@@ -1,0 +1,200 @@
+[
+  {
+    "idnum": 0,
+    "id": "ger92",
+    "name": "Werder Bremen",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 5,
+    "kit": "ger92/0.png",
+    "primaryColor": "#009F5D",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "ger92",
+    "name": "Bayern Munich",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "ger92/1.png",
+    "primaryColor": "#DC052D",
+    "secondaryColor": "#0066B2"
+  },
+  {
+    "idnum": 2,
+    "id": "ger92",
+    "name": "Eintracht Frankfurt",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger92/2.png",
+    "primaryColor": "#E2001A",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 3,
+    "id": "ger92",
+    "name": "Borussia Dortmund",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger92/3.png",
+    "primaryColor": "#FFF200",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 4,
+    "id": "ger92",
+    "name": "Bayer Leverkusen",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger92/4.png",
+    "primaryColor": "#E32219",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 5,
+    "id": "ger92",
+    "name": "Karlsruhe",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 4,
+    "kit": "ger92/5.png",
+    "primaryColor": "#005CA9",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "ger92",
+    "name": "Stuttgart",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger92/6.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#E32219"
+  },
+  {
+    "idnum": 7,
+    "id": "ger92",
+    "name": "Kaiserslautern",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger92/7.png",
+    "primaryColor": "#E2001A",
+    "secondaryColor": "#E2001A"
+  },
+  {
+    "idnum": 8,
+    "id": "ger92",
+    "name": "Borussia M'gladbach",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 4,
+    "kit": "ger92/8.png",
+    "primaryColor": "#009F5D",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 9,
+    "id": "ger92",
+    "name": "Schalke 04",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger92/9.png",
+    "primaryColor": "#005CA9",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "ger92",
+    "name": "Hamburg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger92/10.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#E32219"
+  },
+  {
+    "idnum": 11,
+    "id": "ger92",
+    "name": "Cologne",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger92/11.png",
+    "primaryColor": "#E32219",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "ger92",
+    "name": "Nuremberg",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 3,
+    "kit": "ger92/12.png",
+    "primaryColor": "#E32219",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "ger92",
+    "name": "Wattenscheid",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger92/13.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "ger92",
+    "name": "Dynamo Dresden",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger92/14.png",
+    "primaryColor": "#FFF200",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 15,
+    "id": "ger92",
+    "name": "VfL Bochum",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 3,
+    "kit": "ger92/15.png",
+    "primaryColor": "#005CA9",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 16,
+    "id": "ger92",
+    "name": "KFC Uerdingen",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger92/16.png",
+    "primaryColor": "#E32219",
+    "secondaryColor": "#0000FF"
+  },
+  {
+    "idnum": 17,
+    "id": "ger92",
+    "name": "Saarbruecken",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger92/17.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#000000"
+  }
+]

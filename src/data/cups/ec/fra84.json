@@ -1,0 +1,90 @@
+[
+  {
+    "idnum": 0,
+    "id": "fra84",
+    "name": "France",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "fra84/0.png",
+    "primaryColor": "#002395",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "den84",
+    "name": "Denmark",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra84/1.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "bel84",
+    "name": "Belgium",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra84/2.png",
+    "primaryColor": "#E30A17",
+    "secondaryColor": "#FFE000"
+  },
+  {
+    "idnum": 3,
+    "id": "yug84",
+    "name": "Yugoslavia",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "fra84/3.png",
+    "primaryColor": "#0C1C66",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "ger84",
+    "name": "West Germany",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra84/4.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 5,
+    "id": "por84",
+    "name": "Portugal",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra84/5.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#118C4F"
+  },
+  {
+    "idnum": 6,
+    "id": "rom84",
+    "name": "Romania",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra84/6.png",
+    "primaryColor": "#FCD116",
+    "secondaryColor": "#CE1126"
+  },
+  {
+    "idnum": 7,
+    "id": "esp84",
+    "name": "Spain",
+    "attack": 4,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "fra84/7.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#FFF200"
+  }
+]

@@ -1,0 +1,222 @@
+[
+  {
+    "idnum": 0,
+    "id": "eng14",
+    "name": "Chelsea",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "eng14/0.png",
+    "primaryColor": "#034694",
+    "secondaryColor": "#034694"
+  },
+  {
+    "idnum": 1,
+    "id": "eng14",
+    "name": "Manchester City",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "eng14/1.png",
+    "primaryColor": "#6CABDD",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "eng14",
+    "name": "Arsenal",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "eng14/2.png",
+    "primaryColor": "#EF0107",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "eng14",
+    "name": "Manchester United",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "eng14/3.png",
+    "primaryColor": "#DA291C",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "eng14",
+    "name": "Tottenham",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "eng14/4.png",
+    "primaryColor": "#132257",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "eng14",
+    "name": "Liverpool",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "eng14/5.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#C8102E"
+  },
+  {
+    "idnum": 6,
+    "id": "eng14",
+    "name": "Southampton",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 4,
+    "kit": "eng14/6.png",
+    "primaryColor": "#D71920",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "eng14",
+    "name": "Swansea",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "eng14/7.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 8,
+    "id": "eng14",
+    "name": "Stoke City",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "eng14/8.png",
+    "primaryColor": "#E03A3E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "eng14",
+    "name": "Crystal Palace",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "eng14/9.png",
+    "primaryColor": "#1B458F",
+    "secondaryColor": "#C4122E"
+  },
+  {
+    "idnum": 10,
+    "id": "eng14",
+    "name": "Everton",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "eng14/10.png",
+    "primaryColor": "#003399",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "eng14",
+    "name": "West Ham",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "eng14/11.png",
+    "primaryColor": "#7A263A",
+    "secondaryColor": "#1BB1E7"
+  },
+  {
+    "idnum": 12,
+    "id": "eng14",
+    "name": "West Brom",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "eng14/12.png",
+    "primaryColor": "#122F67",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "eng14",
+    "name": "Leicester City",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "eng14/13.png",
+    "primaryColor": "#003090",
+    "secondaryColor": "#FDBE11"
+  },
+  {
+    "idnum": 14,
+    "id": "eng14",
+    "name": "Newcastle",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "eng14/14.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "eng14",
+    "name": "Aston Villa",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "eng14/15.png",
+    "primaryColor": "#95BFE5",
+    "secondaryColor": "#670E36"
+  },
+  {
+    "idnum": 16,
+    "id": "eng14",
+    "name": "Sunderland",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "eng14/16.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 17,
+    "id": "eng14",
+    "name": "Hull City",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "eng14/17.png",
+    "primaryColor": "#E38C2D",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 18,
+    "id": "eng14",
+    "name": "Burnley",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "eng14/18.png",
+    "primaryColor": "#6C1D45",
+    "secondaryColor": "#86C3EC"
+  },
+  {
+    "idnum": 19,
+    "id": "eng14",
+    "name": "QPR",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "eng14/19.png",
+    "primaryColor": "#0054A6",
+    "secondaryColor": "#FFFFFF"
+  }
+]

@@ -1,0 +1,176 @@
+.friendly-lobby-container {
+  min-height: 100vh;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  background: radial-gradient(circle at center, #1b3820 0%, #050c06 100%);
+}
+
+.lobby-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.glowing-header-text {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 38px;
+  font-weight: 900;
+  margin: 0 0 10px 0;
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 25px rgba(255, 140, 0, 0.2);
+  letter-spacing: 3px;
+}
+
+.lobby-subtitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #a3b3a7;
+  letter-spacing: 2px;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.championship-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  max-width: 1000px;
+  width: 100%;
+}
+
+.championship-card-deck {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s ease;
+}
+
+.championship-card-deck:hover {
+  transform: translateY(-5px);
+  border-color: rgba(0, 255, 100, 0.15);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 100, 0.05);
+}
+
+.deck-tag {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: 2px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  width: fit-content;
+}
+
+.gold-tag {
+  background: rgba(255, 215, 0, 0.1);
+  color: #ffd700;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.blue-tag {
+  background: rgba(0, 150, 255, 0.1);
+  color: #0096ff;
+  border: 1px solid rgba(0, 150, 255, 0.3);
+}
+
+.green-tag {
+  background: rgba(0, 255, 100, 0.1);
+  color: #00ff64;
+  border: 1px solid rgba(0, 255, 100, 0.3);
+}
+
+.cup-links-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cup-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  color: #d1d5db;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.25s ease;
+}
+
+.cup-flag {
+  font-size: 20px;
+  margin-right: 15px;
+}
+
+.cup-name {
+  flex-grow: 1;
+}
+
+.cup-arrow {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 14px;
+  transition: all 0.25s ease;
+}
+
+.cup-item:hover {
+  background: rgba(0, 255, 100, 0.08);
+  border-color: #00ff64;
+  color: #fff;
+  padding-left: 24px;
+}
+
+.cup-item:hover .cup-arrow {
+  color: #00ff64;
+  transform: translateX(4px);
+}
+
+/* Center single Copa America deck */
+.single-cup-deck {
+  grid-column: span 1;
+}
+
+@media (min-width: 900px) {
+  .single-cup-deck {
+    grid-column: span 3;
+    max-width: 320px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+.lobby-actions {
+  margin-top: 20px;
+}
+
+.back-home-btn {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: #a3b3a7;
+  text-decoration: none;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  padding: 12px 28px;
+  letter-spacing: 1px;
+  transition: all 0.25s ease;
+}
+
+.back-home-btn:hover {
+  border-color: #fff;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}

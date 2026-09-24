@@ -1,0 +1,200 @@
+[
+  {
+    "idnum": 0,
+    "id": "ger20",
+    "name": "Bayern Munich",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "ger20/0.png",
+    "primaryColor": "#DC052D",
+    "secondaryColor": "#0066B2"
+  },
+  {
+    "idnum": 1,
+    "id": "ger20",
+    "name": "Borussia Dortmund",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger20/1.png",
+    "primaryColor": "#FDE100",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 2,
+    "id": "ger20",
+    "name": "RB Leipzig",
+    "attack": 4,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "ger20/2.png",
+    "primaryColor": "#DD013F",
+    "secondaryColor": "#0C2340"
+  },
+  {
+    "idnum": 3,
+    "id": "ger20",
+    "name": "Borussia Monchengladbach",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger20/3.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "ger20",
+    "name": "Bayer Leverkusen",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger20/4.png",
+    "primaryColor": "#E32219",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 5,
+    "id": "ger20",
+    "name": "Hoffenheim",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger20/5.png",
+    "primaryColor": "#0062AE",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "ger20",
+    "name": "Wolfsburg",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger20/6.png",
+    "primaryColor": "#65B32E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "ger20",
+    "name": "Freiburg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger20/7.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "ger20",
+    "name": "Eintracht Frankfurt",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger20/8.png",
+    "primaryColor": "#E1001A",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 9,
+    "id": "ger20",
+    "name": "Hertha BSC",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger20/9.png",
+    "primaryColor": "#004D9E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "ger20",
+    "name": "Union Berlin",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 4,
+    "kit": "ger20/10.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "ger20",
+    "name": "Schalke 04",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "ger20/11.png",
+    "primaryColor": "#004D9E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "ger20",
+    "name": "Mainz 05",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger20/12.png",
+    "primaryColor": "#ED1C24",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "ger20",
+    "name": "FC Koln",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger20/13.png",
+    "primaryColor": "#DA0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "ger20",
+    "name": "Augsburg",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 3,
+    "kit": "ger20/14.png",
+    "primaryColor": "#BA1A3F",
+    "secondaryColor": "#007D4C"
+  },
+  {
+    "idnum": 15,
+    "id": "ger20",
+    "name": "Werder Bremen",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger20/15.png",
+    "primaryColor": "#00975F",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 16,
+    "id": "ger20",
+    "name": "Arminia Bielefeld",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger20/16.png",
+    "primaryColor": "#005FA9",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 17,
+    "id": "ger20",
+    "name": "VfB Stuttgart",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger20/17.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#E32219"
+  }
+]

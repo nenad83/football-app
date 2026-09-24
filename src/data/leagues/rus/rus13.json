@@ -1,0 +1,178 @@
+[
+  {
+    "idnum": 0,
+    "id": "rus13",
+    "name": "CSKA Moscow",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "rus13/0.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#0000FF"
+  },
+  {
+    "idnum": 1,
+    "id": "rus13",
+    "name": "Zenit St. Petersburg",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "rus13/1.png",
+    "primaryColor": "#0095DB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "rus13",
+    "name": "Lokomotiv Moscow",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "rus13/2.png",
+    "primaryColor": "#E52222",
+    "secondaryColor": "#006600"
+  },
+  {
+    "idnum": 3,
+    "id": "rus13",
+    "name": "Dynamo Moscow",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "rus13/3.png",
+    "primaryColor": "#005BAA",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "rus13",
+    "name": "Krasnodar",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "rus13/4.png",
+    "primaryColor": "#006400",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 5,
+    "id": "rus13",
+    "name": "Spartak Moscow",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "rus13/5.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "rus13",
+    "name": "FC Rostov",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "rus13/6.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#0000FF"
+  },
+  {
+    "idnum": 7,
+    "id": "rus13",
+    "name": "Kuban Krasnodar",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "rus13/7.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#008000"
+  },
+  {
+    "idnum": 8,
+    "id": "rus13",
+    "name": "Rubin Kazan",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "rus13/8.png",
+    "primaryColor": "#800020",
+    "secondaryColor": "#00AA00"
+  },
+  {
+    "idnum": 9,
+    "id": "rus13",
+    "name": "Amkar Perm",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "rus13/9.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 10,
+    "id": "rus13",
+    "name": "Ural Yekaterinburg",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "rus13/10.png",
+    "primaryColor": "#FF6600",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 11,
+    "id": "rus13",
+    "name": "Terek Grozny",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "rus13/11.png",
+    "primaryColor": "#00AA00",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "rus13",
+    "name": "Tom Tomsk",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "rus13/12.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "rus13",
+    "name": "Krylya Sovetov",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "rus13/13.png",
+    "primaryColor": "#0095DB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "rus13",
+    "name": "Volga Nizhny Novgorod",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "rus13/14.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "rus13",
+    "name": "Anzhi Makhachkala",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "rus13/15.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#008000"
+  }
+]

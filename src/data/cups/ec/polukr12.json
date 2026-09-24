@@ -1,0 +1,178 @@
+[
+  {
+    "idnum": 0,
+    "id": "polukr12",
+    "name": "Poland",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "polukr12/0.png",
+    "primaryColor": "#DA291C",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "polukr12",
+    "name": "Greece",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 4,
+    "kit": "polukr12/1.png",
+    "primaryColor": "#0D5EAF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "polukr12",
+    "name": "Russia",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "polukr12/2.png",
+    "primaryColor": "#DA291C",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 3,
+    "id": "polukr12",
+    "name": "Czech Republic",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "polukr12/3.png",
+    "primaryColor": "#D7141A",
+    "secondaryColor": "#11457E"
+  },
+  {
+    "idnum": 4,
+    "id": "polukr12",
+    "name": "Netherlands",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "polukr12/4.png",
+    "primaryColor": "#F15A22",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "polukr12",
+    "name": "Denmark",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "polukr12/5.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "polukr12",
+    "name": "Germany",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "polukr12/6.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 7,
+    "id": "polukr12",
+    "name": "Portugal",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "polukr12/7.png",
+    "primaryColor": "#A60A24",
+    "secondaryColor": "#006600"
+  },
+  {
+    "idnum": 8,
+    "id": "polukr12",
+    "name": "Spain",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "polukr12/8.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#FFCD00"
+  },
+  {
+    "idnum": 9,
+    "id": "polukr12",
+    "name": "Italy",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "polukr12/9.png",
+    "primaryColor": "#004B87",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "polukr12",
+    "name": "Republic of Ireland",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 3,
+    "kit": "polukr12/10.png",
+    "primaryColor": "#169B62",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "polukr12",
+    "name": "Croatia",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "polukr12/11.png",
+    "primaryColor": "#E00000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "polukr12",
+    "name": "France",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "polukr12/12.png",
+    "primaryColor": "#00209F",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "polukr12",
+    "name": "England",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "polukr12/13.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000080"
+  },
+  {
+    "idnum": 14,
+    "id": "polukr12",
+    "name": "Ukraine",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "polukr12/14.png",
+    "primaryColor": "#FFD500",
+    "secondaryColor": "#005BBB"
+  },
+  {
+    "idnum": 15,
+    "id": "polukr12",
+    "name": "Sweden",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "polukr12/15.png",
+    "primaryColor": "#FECC00",
+    "secondaryColor": "#006AA7"
+  }
+]

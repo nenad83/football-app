@@ -1,0 +1,178 @@
+[
+  {
+    "idnum": 0,
+    "id": "usa16",
+    "name": "United States",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "usa16/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#002868"
+  },
+  {
+    "idnum": 1,
+    "id": "usa16",
+    "name": "Colombia",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "usa16/1.png",
+    "primaryColor": "#FFD500",
+    "secondaryColor": "#003893"
+  },
+  {
+    "idnum": 2,
+    "id": "usa16",
+    "name": "Costa Rica",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 4,
+    "kit": "usa16/2.png",
+    "primaryColor": "#CE1126",
+    "secondaryColor": "#002B7F"
+  },
+  {
+    "idnum": 3,
+    "id": "usa16",
+    "name": "Paraguay",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "usa16/3.png",
+    "primaryColor": "#CE1126",
+    "secondaryColor": "#0038A8"
+  },
+  {
+    "idnum": 4,
+    "id": "usa16",
+    "name": "Brazil",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "usa16/4.png",
+    "primaryColor": "#FFD500",
+    "secondaryColor": "#002776"
+  },
+  {
+    "idnum": 5,
+    "id": "usa16",
+    "name": "Ecuador",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "usa16/5.png",
+    "primaryColor": "#FFD500",
+    "secondaryColor": "#003893"
+  },
+  {
+    "idnum": 6,
+    "id": "usa16",
+    "name": "Haiti",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "usa16/6.png",
+    "primaryColor": "#00209F",
+    "secondaryColor": "#D21034"
+  },
+  {
+    "idnum": 7,
+    "id": "usa16",
+    "name": "Peru",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "usa16/7.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#DA291C"
+  },
+  {
+    "idnum": 8,
+    "id": "usa16",
+    "name": "Mexico",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "usa16/8.png",
+    "primaryColor": "#006847",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "usa16",
+    "name": "Uruguay",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 4,
+    "kit": "usa16/9.png",
+    "primaryColor": "#75AADB",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 10,
+    "id": "usa16",
+    "name": "Jamaica",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 3,
+    "kit": "usa16/10.png",
+    "primaryColor": "#FFD100",
+    "secondaryColor": "#007A3E"
+  },
+  {
+    "idnum": 11,
+    "id": "usa16",
+    "name": "Venezuela",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "usa16/11.png",
+    "primaryColor": "#7B1F3C",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "usa16",
+    "name": "Argentina",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "usa16/12.png",
+    "primaryColor": "#75AADB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "usa16",
+    "name": "Chile",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "usa16/13.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#0039A6"
+  },
+  {
+    "idnum": 14,
+    "id": "usa16",
+    "name": "Panama",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "usa16/14.png",
+    "primaryColor": "#DA291C",
+    "secondaryColor": "#002B7F"
+  },
+  {
+    "idnum": 15,
+    "id": "usa16",
+    "name": "Bolivia",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "usa16/15.png",
+    "primaryColor": "#007A33",
+    "secondaryColor": "#FFFFFF"
+  }
+]

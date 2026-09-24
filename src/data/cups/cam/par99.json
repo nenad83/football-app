@@ -1,0 +1,134 @@
+[
+  {
+    "idnum": 0,
+    "id": "par99",
+    "name": "Paraguay",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "par99/0.png",
+    "primaryColor": "#D52B1E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "par99",
+    "name": "Peru",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "par99/1.png",
+    "primaryColor": "#D91A21",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "par99",
+    "name": "Bolivia",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "par99/2.png",
+    "primaryColor": "#007A3D",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "par99",
+    "name": "Japan",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "par99/3.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "par99",
+    "name": "Brazil",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "par99/4.png",
+    "primaryColor": "#FEDF00",
+    "secondaryColor": "#00209F"
+  },
+  {
+    "idnum": 5,
+    "id": "par99",
+    "name": "Mexico",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "par99/5.png",
+    "primaryColor": "#006847",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "par99",
+    "name": "Chile",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "par99/6.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "par99",
+    "name": "Venezuela",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "par99/7.png",
+    "primaryColor": "#7B1229",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "par99",
+    "name": "Colombia",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "par99/8.png",
+    "primaryColor": "#FFCD00",
+    "secondaryColor": "#003087"
+  },
+  {
+    "idnum": 9,
+    "id": "par99",
+    "name": "Argentina",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "par99/9.png",
+    "primaryColor": "#75AADB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "par99",
+    "name": "Uruguay",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "par99/10.png",
+    "primaryColor": "#75AADB",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 11,
+    "id": "par99",
+    "name": "Ecuador",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "par99/11.png",
+    "primaryColor": "#FFCC00",
+    "secondaryColor": "#002255"
+  }
+]

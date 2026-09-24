@@ -1,0 +1,222 @@
+[
+  {
+    "idnum": 0,
+    "id": "fra14",
+    "name": "Paris Saint-Germain",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "fra14/0.png",
+    "primaryColor": "#003E7E",
+    "secondaryColor": "#DA291C"
+  },
+  {
+    "idnum": 1,
+    "id": "fra14",
+    "name": "Olympique Lyon",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra14/1.png",
+    "primaryColor": "#E2001A",
+    "secondaryColor": "#004E9E"
+  },
+  {
+    "idnum": 2,
+    "id": "fra14",
+    "name": "AS Monaco",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 5,
+    "kit": "fra14/2.png",
+    "primaryColor": "#CE1126",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "fra14",
+    "name": "Olympique Marseille",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "fra14/3.png",
+    "primaryColor": "#009BDB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "fra14",
+    "name": "Saint-Etienne",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "fra14/4.png",
+    "primaryColor": "#007B3A",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "fra14",
+    "name": "Girondins Bordeaux",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "fra14/5.png",
+    "primaryColor": "#003580",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "fra14",
+    "name": "Montpellier",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra14/6.png",
+    "primaryColor": "#004FA3",
+    "secondaryColor": "#FF7F00"
+  },
+  {
+    "idnum": 7,
+    "id": "fra14",
+    "name": "Lille OSC",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 4,
+    "kit": "fra14/7.png",
+    "primaryColor": "#EF3340",
+    "secondaryColor": "#003180"
+  },
+  {
+    "idnum": 8,
+    "id": "fra14",
+    "name": "Stade Rennais",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra14/8.png",
+    "primaryColor": "#E01020",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 9,
+    "id": "fra14",
+    "name": "Guingamp",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra14/9.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 10,
+    "id": "fra14",
+    "name": "Nice",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra14/10.png",
+    "primaryColor": "#E32219",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 11,
+    "id": "fra14",
+    "name": "Bastia",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "fra14/11.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "fra14",
+    "name": "Caen",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "fra14/12.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#CC0000"
+  },
+  {
+    "idnum": 13,
+    "id": "fra14",
+    "name": "Nantes",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra14/13.png",
+    "primaryColor": "#FFFF00",
+    "secondaryColor": "#008000"
+  },
+  {
+    "idnum": 14,
+    "id": "fra14",
+    "name": "Stade de Reims",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra14/14.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "fra14",
+    "name": "Lorient",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "fra14/15.png",
+    "primaryColor": "#F77F00",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 16,
+    "id": "fra14",
+    "name": "Toulouse FC",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "fra14/16.png",
+    "primaryColor": "#6A0F8E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 17,
+    "id": "fra14",
+    "name": "Evian",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "fra14/17.png",
+    "primaryColor": "#FFC0CB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 18,
+    "id": "fra14",
+    "name": "Metz",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "fra14/18.png",
+    "primaryColor": "#800020",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 19,
+    "id": "fra14",
+    "name": "Lens",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "fra14/19.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFD700"
+  }
+]

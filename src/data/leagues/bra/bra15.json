@@ -1,0 +1,22 @@
+[
+  { "idnum": 0,  "id": "bra15", "name": "Corinthians",         "attack": 4, "midfield": 3, "defense": 4, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 1,  "id": "bra15", "name": "Atletico Mineiro",    "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#000000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 2,  "id": "bra15", "name": "Gremio",              "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#0099FF", "secondaryColor": "#000000" },
+  { "idnum": 3,  "id": "bra15", "name": "Sao Paulo",           "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#FF0000" },
+  { "idnum": 4,  "id": "bra15", "name": "Internacional",       "attack": 3, "midfield": 2, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 5,  "id": "bra15", "name": "Sport Recife",        "attack": 2, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#FF0000", "secondaryColor": "#000000" },
+  { "idnum": 6,  "id": "bra15", "name": "Santos",              "attack": 4, "midfield": 3, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 7,  "id": "bra15", "name": "Cruzeiro",            "attack": 3, "midfield": 2, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 8,  "id": "bra15", "name": "Palmeiras",           "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 9,  "id": "bra15", "name": "Athletico Paranaense", "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#000000" },
+  { "idnum": 10, "id": "bra15", "name": "Ponte Preta",         "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 11, "id": "bra15", "name": "Flamengo",            "attack": 3, "midfield": 2, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#FF0000", "secondaryColor": "#000000" },
+  { "idnum": 12, "id": "bra15", "name": "Fluminense",          "attack": 2, "midfield": 2, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#800020", "secondaryColor": "#008000" },
+  { "idnum": 13, "id": "bra15", "name": "Chapecoense",         "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 14, "id": "bra15", "name": "Coritiba",            "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#008000" },
+  { "idnum": 15, "id": "bra15", "name": "Figueirense",         "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#000000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 16, "id": "bra15", "name": "Goias",               "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 17, "id": "bra15", "name": "Vasco da Gama",       "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#000000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 18, "id": "bra15", "name": "Bahia",               "attack": 2, "midfield": 2, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#0000FF", "secondaryColor": "#FF0000" },
+  { "idnum": 19, "id": "bra15", "name": "Botafogo",            "attack": 2, "midfield": 2, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#000000", "secondaryColor": "#FFFFFF" }
+]

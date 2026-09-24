@@ -1,0 +1,222 @@
+[
+  {
+    "idnum": 0,
+    "id": "ita08",
+    "name": "Inter Milan",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "ita08/0.png",
+    "primaryColor": "#010E80",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 1,
+    "id": "ita08",
+    "name": "Juventus",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 5,
+    "kit": "ita08/1.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "ita08",
+    "name": "AC Milan",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "ita08/2.png",
+    "primaryColor": "#FB090B",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 3,
+    "id": "ita08",
+    "name": "Fiorentina",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ita08/3.png",
+    "primaryColor": "#4B0082",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "ita08",
+    "name": "Genoa",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ita08/4.png",
+    "primaryColor": "#C80005",
+    "secondaryColor": "#003DA5"
+  },
+  {
+    "idnum": 5,
+    "id": "ita08",
+    "name": "AS Roma",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ita08/5.png",
+    "primaryColor": "#8E1F2F",
+    "secondaryColor": "#F0C933"
+  },
+  {
+    "idnum": 6,
+    "id": "ita08",
+    "name": "Udinese",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita08/6.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "ita08",
+    "name": "Palermo",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita08/7.png",
+    "primaryColor": "#FFC0CB",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 8,
+    "id": "ita08",
+    "name": "Cagliari",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita08/8.png",
+    "primaryColor": "#990000",
+    "secondaryColor": "#003DA5"
+  },
+  {
+    "idnum": 9,
+    "id": "ita08",
+    "name": "Lazio",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita08/9.png",
+    "primaryColor": "#87CEEB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "ita08",
+    "name": "Atalanta",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita08/10.png",
+    "primaryColor": "#0B5EA8",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 11,
+    "id": "ita08",
+    "name": "Napoli",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita08/11.png",
+    "primaryColor": "#11A0D9",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "ita08",
+    "name": "Sampdoria",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita08/12.png",
+    "primaryColor": "#003C8F",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "ita08",
+    "name": "Siena",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita08/13.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 14,
+    "id": "ita08",
+    "name": "Catania",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita08/14.png",
+    "primaryColor": "#E90012",
+    "secondaryColor": "#003DA5"
+  },
+  {
+    "idnum": 15,
+    "id": "ita08",
+    "name": "Chievo",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ita08/15.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#003DA5"
+  },
+  {
+    "idnum": 16,
+    "id": "ita08",
+    "name": "Bologna",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ita08/16.png",
+    "primaryColor": "#001C58",
+    "secondaryColor": "#B71C1C"
+  },
+  {
+    "idnum": 17,
+    "id": "ita08",
+    "name": "Torino",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ita08/17.png",
+    "primaryColor": "#800020",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 18,
+    "id": "ita08",
+    "name": "Reggina",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ita08/18.png",
+    "primaryColor": "#800000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 19,
+    "id": "ita08",
+    "name": "Lecce",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ita08/19.png",
+    "primaryColor": "#FFF200",
+    "secondaryColor": "#E32219"
+  }
+]

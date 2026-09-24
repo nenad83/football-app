@@ -1,0 +1,2277 @@
+/* Premium Retro Football RPG Styling */
+
+.team-select-container,
+.match-dashboard-container {
+  min-height: 100vh;
+  padding: 30px;
+  background: radial-gradient(circle at center, #1b3820 0%, #050c06 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 25px;
+}
+
+/* Selector Panel Styles */
+.selector-header {
+  text-align: center;
+}
+
+.cup-subtitle {
+  font-family: 'Orbitron', sans-serif;
+  color: #ffd700;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin: 5px 0 20px 0;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.play-match-btn {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 2px;
+  padding: 16px 50px;
+  background: rgba(0, 255, 100, 0.05);
+  border: 3px solid #00ff64;
+  color: #00ff64;
+  border-radius: 12px;
+  text-shadow: 0 0 5px rgba(0, 255, 100, 0.5);
+  box-shadow: 0 0 15px rgba(0, 255, 100, 0.1), inset 0 0 15px rgba(0, 255, 100, 0.05);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.play-match-btn:hover {
+  background: #00ff64;
+  color: #050c06;
+  box-shadow: 0 0 30px rgba(0, 255, 100, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.4);
+  transform: scale(1.05);
+  text-shadow: none;
+}
+
+/* Selection Cards Grid */
+.selection-deck {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  max-width: 1000px;
+  width: 100%;
+}
+
+.team-select-card {
+  width: 45%;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s ease;
+}
+
+.team-select-card h2 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px;
+  letter-spacing: 1px;
+  color: #a3b3a7;
+  margin: 0;
+}
+
+.card-left {
+  border-left: 4px solid #00ff64;
+}
+
+.card-right {
+  border-right: 4px solid #ff4500;
+}
+
+/* Dropdown styling */
+.select-wrapper {
+  position: relative;
+  width: 80%;
+}
+
+.team-dropdown {
+  width: 100%;
+  padding: 12px 18px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.25s ease;
+}
+
+.team-dropdown:focus {
+  border-color: #00ff64;
+  box-shadow: 0 0 10px rgba(0, 255, 100, 0.2);
+}
+
+/* Kit Visual slots */
+.kit-display {
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-kit-slot {
+  font-size: 60px;
+  color: rgba(255, 255, 255, 0.1);
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kit-preview-img {
+  max-height: 150px;
+  filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.5));
+}
+
+/* RPG Stats Progress Rows */
+.stats-box {
+  width: 85%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 15px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.stat-label {
+  font-weight: 700;
+  width: 70px;
+  color: #a3b3a7;
+  text-transform: uppercase;
+}
+
+.progress-bar-bg {
+  flex-grow: 1;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.5s ease-in-out;
+}
+
+.attack-fill {
+  background: linear-gradient(90deg, #ff4500, #ff8c00);
+  box-shadow: 0 0 10px rgba(255, 69, 0, 0.5);
+}
+
+.midfield-fill {
+  background: linear-gradient(90deg, #ffd700, #ffff00);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.defense-fill {
+  background: linear-gradient(90deg, #00bfff, #00ffff);
+  box-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+}
+
+.stat-val {
+  width: 30px;
+  text-align: right;
+  font-weight: bold;
+}
+
+/* --- MATCH VIEW DASHBOARD --- */
+
+/* Stadium Digital Scoreboard */
+.stadium-scoreboard {
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(0, 255, 100, 0.25);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(0, 255, 100, 0.05);
+  border-radius: 16px;
+  padding: 15px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 900px;
+  width: 100%;
+}
+
+.board-panel h2 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: #fff;
+  margin: 0;
+}
+
+.score-digits {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 42px;
+  font-weight: 900;
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.digit-green {
+  color: #00ff64;
+  text-shadow: 0 0 15px rgba(0, 255, 100, 0.6);
+}
+
+.digit-divider {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.match-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.clock-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #ffd700;
+}
+
+.clock-val {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+/* Arena side layouts */
+.match-arena-layout {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 25px;
+  max-width: 1100px;
+  width: 100%;
+}
+
+.team-stats-card {
+  width: 23%;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.kit-wrapper {
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.team-card-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin: 0;
+  color: #fff;
+  text-align: center;
+}
+
+.team-card-bars {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rpg-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rpg-label {
+  font-size: 11px;
+  font-weight: bold;
+  color: #a3b3a7;
+}
+
+.dice-roll-container {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  padding: 10px 0;
+  text-align: center;
+}
+
+.roll-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #888;
+}
+
+.roll-number-glowing {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 26px;
+  font-weight: 900;
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  margin-top: 5px;
+}
+
+/* Center Field Controller */
+.pitch-controller-center {
+  width: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Visual Tactical Pitch */
+.retro-tactical-pitch {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.5 / 1;
+  /* aspect-ratio: 2.2 / 1; */
+  background: url('../images/Football_field.svg') no-repeat center center;
+  background-size: 100% 100%;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.4), 0 5px 20px rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.pitch-touchline {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+.pitch-halfway-line {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 50%;
+  width: 1.5px;
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateX(-50%);
+}
+
+.pitch-center-circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+}
+
+.pitch-center-circle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+}
+
+.pitch-penalty-box {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 80px;
+  width: 35px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+}
+
+.box-left {
+  left: 5px;
+  border-left: none;
+}
+
+.box-right {
+  right: 5px;
+  border-right: none;
+}
+
+.pitch-goal-area {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 40px;
+  width: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+}
+
+.area-left {
+  left: -1.5px;
+  border-left: none;
+}
+
+.area-right {
+  right: -1.5px;
+  border-right: none;
+}
+
+.pitch-penalty-arc {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 40px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+.arc-left {
+  left: 40px;
+  border-radius: 0 50% 50% 0;
+  border-left: none;
+}
+
+.arc-right {
+  right: 40px;
+  border-radius: 50% 0 0 50%;
+  border-right: none;
+}
+
+.pitch-corner {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+}
+
+.corner-top-left {
+  top: 4px;
+  left: 4px;
+}
+
+.corner-bottom-left {
+  bottom: 4px;
+  left: 4px;
+}
+
+.corner-top-right {
+  top: 4px;
+  right: 4px;
+}
+
+.corner-bottom-right {
+  bottom: 4px;
+  right: 4px;
+}
+
+.pitch-goal-net {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+}
+
+.net-left {
+  left: 0;
+  border-left: none;
+  border-radius: 0 3px 3px 0;
+}
+
+.net-right {
+  right: 0;
+  border-right: none;
+  border-radius: 3px 0 0 3px;
+}
+
+/* Glowing ball moving logic */
+.glowing-football {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 22px;
+  transition: all 0.7s cubic-bezier(0.25, 0.8, 0.25, 1);
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8));
+  animation: spin 3s infinite linear;
+  will-change: transform; /* Hardware acceleration promotion to smooth mobile animation */
+}
+
+.ball-pos-center {
+  left: 50%;
+}
+
+.ball-pos-home-attack {
+  left: 75%;
+}
+
+.ball-pos-away-attack {
+  left: 25%;
+}
+
+.ball-pos-home-goal {
+  left: 93%;
+  transform: translate(-50%, -50%) scale(1.3);
+  filter: drop-shadow(0 0 15px #ffd700);
+}
+
+.ball-pos-away-goal {
+  left: 7%;
+  transform: translate(-50%, -50%) scale(1.3);
+  filter: drop-shadow(0 0 15px #ffd700);
+}
+
+/* Momentum Indicator */
+.momentum-bar-wrapper {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 10px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.momentum-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #888;
+  text-align: center;
+}
+
+.momentum-gauge {
+  position: relative;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.momentum-gauge-fill {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 12px;
+  background: #00ff64;
+  box-shadow: 0 0 10px #00ff64;
+  border-radius: 50%;
+  transition: left 0.6s ease;
+}
+
+/* Match Control Panels */
+.arena-game-controls {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.match-control-btn {
+  font-family: 'Orbitron', sans-serif;
+  width: 80%;
+  height: 55px;
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.kickoff-theme-btn {
+  border: 2px solid #00ff64;
+  background: rgba(0, 255, 100, 0.04);
+  color: #00ff64;
+  text-shadow: 0 0 5px rgba(0, 255, 100, 0.5);
+  box-shadow: 0 0 15px rgba(0, 255, 100, 0.1);
+}
+
+.kickoff-theme-btn:hover {
+  background: #00ff64;
+  color: #050c06;
+  box-shadow: 0 0 25px rgba(0, 255, 100, 0.35);
+  transform: translateY(-2px);
+}
+
+.active-attack-btn {
+  border: 2px solid #ff8c00;
+  background: rgba(255, 140, 0, 0.04);
+  color: #ff8c00;
+  text-shadow: 0 0 5px rgba(255, 140, 0, 0.5);
+  box-shadow: 0 0 15px rgba(255, 140, 0, 0.1);
+}
+
+.active-attack-btn:hover {
+  background: #ff8c00;
+  color: #fff;
+  box-shadow: 0 0 25px rgba(255, 140, 0, 0.35);
+  transform: translateY(-2px);
+}
+
+.score-shoot-btn {
+  border: 3px solid #ff4500;
+  background: rgba(255, 69, 0, 0.06);
+  color: #ff4500;
+  font-size: 18px;
+  text-shadow: 0 0 8px rgba(255, 69, 0, 0.6);
+  box-shadow: 0 0 20px rgba(255, 69, 0, 0.15);
+}
+
+.score-shoot-btn:hover {
+  background: #ff4500;
+  color: #fff;
+  box-shadow: 0 0 30px rgba(255, 69, 0, 0.5);
+  transform: scale(1.03);
+}
+
+.end-game-btn {
+  border: 2px solid #a3b3a7;
+  background: rgba(255, 255, 255, 0.02);
+  color: #a3b3a7;
+}
+
+.end-game-btn:hover {
+  background: #f5f6f7;
+  color: #111;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+/* Shootouts styles */
+.penalty-shootout-actions {
+  width: 90%;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 69, 0, 0.3);
+  border-radius: 12px;
+  padding: 15px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.penalty-shootout-actions h3 {
+  font-family: 'Orbitron', sans-serif;
+  color: #ff4500;
+  margin: 0;
+}
+
+.penalty-board {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.penalty-buttons-deck {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.penalty-btn {
+  padding: 10px 20px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  border-radius: 6px;
+  border: 1.5px solid #ffd700;
+  background: rgba(255, 215, 0, 0.05);
+  color: #ffd700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.penalty-btn:hover {
+  background: #ffd700;
+  color: #111;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+}
+
+/* Chronicle feed console */
+.live-chronicle-console {
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+}
+
+.live-chronicle-console h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: #888;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+}
+
+.chronicle-scrolling-box {
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 8px;
+}
+
+.chronicle-event-row {
+  font-size: 13.5px;
+  line-height: 1.5;
+  display: flex;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.01);
+  transition: all 0.3s ease;
+}
+
+.chronicle-time {
+  font-family: 'Orbitron', sans-serif;
+  color: #a3b3a7;
+  font-weight: bold;
+}
+
+.latest-row {
+  background: rgba(0, 255, 100, 0.03);
+  border-left: 3px solid #00ff64;
+  font-weight: 600;
+  animation: pulse-border 1.5s infinite alternate;
+}
+
+/* Chronicle Types */
+.chronicle-type-normal {
+  color: #d1d5db;
+}
+
+.chronicle-type-chance {
+  color: #ff8c00;
+  font-weight: bold;
+}
+
+.chronicle-type-goal {
+  color: #ffd700;
+  font-weight: 800;
+  font-size: 14.5px;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.chronicle-type-save {
+  color: #00bfff;
+}
+
+.chronicle-type-miss {
+  color: #ff4500;
+}
+
+/* Micro-animations */
+@keyframes spin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes pulse-border {
+  from {
+    border-left-color: #00ff64;
+  }
+
+  to {
+    border-left-color: rgba(0, 255, 100, 0.2);
+  }
+}
+
+/* Animations for progress entry */
+.animated-slide-in {
+  animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- League Mode Specific Visuals --- */
+
+.team-select-mini-card:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 5px 15px rgba(0, 255, 100, 0.15);
+  border-color: rgba(0, 255, 100, 0.5) !important;
+}
+
+.selected-mini-card {
+  box-shadow: 0 0 15px rgba(0, 255, 100, 0.2);
+  animation: pulse-border 1.5s infinite alternate;
+}
+
+/* Round Badge Indicator */
+.round-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 255, 100, 0.05);
+  border: 1px solid rgba(0, 255, 100, 0.2);
+  box-shadow: 0 0 15px rgba(0, 255, 100, 0.08);
+  border-radius: 12px;
+  width: 90px;
+  height: 70px;
+}
+
+.round-badge-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #888;
+}
+
+.round-badge-num {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 26px;
+  font-weight: 900;
+  color: #00ff64;
+  text-shadow: 0 0 10px rgba(0, 255, 100, 0.5);
+  line-height: 1.1;
+}
+
+.round-badge-max {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: normal;
+}
+
+.gold-badge {
+  background: rgba(255, 215, 0, 0.05);
+  border-color: rgba(255, 215, 0, 0.2);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.08);
+}
+
+.gold-badge .round-badge-num {
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  font-size: 20px;
+}
+
+/* Standings Table Rows */
+.retro-standings-table tbody tr {
+  transition: background 0.2s ease;
+}
+
+.retro-standings-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.retro-standings-table th,
+.retro-standings-table td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Fixtures scrolling panel */
+.fixtures-feed-panel div::-webkit-scrollbar {
+  width: 4px;
+}
+
+.fixtures-feed-panel div::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+/* Team Flag Premium Shimmer and Micro-Animations */
+.team-flag {
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.team-flag:hover {
+  transform: scale(1.06) rotate(1deg);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), 0 0 10px rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* --- Fixture Responsive Elements --- */
+.domestic-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 10px;
+  margin-top: 15px;
+  text-align: center;
+}
+
+.filter-tabs-container {
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 10px;
+}
+
+.fixtures-scroll-container {
+  width: 100%;
+  max-height: 520px;
+  overflow-y: auto;
+  padding: 15px 25px 25px 25px;
+  box-sizing: border-box;
+}
+
+.fixture-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.25s ease;
+}
+
+.fixture-row.active-fixture {
+  background: rgba(0, 229, 255, 0.04);
+  border: 1.5px solid #00e5ff;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.2);
+}
+
+.fixture-row.special-fixture {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.fixture-main-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.fixture-round-col {
+  width: 24%;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.fixture-round-label {
+  font-size: 11.5px;
+  font-weight: bold;
+  font-family: "Orbitron", sans-serif;
+  letter-spacing: 0.5px;
+}
+
+.fixture-round-label.active-text {
+  color: #00e5ff;
+}
+
+.fixture-round-label.league-text {
+  color: #00ff64;
+}
+
+.fixture-round-label.cup-text {
+  color: #ffc107;
+}
+
+.fixture-round-status {
+  font-size: 9.5px;
+  color: #888;
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+
+.fixture-team-home {
+  width: 26%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.fixture-special-badge {
+  font-size: 10px;
+  font-weight: bold;
+  font-family: "Orbitron", sans-serif;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.fixture-special-badge.rest-badge {
+  color: #ffa500;
+  background: rgba(255, 165, 0, 0.08);
+  border: 1px solid rgba(255, 165, 0, 0.2);
+}
+
+.fixture-special-badge.eliminated-badge {
+  color: #ff3333;
+  background: rgba(255, 51, 81, 0.08);
+  border: 1px solid rgba(255, 51, 81, 0.2);
+}
+
+.fixture-team-name {
+  font-size: 12px;
+  color: #ccc;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.fixture-team-name.player-team {
+  font-weight: bold;
+  color: #fff;
+}
+
+.fixture-score-col {
+  width: 16%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.fixture-special-sleep {
+  font-size: 14px;
+}
+
+.fixture-score-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.fixture-score-text-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fixture-score-val {
+  font-size: 14px;
+  font-weight: bold;
+  font-family: "Orbitron", sans-serif;
+}
+
+.fixture-status-badge {
+  font-size: 8.5px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: bold;
+  font-family: "Orbitron", sans-serif;
+}
+
+.fixture-status-badge.venue-badge {
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1.2px solid rgba(255, 255, 255, 0.1);
+  color: #aaa;
+}
+
+.fixture-team-away {
+  width: 26%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.fixture-special-desc {
+  font-size: 11px;
+  color: #888;
+  font-weight: 600;
+}
+
+.fixture-secondary-row {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.neutral-matches-title {
+  font-size: 10px;
+  color: #888;
+  font-weight: bold;
+  text-align: left;
+  font-family: "Orbitron", sans-serif;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.neutral-matches-box {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.neutral-match-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #aaa;
+}
+
+.neutral-match-team-home {
+  width: 40%;
+  text-align: right;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.neutral-match-flag {
+  margin: 0 8px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.neutral-match-score {
+  width: 12%;
+  text-align: center;
+  font-family: "Orbitron", sans-serif;
+  font-weight: bold;
+}
+
+.neutral-match-team-away {
+  width: 40%;
+  text-align: left;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.expand-matches-btn-wrapper {
+  margin-top: 8px;
+  width: 100%;
+  text-align: left;
+}
+
+.expand-matches-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 10.5px;
+  font-family: "Orbitron", sans-serif;
+  padding: 4px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: bold;
+  outline: none;
+}
+
+/* --- Mobile Responsive Styling --- */
+@media (max-width: 768px) {
+
+  .team-select-container,
+  .match-dashboard-container {
+    padding: 15px !important;
+    gap: 15px !important;
+  }
+
+  /* Domestic Stats Grid Responsive Layout */
+  .domestic-stats-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 6px !important;
+    margin-top: 12px !important;
+  }
+
+  /* Filter Navigation Tabs Responsive wrapping */
+  .filter-tabs-container {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+
+  .filter-tabs-container button {
+    flex: 1 1 auto !important;
+    font-size: 11px !important;
+    padding: 6px 12px !important;
+  }
+
+  /* Scrollable container adjustments */
+  .fixtures-scroll-container {
+    padding: 12px 10px !important;
+  }
+
+  /* Fixture rows layout for mobile */
+  .fixture-row {
+    padding: 10px 12px !important;
+  }
+
+  .fixture-main-bar {
+    flex-wrap: wrap !important;
+  }
+
+  .fixture-round-col {
+    width: 100% !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 8px !important;
+    padding-bottom: 6px !important;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .fixture-round-status {
+    margin-top: 0 !important;
+  }
+
+  .fixture-team-home {
+    width: 42% !important;
+    gap: 8px !important;
+  }
+
+  .fixture-score-col {
+    width: 16% !important;
+  }
+
+  .fixture-team-away {
+    width: 42% !important;
+    gap: 8px !important;
+  }
+
+  .fixture-team-name {
+    font-size: 11px !important;
+  }
+
+  /* Special status responsive styles */
+  .special-fixture .fixture-main-bar {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+
+  .special-fixture .fixture-team-home,
+  .special-fixture .fixture-score-col,
+  .special-fixture .fixture-team-away {
+    width: 100% !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  /* Collapsible drawers for tournament schedules on mobile */
+  .fixture-secondary-row {
+    margin-top: 8px !important;
+    padding-top: 8px !important;
+  }
+
+  .neutral-matches-box {
+    padding: 8px 6px !important;
+    gap: 6px !important;
+  }
+
+  .neutral-match-row {
+    font-size: 10px !important;
+  }
+
+  .neutral-match-team-home {
+    width: 38% !important;
+  }
+
+  .neutral-match-flag {
+    margin: 0 4px !important;
+  }
+
+  .neutral-match-flag svg {
+    width: 16px !important;
+    height: auto !important;
+  }
+
+  .neutral-match-score {
+    width: 16% !important;
+  }
+
+  .neutral-match-team-away {
+    width: 38% !important;
+  }
+
+  /* Header Overrides */
+  .matchheader.selector-header {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+    text-align: center !important;
+  }
+
+  .matchheader.selector-header>div {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100% !important;
+    text-align: center !important;
+    gap: 8px !important;
+  }
+
+  .glowing-header-text {
+    font-size: 24px !important;
+    text-align: center !important;
+  }
+
+  .lobby-subtitle {
+    text-align: center !important;
+    font-size: 11px !important;
+  }
+
+  /* Selection Deck (Setup & Picks) */
+  .selection-deck {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 20px !important;
+    width: 100% !important;
+  }
+
+  .teams-grid-scroll-box {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 320px !important;
+    padding-right: 0 !important;
+  }
+
+  .team-select-card {
+    width: 100% !important;
+    min-height: auto !important;
+    padding: 20px !important;
+  }
+
+  /* Grid adjustment for team selects */
+  .teams-grid-scroll-box div[style*="display: grid"],
+  .teams-grid-scroll-box>div {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  /* Stadium Scoreboard */
+  .stadium-scoreboard {
+    flex-direction: column !important;
+    padding: 12px 15px !important;
+    gap: 10px !important;
+    align-items: center !important;
+  }
+
+  .stadium-scoreboard .board-panel {
+    text-align: center !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+
+  .stadium-scoreboard h2 {
+    font-size: 15px !important;
+    letter-spacing: 1px !important;
+  }
+
+  .score-digits {
+    font-size: 32px !important;
+    gap: 8px !important;
+    margin: 4px 0 !important;
+  }
+
+  .match-clock {
+    flex-direction: row !important;
+    gap: 6px !important;
+  }
+
+  .clock-label {
+    font-size: 9px !important;
+  }
+
+  .clock-val {
+    font-size: 18px !important;
+  }
+
+  /* Match Arena & Sim Columns Stacking */
+  .match-arena-layout {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 20px !important;
+    width: 100% !important;
+  }
+
+  .match-arena-layout>div {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-shrink: 1 !important;
+    flex-grow: 1 !important;
+  }
+
+  /* Specific Stands Cards */
+  .glass-card.standings-table-card {
+    height: auto !important;
+    max-height: 380px !important;
+    padding: 15px !important;
+  }
+
+  /* Table cells padding condensing */
+  .retro-standings-table {
+    font-size: 11px !important;
+  }
+
+  .retro-standings-table th,
+  .retro-standings-table td {
+    padding: 6px 3px !important;
+  }
+
+  .retro-standings-table th:nth-child(3),
+  .retro-standings-table td:nth-child(3),
+  .retro-standings-table th:nth-child(4),
+  .retro-standings-table td:nth-child(4),
+  .retro-standings-table th:nth-child(5),
+  .retro-standings-table td:nth-child(5),
+  .retro-standings-table th:nth-child(6),
+  .retro-standings-table td:nth-child(6) {
+    font-size: 10px !important;
+  }
+
+  .retro-standings-table td span[style*="max-width:"] {
+    max-width: 90px !important;
+  }
+
+  /* Live Match arena items */
+  .team-stats-card {
+    padding: 15px !important;
+  }
+
+  .kit-wrapper {
+    height: 90px !important;
+  }
+
+  .kit-wrapper svg,
+  .kit-wrapper img {
+    width: 80px !important;
+    height: auto !important;
+  }
+
+  .pitch-controller-center {
+    width: 100% !important;
+    gap: 15px !important;
+  }
+
+  .retro-tactical-pitch {
+    height: auto !important;
+    max-width: 320px !important;
+    margin: 0 auto !important;
+  }
+
+  .glowing-football {
+    font-size: 18px !important;
+  }
+
+  .live-chronicle-console {
+    padding: 12px !important;
+  }
+
+  .chronicle-scrolling-box {
+    max-height: 140px !important;
+  }
+
+  .chronicle-event-row {
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+  }
+
+  .tactical-panel {
+    padding-top: 8px !important;
+    margin-top: 10px !important;
+  }
+
+  .tactical-panel button {
+    padding: 4px 2px !important;
+    font-size: 8px !important;
+  }
+
+  .arena-game-controls {
+    margin-bottom: 5px !important;
+  }
+
+  .match-control-btn {
+    width: 100% !important;
+    height: 48px !important;
+    font-size: 14px !important;
+  }
+
+  .penalty-shootout-actions {
+    width: 100% !important;
+    padding: 10px !important;
+  }
+
+  .penalty-buttons-deck {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .penalty-btn {
+    width: 100% !important;
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+  }
+
+  /* Verses Preview alignment */
+  .versus-preview {
+    margin: 5px 0 !important;
+  }
+
+  .versus-preview svg {
+    width: 50px !important;
+    height: auto !important;
+  }
+}
+
+/* Stadium Goal Flashing Visual Effects */
+.goal-flash-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  animation: overlayFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.goal-flash-text {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 80px;
+  font-weight: 900;
+  letter-spacing: 5px;
+  animation: textZoom 0.4s ease-out, textFlicker 0.15s infinite alternate;
+}
+
+.goal-flash-sub {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 10px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+  animation: pulse 1s infinite alternate;
+}
+
+@keyframes textFlicker {
+  0% {
+    color: var(--team-primary, #ffd700);
+    text-shadow: 0 0 15px var(--team-primary, #ffd700), 0 0 30px var(--team-secondary, #ffffff), 0 0 45px var(--team-primary, #ffd700);
+  }
+
+  100% {
+    color: var(--team-secondary, #ffffff);
+    text-shadow: 0 0 15px var(--team-secondary, #ffffff), 0 0 25px var(--team-primary, #ffd700), 0 0 45px var(--team-secondary, #ffffff);
+    opacity: 0.95;
+  }
+}
+
+@keyframes textZoom {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+
+  70% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Downscale goal flash text for smaller mobile viewports */
+@media (max-width: 600px) {
+  .goal-flash-text {
+    font-size: 46px !important;
+    letter-spacing: 2px !important;
+  }
+
+  .goal-flash-sub {
+    font-size: 16px !important;
+    margin-top: 5px !important;
+  }
+}
+
+/* Landscape mobile optimization for small height screens */
+@media (max-height: 600px) and (orientation: landscape) {
+  .match-dashboard-container {
+    padding: 5px !important;
+    gap: 8px !important;
+    min-height: auto !important;
+  }
+
+  .stadium-scoreboard {
+    position: sticky !important;
+    top: 2px !important;
+    z-index: 1000 !important;
+    background: rgba(5, 12, 6, 0.98) !important;
+    border: 2px solid rgba(0, 255, 100, 0.4) !important;
+    flex-direction: row !important;
+    padding: 6px 15px !important;
+    gap: 15px !important;
+    justify-content: space-between !important;
+    height: auto !important;
+    margin-bottom: 2px !important;
+    box-sizing: border-box !important;
+  }
+
+  .stadium-scoreboard .board-panel {
+    width: auto !important;
+    margin: 0 !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+  }
+
+  .stadium-scoreboard h2 {
+    font-size: 13px !important;
+  }
+
+  .score-digits {
+    font-size: 26px !important;
+    margin: 0 !important;
+    gap: 8px !important;
+  }
+
+  .match-clock {
+    flex-direction: row !important;
+    font-size: 14px !important;
+    gap: 6px !important;
+  }
+
+  .clock-val {
+    font-size: 16px !important;
+  }
+
+  /* Keep match arena side-by-side */
+  .match-dashboard-container .match-arena-layout {
+    flex-direction: row !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  /* Each panel takes part of the width */
+  .team-stats-card {
+    width: 25% !important;
+    padding: 8px !important;
+    gap: 6px !important;
+    font-size: 11px !important;
+  }
+
+  .kit-wrapper {
+    display: none !important;
+  }
+
+  .team-card-title {
+    font-size: 12px !important;
+    margin: 0 0 2px 0 !important;
+  }
+
+  .team-card-bars {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 4px 6px !important;
+    width: 100% !important;
+  }
+
+  .rpg-bar {
+    gap: 2px !important;
+  }
+
+  .rpg-label {
+    font-size: 9px !important;
+    white-space: nowrap !important;
+  }
+
+  .progress-bar-bg {
+    height: 6px !important;
+  }
+
+  .dice-roll-container {
+    padding: 4px 0 !important;
+    background: rgba(0, 0, 0, 0.25) !important;
+    margin-top: 2px !important;
+  }
+
+  .roll-label {
+    font-size: 8px !important;
+  }
+
+  .roll-number-glowing {
+    font-size: 18px !important;
+    margin-top: 1px !important;
+  }
+
+  .tactical-panel {
+    margin-top: 4px !important;
+    padding-top: 4px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .tactical-panel>div {
+    margin-bottom: 4px !important;
+  }
+
+  .tactical-panel button {
+    font-size: 8px !important;
+    padding: 3px 1px !important;
+    margin: 1px 0 !important;
+  }
+
+  /* Center Column: Pitch, Momentum, Controls */
+  .pitch-controller-center {
+    width: 50% !important;
+    gap: 8px !important;
+  }
+
+  .retro-tactical-pitch {
+    width: 70% !important;
+    height: auto !important;
+    max-height: 200px !important;
+    margin: 0 auto !important;
+  }
+
+  .glowing-football {
+    font-size: 14px !important;
+  }
+
+  .momentum-bar-wrapper {
+    padding: 5px 10px !important;
+    gap: 3px !important;
+  }
+
+  .momentum-gauge {
+    height: 6px !important;
+  }
+
+  .arena-game-controls {
+    margin: 0 !important;
+  }
+
+  .match-control-btn {
+    font-size: 13px !important;
+    height: 36px !important;
+  }
+
+  /* Live Chronicle Console */
+  .live-chronicle-console {
+    padding: 8px !important;
+    margin-top: 2px !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  .live-chronicle-console h3 {
+    margin-bottom: 6px !important;
+    font-size: 10px !important;
+  }
+
+  .chronicle-scrolling-box {
+    max-height: 80px !important;
+  }
+
+  .chronicle-event-row {
+    font-size: 11px !important;
+    padding: 3px 6px !important;
+  }
+}
+
+/* --- Mobile Performance Optimization Overrides (with commented backups) --- */
+/* Applies to both mobile portrait (width <= 768px) and mobile landscape (height <= 600px) */
+@media (max-width: 768px), (max-height: 600px) and (orientation: landscape) {
+  /* 
+   * Backup / original styles on desktop:
+   * .team-select-card: background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(10px);
+   * .stadium-scoreboard: background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px);
+   * .team-stats-card: background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(8px);
+   */
+  .team-select-card,
+  .stadium-scoreboard,
+  .team-stats-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .team-select-card {
+    background: rgba(10, 15, 12, 0.95) !important;
+  }
+  .stadium-scoreboard {
+    background: rgba(10, 15, 12, 0.95) !important;
+  }
+  .team-stats-card {
+    background: rgba(10, 15, 12, 0.95) !important;
+  }
+
+  /* 
+   * Backup / original styles on desktop:
+   * .glowing-football: filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8));
+   * .ball-pos-home-goal: filter: drop-shadow(0 0 15px #ffd700);
+   * .ball-pos-away-goal: filter: drop-shadow(0 0 15px #ffd700);
+   */
+  .glowing-football,
+  .ball-pos-home-goal,
+  .ball-pos-away-goal {
+    filter: none !important;
+  }
+}
+
+/* Autoplay Manager & Selector Styles */
+.simulation-mode-box button {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.simulation-mode-box button:hover {
+  filter: brightness(1.25);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.05) !important;
+}
+
+.simulation-mode-box button:active {
+  transform: scale(0.97);
+}
+
+.autoplay-manager-panel button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.autoplay-manager-panel button:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+}
+
+.autoplay-manager-panel button:active {
+  transform: scale(0.96);
+}
+
+/* Mobile Portrait compact pitch scaling to prevent scrolling */
+@media (max-width: 480px) {
+  .retro-tactical-pitch {
+    max-width: 220px !important;
+    margin: 0 auto !important;
+  }
+}
+
+/* Substitution Modal Styles */
+.sub-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  animation: fadeIn 0.25s ease;
+}
+
+.sub-modal-container {
+  background: rgba(15, 23, 42, 0.98);
+  border: 1.5px solid rgba(0, 229, 255, 0.3);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 900px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 40px rgba(0, 229, 255, 0.25);
+  overflow: hidden;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.sub-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 229, 255, 0.03);
+}
+
+.sub-modal-title {
+  margin: 0;
+  font-size: 18px;
+  color: #00e5ff;
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 1px;
+}
+
+.sub-modal-subtitle {
+  font-size: 11px;
+  color: #888;
+}
+
+.sub-modal-close-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.sub-modal-close-btn:hover {
+  opacity: 1;
+}
+
+.sub-modal-content {
+  flex-grow: 1;
+  display: flex;
+  padding: 20px;
+  gap: 20px;
+  min-height: 0;
+}
+
+.sub-modal-pitch-area {
+  width: 60%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.sub-modal-pitch-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sub-modal-pitch-title {
+  font-size: 12px;
+  color: #aaa;
+  font-weight: bold;
+}
+
+.sub-modal-pitch-field {
+  flex-grow: 1;
+  position: relative;
+  background: #0a4a1a;
+  background-image: radial-gradient(rgba(0, 255, 100, 0.15) 1.5px, transparent 1.5px), radial-gradient(rgba(0, 255, 100, 0.15) 1.5px, #0a4a1a 1.5px);
+  background-size: 30px 30px;
+  background-position: 0 0, 15px 15px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  min-height: 350px;
+}
+
+.sub-modal-pitch-slot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  z-index: 10;
+}
+
+.sub-modal-player-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(12, 12, 16, 0.95);
+  border-radius: 8px;
+  padding: 3px 8px;
+  min-width: 54px;
+  cursor: grab;
+  transition: transform 0.15s ease;
+}
+
+.sub-modal-player-card:hover {
+  transform: scale(1.05);
+}
+
+.sub-modal-player-position {
+  font-size: 7.5px;
+  font-weight: bold;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.sub-modal-player-name {
+  font-size: 9px;
+  font-weight: bold;
+  color: #fff;
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub-modal-player-rating {
+  font-size: 7.5px;
+  font-weight: bold;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.sub-modal-empty-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(255,255,255,0.25);
+  background: rgba(0, 0, 0, 0.4);
+  color: #888;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.sub-modal-empty-slot:hover {
+  border-color: #00e5ff;
+  color: #00e5ff;
+  background: rgba(0, 229, 255, 0.05);
+}
+
+.sub-modal-roster-area {
+  width: 40%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.sub-modal-roster-title {
+  font-size: 12px;
+  color: #aaa;
+  font-weight: bold;
+}
+
+.sub-modal-roster-list {
+  flex-grow: 1;
+  background: rgba(5, 5, 10, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sub-modal-roster-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.sub-modal-roster-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.sub-modal-roster-item-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sub-modal-roster-item-position {
+  font-size: 10px;
+  font-weight: bold;
+  font-family: 'Orbitron', sans-serif;
+  background: rgba(0,0,0,0.3);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.sub-modal-roster-item-name {
+  font-size: 12px;
+  color: #fff;
+  font-weight: 500;
+}
+
+.sub-modal-roster-item-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sub-modal-roster-item-injured {
+  font-size: 10px;
+  color: #ff4500;
+  font-weight: bold;
+}
+
+.sub-modal-roster-item-condition {
+  font-size: 11px;
+}
+
+.sub-modal-roster-item-rating {
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.sub-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sub-modal-resume-btn {
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  color: #fff !important;
+  cursor: pointer;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  font-family: 'Orbitron', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: bold !important;
+  height: auto !important;
+  width: auto !important;
+}
+
+/* Mobile Portrait Styles (Stack elements vertically) */
+@media (max-width: 768px) {
+  .sub-modal-container {
+    width: 95%;
+    height: 90vh;
+  }
+  
+  .sub-modal-content {
+    flex-direction: column;
+    overflow-y: auto;
+    gap: 15px;
+    padding: 12px;
+  }
+  
+  .sub-modal-pitch-area {
+    width: 100%;
+    flex-shrink: 0;
+  }
+  
+  .sub-modal-pitch-field {
+    min-height: 320px;
+  }
+  
+  .sub-modal-roster-area {
+    width: 100%;
+    flex-shrink: 0;
+    min-height: 250px;
+  }
+}
+
+/* Mobile Landscape & Small Height Styles (Maximize screen height, scale down elements) */
+@media (max-height: 550px) {
+  .sub-modal-container {
+    width: 98%;
+    height: 98vh;
+    border-radius: 8px;
+  }
+  
+  .sub-modal-header {
+    padding: 8px 16px;
+  }
+  
+  .sub-modal-title {
+    font-size: 14px;
+  }
+  
+  .sub-modal-subtitle {
+    font-size: 9.5px;
+  }
+  
+  .sub-modal-close-btn {
+    font-size: 16px;
+  }
+  
+  .sub-modal-content {
+    padding: 10px;
+    gap: 12px;
+  }
+  
+  .sub-modal-pitch-area {
+    gap: 6px;
+  }
+  
+  .sub-modal-pitch-field {
+    min-height: 180px; /* Allow pitch to scale down to fit small height screens */
+  }
+  
+  .sub-modal-roster-area {
+    gap: 6px;
+  }
+  
+  .sub-modal-roster-list {
+    padding: 6px;
+    gap: 6px;
+  }
+  
+  .sub-modal-footer {
+    padding: 8px 16px;
+  }
+  
+  .sub-modal-resume-btn {
+    padding: 6px 12px !important;
+    font-size: 10px !important;
+  }
+}

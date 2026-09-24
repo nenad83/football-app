@@ -1,0 +1,20 @@
+[
+  { "idnum": 0,  "id": "col97", "name": "Deportivo Cali",        "attack": 4, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 1,  "id": "col97", "name": "Once Caldas",           "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 2,  "id": "col97", "name": "Atlético Nacional",     "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/2.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 3,  "id": "col97", "name": "América de Cali",       "attack": 4, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 4,  "id": "col97", "name": "Junior",                "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 5,  "id": "col97", "name": "Millonarios",           "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 6,  "id": "col97", "name": "Santa Fe",              "attack": 2, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 7,  "id": "col97", "name": "Independiente Medellín","attack": 2, "midfield": 3, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#FF0000", "secondaryColor": "#0000FF" },
+  { "idnum": 8,  "id": "col97", "name": "Deportes Tolima",       "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#800020", "secondaryColor": "#FFD700" },
+  { "idnum": 9,  "id": "col97", "name": "Envigado",              "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF6600", "secondaryColor": "#FFFFFF" },
+  { "idnum": 10, "id": "col97", "name": "Bucaramanga",           "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFF00", "secondaryColor": "#008000" },
+  { "idnum": 11, "id": "col97", "name": "Deportivo Pasto",       "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#000000" },
+  { "idnum": 12, "id": "col97", "name": "Atlético Huila",        "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFF00", "secondaryColor": "#008000" },
+  { "idnum": 13, "id": "col97", "name": "Cortuluá",              "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#000000" },
+  { "idnum": 14, "id": "col97", "name": "Real Cartagena",        "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFF00", "secondaryColor": "#008000" },
+  { "idnum": 15, "id": "col97", "name": "Deportes Quindío",      "attack": 1, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFD700", "secondaryColor": "#008000" },
+  { "idnum": 16, "id": "col97", "name": "Unión Magdalena",       "attack": 1, "midfield": 2, "defense": 1, "kit": "swe92/0.png", "primaryColor": "#000080", "secondaryColor": "#FF0000" },
+  { "idnum": 17, "id": "col97", "name": "Pereira",               "attack": 1, "midfield": 1, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFF00", "secondaryColor": "#FF0000" }
+]

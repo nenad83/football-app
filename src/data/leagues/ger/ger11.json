@@ -1,0 +1,200 @@
+[
+  {
+    "idnum": 0,
+    "id": "ger11",
+    "name": "Borussia Dortmund",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "ger11/0.png",
+    "primaryColor": "#FDE100",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 1,
+    "id": "ger11",
+    "name": "Bayern Munich",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "ger11/1.png",
+    "primaryColor": "#DC052D",
+    "secondaryColor": "#0066B2"
+  },
+  {
+    "idnum": 2,
+    "id": "ger11",
+    "name": "Schalke 04",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger11/2.png",
+    "primaryColor": "#004D9E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "ger11",
+    "name": "Borussia Monchengladbach",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger11/3.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 4,
+    "id": "ger11",
+    "name": "Bayer Leverkusen",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger11/4.png",
+    "primaryColor": "#E32219",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 5,
+    "id": "ger11",
+    "name": "Stuttgart",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger11/5.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "ger11",
+    "name": "Hannover 96",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger11/6.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "ger11",
+    "name": "Wolfsburg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger11/7.png",
+    "primaryColor": "#65B32E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "ger11",
+    "name": "Werder Bremen",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger11/8.png",
+    "primaryColor": "#00975F",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "ger11",
+    "name": "Nurnberg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger11/9.png",
+    "primaryColor": "#8B0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "ger11",
+    "name": "Hoffenheim",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger11/10.png",
+    "primaryColor": "#0062AE",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "ger11",
+    "name": "Freiburg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger11/11.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "ger11",
+    "name": "Mainz 05",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger11/12.png",
+    "primaryColor": "#ED1C24",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "ger11",
+    "name": "Augsburg",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger11/13.png",
+    "primaryColor": "#E2001A",
+    "secondaryColor": "#008000"
+  },
+  {
+    "idnum": 14,
+    "id": "ger11",
+    "name": "Hamburg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger11/14.png",
+    "primaryColor": "#005CA9",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "ger11",
+    "name": "Hertha BSC",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger11/15.png",
+    "primaryColor": "#004D9E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 16,
+    "id": "ger11",
+    "name": "Cologne",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger11/16.png",
+    "primaryColor": "#DA0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 17,
+    "id": "ger11",
+    "name": "Kaiserslautern",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger11/17.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  }
+]

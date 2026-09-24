@@ -1,0 +1,222 @@
+[
+  {
+    "idnum": 22,
+    "id": "esp95_d2",
+    "name": "Hercules",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#004B93",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 23,
+    "id": "esp95_d2",
+    "name": "Mallorca",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "esp00/2.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 24,
+    "id": "esp95_d2",
+    "name": "Logrones",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 25,
+    "id": "esp95_d2",
+    "name": "Real Madrid B",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "esp96/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 26,
+    "id": "esp95_d2",
+    "name": "Badajoz",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 27,
+    "id": "esp95_d2",
+    "name": "Extremadura",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "fra84/3.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FF0000"
+  },
+  {
+    "idnum": 28,
+    "id": "esp95_d2",
+    "name": "Alaves",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "esp00/9.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 29,
+    "id": "esp95_d2",
+    "name": "Leganes",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 30,
+    "id": "esp95_d2",
+    "name": "Toledo",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 31,
+    "id": "esp95_d2",
+    "name": "Osasuna",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "esp00/14.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#0000FF"
+  },
+  {
+    "idnum": 32,
+    "id": "esp95_d2",
+    "name": "Lleida",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFF00"
+  },
+  {
+    "idnum": 33,
+    "id": "esp95_d2",
+    "name": "Eibar",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "fra84/3.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FF0000"
+  },
+  {
+    "idnum": 34,
+    "id": "esp95_d2",
+    "name": "Ecija",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 35,
+    "id": "esp95_d2",
+    "name": "Almeria",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/4.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 36,
+    "id": "esp95_d2",
+    "name": "Villarreal",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "esp00/6.png",
+    "primaryColor": "#FFF200",
+    "secondaryColor": "#FFF200"
+  },
+  {
+    "idnum": 37,
+    "id": "esp95_d2",
+    "name": "Barcelona B",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "esp10/1.png",
+    "primaryColor": "#004D98",
+    "secondaryColor": "#A50044"
+  },
+  {
+    "idnum": 38,
+    "id": "esp95_d2",
+    "name": "Sestao River",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "ger88/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 39,
+    "id": "esp95_d2",
+    "name": "Athletic Bilbao B",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "esp00/11.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 40,
+    "id": "esp95_d2",
+    "name": "Getafe",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "fra84/1.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 41,
+    "id": "esp95_d2",
+    "name": "Marbella",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0000FF"
+  }
+]

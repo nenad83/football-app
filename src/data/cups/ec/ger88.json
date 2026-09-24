@@ -1,0 +1,90 @@
+[
+  {
+    "idnum": 0,
+    "id": "ger88",
+    "name": "West Germany",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "ger88/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 1,
+    "id": "ita88",
+    "name": "Italy",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 5,
+    "kit": "ger88/1.png",
+    "primaryColor": "#004D9C",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "den88",
+    "name": "Denmark",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger88/2.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "esp88",
+    "name": "Spain",
+    "attack": 4,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "ger88/3.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#FFF200"
+  },
+  {
+    "idnum": 4,
+    "id": "eng88",
+    "name": "England",
+    "attack": 4,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "ger88/4.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0B162C"
+  },
+  {
+    "idnum": 5,
+    "id": "ire88",
+    "name": "Ireland",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger88/5.png",
+    "primaryColor": "#009E60",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "ned88",
+    "name": "Netherlands",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "ger88/6.png",
+    "primaryColor": "#F36C21",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "sov88",
+    "name": "Soviet Union",
+    "attack": 4,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "ger88/7.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  }
+]

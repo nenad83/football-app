@@ -1,0 +1,41 @@
+[
+  { "idnum": 0, "id": "csud20", "name": "Defensa y Justicia", "attack": 4, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFF00", "group": "A" },
+  { "idnum": 1, "id": "csud20", "name": "Bahia", "attack": 2, "midfield": 2, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#0000FF", "secondaryColor": "#FF0000", "group": "A" },
+  { "idnum": 2, "id": "csud20", "name": "Coquimbo Unido", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFF00", "secondaryColor": "#000000", "group": "A" },
+  { "idnum": 3, "id": "csud20", "name": "Sport Huancayo", "attack": 1, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#008000", "group": "A" },
+
+  { "idnum": 4, "id": "csud20", "name": "Lanus", "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#9B0000", "secondaryColor": "#FFFFFF", "group": "B" },
+  { "idnum": 5, "id": "csud20", "name": "Independiente", "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#CC0000", "secondaryColor": "#FFFFFF", "group": "B" },
+  { "idnum": 6, "id": "csud20", "name": "Fenix", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000", "group": "B" },
+  { "idnum": 7, "id": "csud20", "name": "Melgar", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#000000", "group": "B" },
+
+  { "idnum": 8, "id": "csud20", "name": "Velez Sarsfield", "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#005EB8", "secondaryColor": "#FFFFFF", "group": "C" },
+  { "idnum": 9, "id": "csud20", "name": "Universidad Catolica", "attack": 2, "midfield": 2, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#0000FF", "group": "C" },
+  { "idnum": 10, "id": "csud20", "name": "Deportivo Cali", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF", "group": "C" },
+  { "idnum": 11, "id": "csud20", "name": "River Plate (URU)", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#CC0000", "secondaryColor": "#FFFFFF", "group": "C" },
+
+  { "idnum": 12, "id": "csud20", "name": "Junior", "attack": 2, "midfield": 3, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF", "group": "D" },
+  { "idnum": 13, "id": "csud20", "name": "Union La Calera", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF", "group": "D" },
+  { "idnum": 14, "id": "csud20", "name": "Vasco da Gama", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#000000", "secondaryColor": "#FFFFFF", "group": "D" },
+  { "idnum": 15, "id": "csud20", "name": "Plaza Colonia", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFFFF", "secondaryColor": "#008000", "group": "D" },
+
+  { "idnum": 16, "id": "csud20", "name": "Union", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF", "group": "E" },
+  { "idnum": 17, "id": "csud20", "name": "Emelec", "attack": 2, "midfield": 2, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF", "group": "E" },
+  { "idnum": 18, "id": "csud20", "name": "Atletico Tucuman", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#0080FF", "secondaryColor": "#FFFFFF", "group": "E" },
+  { "idnum": 19, "id": "csud20", "name": "Millonarios", "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF", "group": "E" },
+
+  { "idnum": 20, "id": "csud20", "name": "Liverpool (URU)", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#000000", "group": "F" },
+  { "idnum": 21, "id": "csud20", "name": "Huachipato", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#000000", "group": "F" },
+  { "idnum": 22, "id": "csud20", "name": "Sol de America", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF", "group": "F" },
+  { "idnum": 23, "id": "csud20", "name": "Sporting Cristal", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#00BFFF", "secondaryColor": "#FFFFFF", "group": "F" },
+
+  { "idnum": 24, "id": "csud20", "name": "Sao Paulo", "attack": 4, "midfield": 3, "defense": 3, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#FF0000", "group": "G" },
+  { "idnum": 25, "id": "csud20", "name": "Tolima", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#800020", "secondaryColor": "#FFD700", "group": "G" },
+  { "idnum": 26, "id": "csud20", "name": "Bolivar", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#00BFFF", "secondaryColor": "#FFFFFF", "group": "G" },
+  { "idnum": 27, "id": "csud20", "name": "Audax Italiano", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF", "group": "G" },
+
+  { "idnum": 28, "id": "csud20", "name": "Arsenal de Sarandi", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#8B0000", "secondaryColor": "#FFFFFF", "group": "H" },
+  { "idnum": 29, "id": "csud20", "name": "Sport Bahia", "attack": 2, "midfield": 2, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#0000FF", "secondaryColor": "#FF0000", "group": "H" },
+  { "idnum": 30, "id": "csud20", "name": "Nacional", "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#00008B", "group": "H" },
+  { "idnum": 31, "id": "csud20", "name": "Universidad de Chile", "attack": 3, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#00008B", "secondaryColor": "#FF0000", "group": "H" }
+]

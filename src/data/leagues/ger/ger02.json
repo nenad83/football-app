@@ -1,0 +1,200 @@
+[
+  {
+    "idnum": 0,
+    "id": "ger02",
+    "name": "Bayern Munich",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "ger02/0.png",
+    "primaryColor": "#DC052D",
+    "secondaryColor": "#0066B2"
+  },
+  {
+    "idnum": 1,
+    "id": "ger02",
+    "name": "Borussia Dortmund",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger02/1.png",
+    "primaryColor": "#FDE100",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 2,
+    "id": "ger02",
+    "name": "Hertha BSC",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger02/2.png",
+    "primaryColor": "#004D9E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "ger02",
+    "name": "Schalke 04",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger02/3.png",
+    "primaryColor": "#004D9E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "ger02",
+    "name": "Bayer Leverkusen",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "ger02/4.png",
+    "primaryColor": "#E32219",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 5,
+    "id": "ger02",
+    "name": "Stuttgart",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger02/5.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "ger02",
+    "name": "Werder Bremen",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger02/6.png",
+    "primaryColor": "#00975F",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "ger02",
+    "name": "Hamburger SV",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger02/7.png",
+    "primaryColor": "#005CA9",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "ger02",
+    "name": "Borussia Monchengladbach",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger02/8.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "ger02",
+    "name": "Wolfsburg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger02/9.png",
+    "primaryColor": "#65B32E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "ger02",
+    "name": "Eintracht Frankfurt",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger02/10.png",
+    "primaryColor": "#E10009",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 11,
+    "id": "ger02",
+    "name": "Kaiserslautern",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger02/11.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "ger02",
+    "name": "Arminia Bielefeld",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger02/12.png",
+    "primaryColor": "#004F9F",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "ger02",
+    "name": "Hansa Rostock",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger02/13.png",
+    "primaryColor": "#004D9E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "ger02",
+    "name": "Nuremberg",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger02/14.png",
+    "primaryColor": "#8B0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "ger02",
+    "name": "1860 Munich",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger02/15.png",
+    "primaryColor": "#6EBCDF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 16,
+    "id": "ger02",
+    "name": "Energie Cottbus",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger02/16.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 17,
+    "id": "ger02",
+    "name": "Bochum",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger02/17.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#FFFFFF"
+  }
+]

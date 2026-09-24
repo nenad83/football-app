@@ -1,0 +1,222 @@
+[
+  {
+    "idnum": 0,
+    "id": "esp87",
+    "name": "Real Madrid",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 5,
+    "kit": "esp87/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "esp87",
+    "name": "Barcelona",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "esp87/1.png",
+    "primaryColor": "#004D98",
+    "secondaryColor": "#A50044"
+  },
+  {
+    "idnum": 2,
+    "id": "esp87",
+    "name": "Atletico Madrid",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "esp87/2.png",
+    "primaryColor": "#E23F44",
+    "secondaryColor": "#1E408E"
+  },
+  {
+    "idnum": 3,
+    "id": "esp87",
+    "name": "Sevilla",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "esp87/3.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "esp87",
+    "name": "Athletic Bilbao",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "esp87/4.png",
+    "primaryColor": "#FF0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "esp87",
+    "name": "Real Sociedad",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "esp87/5.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "esp87",
+    "name": "Valencia",
+    "attack": 3,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "esp87/6.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 7,
+    "id": "esp87",
+    "name": "Zaragoza",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 4,
+    "kit": "esp87/7.png",
+    "primaryColor": "#004F9F",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "esp87",
+    "name": "Betis",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "esp87/8.png",
+    "primaryColor": "#009A44",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "esp87",
+    "name": "Osasuna",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "esp87/9.png",
+    "primaryColor": "#E2001A",
+    "secondaryColor": "#1E408E"
+  },
+  {
+    "idnum": 10,
+    "id": "esp87",
+    "name": "Sporting Gijon",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "esp87/10.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 11,
+    "id": "esp87",
+    "name": "Celta Vigo",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "esp87/11.png",
+    "primaryColor": "#87CEEB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "esp87",
+    "name": "Malaga",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "esp87/12.png",
+    "primaryColor": "#009EE0",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "esp87",
+    "name": "Valladolid",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "esp87/13.png",
+    "primaryColor": "#7D2F7C",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "esp87",
+    "name": "Murcia",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "esp87/14.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "esp87",
+    "name": "Cadiz",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 3,
+    "kit": "esp87/15.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#003DA5"
+  },
+  {
+    "idnum": 16,
+    "id": "esp87",
+    "name": "Mallorca",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "esp87/16.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 17,
+    "id": "esp87",
+    "name": "Logrones",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "esp87/17.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 18,
+    "id": "esp87",
+    "name": "Castellon",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "esp87/18.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 19,
+    "id": "esp87",
+    "name": "Santander",
+    "attack": 1,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "esp87/19.png",
+    "primaryColor": "#007A33",
+    "secondaryColor": "#FFFFFF"
+  }
+]

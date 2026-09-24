@@ -1,0 +1,20 @@
+[
+  { "idnum": 20, "id": "ger14_d2", "name": "Ingolstadt", "attack": 3, "midfield": 3, "defense": 3, "kit": "ger15/10.png", "primaryColor": "#FF0000", "secondaryColor": "#000000" },
+  { "idnum": 21, "id": "ger14_d2", "name": "Darmstadt", "attack": 3, "midfield": 3, "defense": 2, "kit": "ger15/13.png", "primaryColor": "#0055A5", "secondaryColor": "#FFFFFF" },
+  { "idnum": 22, "id": "ger14_d2", "name": "Hamburger SV", "attack": 3, "midfield": 2, "defense": 3, "kit": "ger14/15.png", "primaryColor": "#005CA9", "secondaryColor": "#FFFFFF" },
+  { "idnum": 23, "id": "ger14_d2", "name": "Kaiserslautern", "attack": 2, "midfield": 3, "defense": 2, "kit": "ger10/6.png", "primaryColor": "#E30613", "secondaryColor": "#FFFFFF" },
+  { "idnum": 24, "id": "ger14_d2", "name": "Karlsruhe", "attack": 2, "midfield": 3, "defense": 2, "kit": "ecu93/1.png", "primaryColor": "#005CA9", "secondaryColor": "#FFFFFF" },
+  { "idnum": 25, "id": "ger14_d2", "name": "Braunschweig", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFF00", "secondaryColor": "#0000FF" },
+  { "idnum": 26, "id": "ger14_d2", "name": "Union Berlin", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 27, "id": "ger14_d2", "name": "Heidenheim", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/4.png", "primaryColor": "#CC0000", "secondaryColor": "#0000FF" },
+  { "idnum": 28, "id": "ger14_d2", "name": "Nurnberg", "attack": 2, "midfield": 2, "defense": 2, "kit": "ger13/16.png", "primaryColor": "#8B0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 29, "id": "ger14_d2", "name": "Freiburg", "attack": 2, "midfield": 2, "defense": 2, "kit": "ger14/16.png", "primaryColor": "#E30613", "secondaryColor": "#FFFFFF" },
+  { "idnum": 30, "id": "ger14_d2", "name": "Bochum", "attack": 2, "midfield": 2, "defense": 1, "kit": "ger08/2.png", "primaryColor": "#005CA9", "secondaryColor": "#FFFFFF" },
+  { "idnum": 31, "id": "ger14_d2", "name": "Sandhausen", "attack": 2, "midfield": 1, "defense": 2, "kit": "ecu93/3.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 32, "id": "ger14_d2", "name": "Paderborn", "attack": 2, "midfield": 1, "defense": 1, "kit": "ger14/17.png", "primaryColor": "#005CA9", "secondaryColor": "#000000" },
+  { "idnum": 33, "id": "ger14_d2", "name": "FSV Frankfurt", "attack": 1, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 34, "id": "ger14_d2", "name": "St. Pauli", "attack": 1, "midfield": 2, "defense": 1, "kit": "ger10/17.png", "primaryColor": "#4E3629", "secondaryColor": "#FFFFFF" },
+  { "idnum": 35, "id": "ger14_d2", "name": "1860 Munich", "attack": 1, "midfield": 1, "defense": 2, "kit": "ger88/3.png", "primaryColor": "#84BDFF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 36, "id": "ger14_d2", "name": "Erzgebirge Aue", "attack": 1, "midfield": 1, "defense": 1, "kit": "swe92/0.png", "primaryColor": "#4A154B", "secondaryColor": "#FFFFFF" },
+  { "idnum": 37, "id": "ger14_d2", "name": "Aalen", "attack": 1, "midfield": 1, "defense": 1, "kit": "swe92/0.png", "primaryColor": "#000000", "secondaryColor": "#FFFFFF" }
+]

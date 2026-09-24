@@ -1,0 +1,1361 @@
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import '../assets/styles/Match.css';
+import { leagueDataMap, leagueDataMapD2 } from '../data/leagueData';
+import { leagueDataMapSA } from '../data/leagueDataSA';
+import { qualifiersBySeason } from '../data/qualifiersBySeason';
+import { qualifiersBySeasonSA } from '../data/qualifiersBySeasonSA';
+import { clRules } from '../data/cl/clRules';
+import { uefaRules } from '../data/uefa/uefaRules';
+import { ueclRules } from '../data/uecl/ueclRules';
+import { clibRules } from '../data/clib/clibRules';
+import { csudRules } from '../data/csud/csudRules';import CountryFlag from './CountryFlag';
+import { createDomesticCup, getDomesticCupExpectation } from '../utils/domesticCupGenerator';
+
+
+// Inline premium vector Team Flag component
+const TeamFlag = ({ primaryColor, secondaryColor, size = 120 }) => {
+  const isSolid = !secondaryColor || primaryColor === secondaryColor;
+  const flagHeight = Math.round(size * 0.65);
+  
+  return (
+    <svg 
+      width={size} 
+      height={flagHeight} 
+      viewBox="0 0 100 65" 
+      className="team-flag" 
+      style={{ 
+        borderRadius: '6px', 
+        overflow: 'hidden', 
+        border: '1.5px solid rgba(255, 255, 255, 0.15)',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.25))',
+        display: 'inline-block',
+        verticalAlign: 'middle'
+      }}
+    >
+      {isSolid ? (
+        <rect width="100" height="65" fill={primaryColor} />
+      ) : (
+        <>
+          <rect x="0" width="50" height="65" fill={primaryColor} />
+          <rect x="50" width="50" height="65" fill={secondaryColor} />
+        </>
+      )}
+    </svg>
+  );
+};
+
+// Berger tables generator
+const generateRoundRobinFixtures = (teamsList) => {
+  const n = teamsList.length; // 22 teams
+  const fixtures = [];
+  const list = [...teamsList];
+
+  // First Leg (21 Rounds)
+  for (let round = 0; round < n - 1; round++) {
+    const roundFixtures = [];
+    for (let i = 0; i < n / 2; i++) {
+      const home = list[i];
+      const away = list[n - 1 - i];
+      if (round % 2 === 0) {
+        roundFixtures.push({ homeId: home.idnum, awayId: away.idnum, played: false, homeScore: 0, awayScore: 0 });
+      } else {
+        roundFixtures.push({ homeId: away.idnum, awayId: home.idnum, played: false, homeScore: 0, awayScore: 0 });
+      }
+    }
+    fixtures.push(roundFixtures);
+    list.splice(1, 0, list.pop());
+  }
+
+  // Second Leg (21 Rounds, swapped home/away)
+  for (let round = 0; round < n - 1; round++) {
+    const roundFixtures = fixtures[round].map(f => ({
+      homeId: f.awayId,
+      awayId: f.homeId,
+      played: false,
+      homeScore: 0,
+      awayScore: 0
+    }));
+    fixtures.push(roundFixtures);
+  }
+
+  return fixtures;
+};
+
+const generateDynamicSchedules = (totalRounds, rules) => {
+  if (!rules || !rules.calendarSchedules) return [];
+
+  // Deep copy the original schedules so we don't mutate the rules module
+  const schedules = JSON.parse(JSON.stringify(rules.calendarSchedules));
+
+  // 1. Classify autumn vs spring stages
+  const groupSlots = schedules.filter(s => s.stage === "group_stage" || s.stage === "league_stage");
+  const totalGroupMatchdays = groupSlots.length;
+
+  const isAutumn = (slot) => {
+    if (slot.stage === "group_stage" || slot.stage === "league_stage") {
+      if (totalGroupMatchdays === 12) {
+        return slot.matchday <= 6;
+      }
+      return true;
+    }
+    if (rules.format === "pure_knockout") {
+      const uniqueStages = (rules.stages || []).filter(s => s !== "final");
+      if (uniqueStages.length >= 4) {
+        return slot.stage === uniqueStages[0] || slot.stage === uniqueStages[1];
+      }
+      if (uniqueStages.length === 3) {
+        return slot.stage === uniqueStages[0];
+      }
+      return false;
+    }
+    return false;
+  };
+
+  const autumnSlots = schedules.filter(s => isAutumn(s));
+  const springSlots = schedules.filter(s => !isAutumn(s) && s.stage !== "final");
+  const finalSlot = schedules.find(s => s.stage === "final");
+
+  // 2. Schedule Autumn slots forwards
+  const A = autumnSlots.length;
+  if (A > 6) {
+    autumnSlots.forEach((slot, i) => {
+      slot.offset = 2 + i * 2 + (i >= 4 ? 1 : 0);
+    });
+  } else if (A > 0) {
+    autumnSlots.forEach((slot, i) => {
+      if (i === 0) {
+        slot.offset = 2;
+      } else {
+        const prevSlot = autumnSlots[i - 1];
+        if (prevSlot.stage === slot.stage && prevSlot.matchday === 1 && slot.matchday === 2) {
+          slot.offset = prevSlot.offset + 2;
+        } else {
+          slot.offset = prevSlot.offset + 3;
+        }
+      }
+    });
+  }
+
+  // 3. Schedule Spring slots backwards (excluding final)
+  let currentR = totalRounds;
+  for (let i = springSlots.length - 1; i >= 0; i--) {
+    const slot = springSlots[i];
+    const hasLeg2 = springSlots.some(s => s.stage === slot.stage && s.matchday === 2);
+    if (slot.matchday === 2 || !hasLeg2) {
+      currentR = currentR - 2;
+    } else {
+      currentR = currentR - 1;
+    }
+    slot.offset = currentR;
+  }
+
+  // 4. Resolve Overlap
+  if (A > 0 && springSlots.length > 0) {
+    const lastAutumnOffset = autumnSlots[autumnSlots.length - 1].offset;
+    const firstSpringOffset = springSlots[0].offset;
+    const minGap = 2;
+    if (firstSpringOffset < lastAutumnOffset + minGap) {
+      const diff = (lastAutumnOffset + minGap) - firstSpringOffset;
+      springSlots.forEach(slot => {
+        slot.offset += diff;
+      });
+      if (finalSlot) {
+        finalSlot.offset += diff;
+      }
+    }
+  }
+
+  // Assign Final offset (if final slot exists and wasn't shifted)
+  if (finalSlot && finalSlot.offset === undefined) {
+    if (springSlots.length > 0) {
+      finalSlot.offset = springSlots[springSlots.length - 1].offset + 2;
+    } else {
+      finalSlot.offset = totalRounds;
+    }
+  }
+
+  // Combine back and sort chronologically
+  const result = [...autumnSlots, ...springSlots];
+  if (finalSlot) result.push(finalSlot);
+  return result;
+};
+
+export default function LeagueSelect() {
+  const [season, setSeason] = useState("1993");
+  const [country, setCountry] = useState("england");
+  const [step, setStep] = useState(1); // 1 = Setup selectors, 2 = Team Select (for eng93), 3 = Coming Soon Warning
+  const [selectedTeamId, setSelectedTeamId] = useState(null);
+  const [managerName, setManagerName] = useState("Sir Alex");
+  const [division, setDivision] = useState(1); // 1 = D1, 2 = D2
+  const [isStarting, setIsStarting] = useState(false);
+
+  
+  const navigate = useNavigate();
+
+  const getExpectation = (team, allTeams = null) => {
+    if (!team) return null;
+    const avg = (team.attack + team.midfield + team.defense) / 3;
+    const isSA = country === "argentina" || country === "brazil" || country === "colombia";
+
+    if (division === 2) {
+      if (allTeams && allTeams.length > 0) {
+        const sortedByRating = [...allTeams]
+          .map(t => ({ idnum: t.idnum, rating: (t.attack + t.midfield + t.defense) / 3 }))
+          .sort((a, b) => b.rating - a.rating);
+        
+        const teamIndex = sortedByRating.findIndex(t => t.idnum === team.idnum);
+        const rank = teamIndex !== -1 ? teamIndex + 1 : 1;
+        const N = allTeams.length;
+        const pct = rank / N;
+
+        if (pct <= 0.15 || avg >= 2.8) {
+          return { text: "Win Promotion! 🏆", rank: 1, desc: "Title Contender / Automatic Promotion" };
+        } else if (pct <= 0.45 || avg >= 2.3) {
+          return { text: "Promote / Reach Playoffs ↗️", rank: 3, desc: "Promotion Challenger" };
+        } else if (pct <= 0.75 || avg >= 1.8) {
+          return { text: "Finish in Top 10", rank: 10, desc: "Top 10 Finisher" };
+        } else {
+          return { text: "Avoid Relegation", rank: 17, desc: "Avoid Relegation" };
+        }
+      }
+      if (avg >= 2.8) return { text: "Win Promotion! 🏆", rank: 1, desc: "Title Contender / Automatic Promotion" };
+      if (avg >= 2.3) return { text: "Promote / Reach Playoffs ↗️", rank: 3, desc: "Promotion Challenger" };
+      if (avg >= 1.8) return { text: "Finish in Top 10", rank: 10, desc: "Top 10 Finisher" };
+      return { text: "Avoid Relegation", rank: 17, desc: "Avoid Relegation" };
+    }
+
+    if (allTeams && allTeams.length > 0) {
+      const sortedByRating = [...allTeams]
+        .map(t => ({ idnum: t.idnum, rating: (t.attack + t.midfield + t.defense) / 3 }))
+        .sort((a, b) => b.rating - a.rating);
+      
+      const teamIndex = sortedByRating.findIndex(t => t.idnum === team.idnum);
+      const rank = teamIndex !== -1 ? teamIndex + 1 : 1;
+      const N = allTeams.length;
+      const pct = rank / N;
+
+      let exp = { text: "Avoid Relegation", rank: 17, desc: "Avoid Relegation" };
+
+      if (pct <= 0.12) {
+        exp = { text: "Win the League!", rank: 1, desc: "Title Contender" };
+      } else if (pct <= 0.28) {
+        exp = {
+          text: isSA ? "Finish in Top Spots (Continental)" : "Finish in Top 4 (Europe)",
+          rank: 4,
+          desc: isSA ? "Continental Challenger" : "European Challenger"
+        };
+      } else if (pct <= 0.40) {
+        exp = {
+          text: isSA ? "Finish in Top Spots (Continental)" : "Finish in Top 6 (Europe)",
+          rank: 6,
+          desc: isSA ? "Continental Challenger" : "European Challenger"
+        };
+      } else if (pct <= 0.55) {
+        exp = { text: "Finish in Top 10", rank: 10, desc: "Top 10 Finisher" };
+      } else if (pct <= 0.80) {
+        exp = { text: "Finish in Mid-Table (10th-14th)", rank: 14, desc: "Mid-Table Stability" };
+      } else {
+        exp = { text: "Avoid Relegation", rank: 17, desc: "Avoid Relegation" };
+      }
+
+      // Enforce Absolute Rating Floor:
+      // If a team is rated highly, we override low relative expectations to match their prestige
+      if (avg >= 4.5 && exp.rank > 1) {
+        exp = { text: "Win the League!", rank: 1, desc: "Title Contender" };
+      } else if (avg >= 4.2 && exp.rank > 4) {
+        exp = {
+          text: isSA ? "Finish in Top Spots (Continental)" : "Finish in Top 4 (Europe)",
+          rank: 4,
+          desc: isSA ? "Continental Challenger" : "European Challenger"
+        };
+      } else if (avg >= 3.8 && exp.rank > 6) {
+        exp = {
+          text: isSA ? "Finish in Top Spots (Continental)" : "Finish in Top 6 (Europe)",
+          rank: 6,
+          desc: isSA ? "Continental Challenger" : "European Challenger"
+        };
+      } else if (avg >= 3.2 && exp.rank > 10) {
+        exp = { text: "Finish in Top 10", rank: 10, desc: "Top 10 Finisher" };
+      }
+
+      return exp;
+    }
+
+    if (avg >= 4.5) {
+      return { text: "Win the League!", rank: 1, desc: "Title Contender" };
+    } else if (avg >= 4.2) {
+      return {
+        text: isSA ? "Finish in Top Spots (Continental)" : "Finish in Top 4 (Europe)",
+        rank: 4,
+        desc: isSA ? "Continental Challenger" : "European Challenger"
+      };
+    } else if (avg >= 3.8) {
+      return {
+        text: isSA ? "Finish in Top Spots (Continental)" : "Finish in Top 6 (Europe)",
+        rank: 6,
+        desc: isSA ? "Continental Challenger" : "European Challenger"
+      };
+    } else if (avg >= 3.2) {
+      return { text: "Finish in Top 10", rank: 10, desc: "Top 10 Finisher" };
+    } else if (avg >= 2.3) {
+      return { text: "Finish in Mid-Table (10th-14th)", rank: 14, desc: "Mid-Table Stability" };
+    } else {
+      return { text: "Avoid Relegation", rank: 17, desc: "Avoid Relegation" };
+    }
+  };
+
+
+  // Dynamically load the correct roster data
+  const isSACountry = (country === "argentina" || country === "brazil" || country === "colombia");
+  const hasD2 = leagueDataMapD2[season] && leagueDataMapD2[season][country];
+  const selectedData = isSACountry
+    ? ((leagueDataMapSA[season] && leagueDataMapSA[season][country]) ? leagueDataMapSA[season][country] : leagueDataMapSA["2010"]["argentina"])
+    : (division === 2 && hasD2
+        ? leagueDataMapD2[season][country]
+        : ((leagueDataMap[season] && leagueDataMap[season][country]) ? leagueDataMap[season][country] : leagueDataMap["1993"]["england"])
+      );
+
+
+  const roster = selectedData.map(team => ({
+    ...team,
+    played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0
+  }));
+
+  const activeTeamObj = roster.find(t => t.idnum === selectedTeamId);
+
+  // Validate step transitions
+  const handleValidateConfig = () => {
+    const isValid1985 = season === "1985" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france");
+    const isValid1987 = season === "1987" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "portugal" || country === "netherlands");
+    const isValid1988 = season === "1988" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "portugal" || country === "netherlands");
+    const isValid1989 = season === "1989" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "portugal" || country === "netherlands");
+    const isValid1990 = season === "1990" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "portugal" || country === "netherlands");
+    const isValid1991 = season === "1991" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "portugal" || country === "netherlands");
+    const isValid1992 = season === "1992" && (country === "england" || country === "germany" || country === "italy" || country === "spain" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid1993 = season === "1993" && (country === "england" || country === "germany" || country === "italy" || country === "spain" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid1994 = season === "1994" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2000 = season === "2000" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2001 = season === "2001" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2003 = season === "2003" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2004 = season === "2004" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2005 = season === "2005" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2008 = season === "2008" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2007 = season === "2007" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid1995 = season === "1995" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid1996 = season === "1996" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid1997 = season === "1997" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid1998 = season === "1998" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid1999 = season === "1999" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2002 = season === "2002" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2006 = season === "2006" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2009 = season === "2009" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2010 = season === "2010" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2011 = season === "2011" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2012 = season === "2012" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2013 = season === "2013" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2014 = season === "2014" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2015 = season === "2015" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2016 = season === "2016" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2017 = season === "2017" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2018 = season === "2018" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2019 = season === "2019" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2020 = season === "2020" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2021 = season === "2021" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2022 = season === "2022" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2023 = season === "2023" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2024 = season === "2024" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2025 = season === "2025" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+    const isValid2026 = season === "2026" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+
+    // SA seasons validation (1990-2026)
+    const saSeasons = new Set(["1990","1991","1992","1993","1994","1995","1996","1997","1998","1999","2000","2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025","2026"]);
+    const colombiaSeasons = new Set(["1990","1991","1992","1993","1994","1995","1996","1997","1998","1999","2000","2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025","2026"]);
+    const isValidSA = (saSeasons.has(season) && (country === "argentina" || country === "brazil")) || (colombiaSeasons.has(season) && country === "colombia");
+
+    if (isValid1985 || isValid1987 || isValid1988 || isValid1989 || isValid1990 || isValid1991 || isValid1992 || isValid1993 || isValid1994 || isValid1995 || isValid1996 || isValid1997 || isValid1998 || isValid1999 || isValid2000 || isValid2001 || isValid2002 || isValid2003 || isValid2004 || isValid2005 || isValid2006 || isValid2007 || isValid2008 || isValid2009 || isValid2010 || isValid2011 || isValid2012 || isValid2013 || isValid2014 || isValid2015 || isValid2016 || isValid2017 || isValid2018 || isValid2019 || isValid2020 || isValid2021 || isValid2022 || isValid2023 || isValid2024 || isValid2025 || isValid2026 || isValidSA) {
+      setSelectedTeamId(null); // Reset team selection when changing league!
+      setDivision(1); // Default to division 1
+      setStep(2);
+    } else {
+      setStep(3);
+    }
+  };
+
+  const handleImportSave = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedData = JSON.parse(e.target.result);
+        let careerData = null;
+        let profileData = null;
+
+        if (importedData.career && importedData.managerProfile) {
+          careerData = importedData.career;
+          profileData = importedData.managerProfile;
+
+          // Import all rosters if present
+          if (importedData.rosters) {
+            Object.entries(importedData.rosters).forEach(([key, val]) => {
+              if (val) {
+                localStorage.setItem(key, JSON.stringify(val));
+              }
+            });
+          } else if (importedData.rosterKey && importedData.rosterData) {
+            localStorage.setItem(importedData.rosterKey, JSON.stringify(importedData.rosterData));
+          }
+
+          // Import all lineups if present
+          if (importedData.lineups) {
+            Object.entries(importedData.lineups).forEach(([key, val]) => {
+              if (val) {
+                localStorage.setItem(key, JSON.stringify(val));
+              }
+            });
+          } else if (importedData.lineupKey && importedData.lineupData) {
+            localStorage.setItem(importedData.lineupKey, JSON.stringify(importedData.lineupData));
+          }
+        } else if (importedData.season && importedData.country && importedData.teams && importedData.fixtures) {
+          careerData = importedData;
+        } else {
+          throw new Error("Invalid save file format. Missing core league parameters.");
+        }
+
+        if (importedData.formation) {
+          localStorage.setItem('retro_player_formation', importedData.formation);
+        }
+        localStorage.setItem("retro_league_career", JSON.stringify(careerData));
+
+        if (profileData) {
+          localStorage.setItem("retro_manager_profile", JSON.stringify(profileData));
+        } else {
+          localStorage.removeItem("retro_manager_profile");
+        }
+
+        alert("Career save and manager profile successfully imported! Loading dashboard...");
+        navigate("/league/dashboard");
+      } catch (err) {
+        alert("Error importing save file: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleQuickRedirect = () => {
+    setSeason("1993");
+    setCountry("england");
+    setSelectedTeamId(null);
+    setStep(2);
+  };
+
+  // Initialize League Career state
+  const handleStartCareer = async () => {
+    if (selectedTeamId === null) return;
+    setIsStarting(true);
+
+    // Clear all previous rosters and lineups from localStorage to start fresh
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith("retro_roster_") || key.startsWith("retro_lineup_"))) {
+        localStorage.removeItem(key);
+      }
+    }
+
+    let startingBudget = 10.0;
+    try {
+      const prompt = `You are a football finance historian. What was the approximate transfer budget in USD (in millions, e.g. 5.5 for $5.5M) for the club "${activeTeamObj.name}" in the "${season}" season? 
+Provide a single JSON object with the key "budget". The value must be a number (float or int) representing USD in millions. E.g. {"budget": 12.5}.
+Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $2.0M), while Manchester United has a large budget ($30M - $40M). Adjust for the era's financial scaling (e.g. 1980s budgets are much smaller).`;
+      
+      const requestBody = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              budget: { type: "NUMBER" }
+            },
+            required: ["budget"]
+          }
+        }
+      };
+
+      const apiKey = process.env.REACT_APP_GEMINI_API_KEY || "";
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+          },
+          body: JSON.stringify(requestBody)
+        }
+      );
+
+      if (response.ok) {
+        const resData = await response.json();
+        const text = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          const parsed = JSON.parse(text.trim());
+          if (parsed && typeof parsed.budget === 'number') {
+            startingBudget = Math.max(0.2, parseFloat(parsed.budget.toFixed(1)));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch authentic budget, falling back to formula", e);
+      const stats = {
+        attack: activeTeamObj.attack || 3,
+        midfield: activeTeamObj.midfield || 3,
+        defense: activeTeamObj.defense || 3
+      };
+      const avgRating = (stats.attack + stats.midfield + stats.defense) / 3;
+      const divisionMultiplier = division === 2 ? 0.3 : 1.2;
+      const eraMultiplier = 1 + (parseInt(season) - 1980) * 0.04;
+      startingBudget = Math.max(0.5, parseFloat((Math.pow(avgRating, 2.2) * divisionMultiplier * eraMultiplier).toFixed(1)));
+    }
+
+    window.lastFetchedStartingBudget = startingBudget;
+
+    const expObj = getExpectation(activeTeamObj, roster);
+    const fixtures = generateRoundRobinFixtures(roster);
+
+    // SA vs European Cup Initialization
+    const isSA = (country === "argentina" || country === "brazil" || country === "colombia");
+    let europeanCup = null;
+    let europeanCupState = null;
+    let calendar = null;
+    let calendarIndex = 0;
+
+    const teamName = activeTeamObj.name;
+
+    if (isSA) {
+      // South America: use qualifiersBySeasonSA
+      const activeQualsSA = qualifiersBySeasonSA[season];
+      if (activeQualsSA) {
+        if (activeQualsSA.cl[country]?.includes(teamName)) {
+          europeanCup = "cl";
+        } else if (activeQualsSA.uefa[country]?.includes(teamName)) {
+          europeanCup = "uefa";
+        }
+      }
+
+      if (europeanCup && activeQualsSA) {
+        const rules = europeanCup === "cl" ? clibRules[season] : csudRules[season];
+
+        if (rules) {
+          const totalDomesticRounds = (roster.length - 1) * 2;
+          const dynamicSchedules = generateDynamicSchedules(totalDomesticRounds, rules);
+          calendar = [];
+          for (let r = 1; r <= totalDomesticRounds; r++) {
+            calendar.push({ type: "league", index: r });
+          }
+          const sortedSlots = [...dynamicSchedules].sort((a, b) => b.offset - a.offset);
+          sortedSlots.forEach(slot => {
+            if (slot.stage !== "final") {
+              calendar.splice(slot.offset, 0, { type: "europe", stage: slot.stage, matchday: slot.matchday });
+            }
+          });
+          sortedSlots.forEach(slot => {
+            if (slot.stage === "final") {
+              calendar.push({ type: "europe", stage: slot.stage, matchday: slot.matchday });
+            }
+          });
+
+          if (rules.format === "group_then_knockout") {
+            const clTeams = JSON.parse(JSON.stringify(rules.teamsData));
+            let playerClTeam = clTeams.find(t => t.name === teamName);
+            if (!playerClTeam) {
+              const domesticNames = roster.map(t => t.name);
+              let indexToReplace = clTeams.findIndex(t => domesticNames.includes(t.name) && t.name !== teamName);
+              if (indexToReplace === -1) {
+                const saQuals = activeQualsSA[europeanCup] || {};
+                const mainPlayableTeams = [
+                  ...(saQuals.argentina || []),
+                  ...(saQuals.brazil || []),
+                  ...(saQuals.colombia || [])
+                ];
+                indexToReplace = clTeams.findIndex(t => !mainPlayableTeams.includes(t.name));
+                if (indexToReplace === -1) indexToReplace = clTeams.length - 1;
+              }
+              if (indexToReplace !== -1) {
+                clTeams[indexToReplace].name = teamName;
+                clTeams[indexToReplace].primaryColor = activeTeamObj.primaryColor;
+                clTeams[indexToReplace].secondaryColor = activeTeamObj.secondaryColor;
+                clTeams[indexToReplace].kit = activeTeamObj.kit;
+                playerClTeam = clTeams[indexToReplace];
+              }
+            }
+
+            const clFixtures = [];
+            const groups = [...new Set(clTeams.map(t => t.group))].filter(g => g !== "bye" && g !== "champion").sort();
+            const firstGroupTeams = clTeams.filter(t => t.group === groups[0]);
+            const numMatchdays = firstGroupTeams.length === 5 ? 5 : 6;
+            for (let m = 0; m < numMatchdays; m++) clFixtures.push([]);
+
+            groups.forEach(g => {
+              const gTeams = clTeams.filter(t => t.group === g);
+              if (gTeams.length === 5) {
+                const [t0,t1,t2,t3,t4] = gTeams.map(t => t.idnum);
+                clFixtures[0].push({ homeId: t1, awayId: t4, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[0].push({ homeId: t2, awayId: t3, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[1].push({ homeId: t0, awayId: t4, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[1].push({ homeId: t1, awayId: t2, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[2].push({ homeId: t3, awayId: t0, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[2].push({ homeId: t4, awayId: t2, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[3].push({ homeId: t2, awayId: t0, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[3].push({ homeId: t3, awayId: t1, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[4].push({ homeId: t0, awayId: t1, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[4].push({ homeId: t4, awayId: t3, played: false, homeScore: 0, awayScore: 0, group: g });
+              } else {
+                const [t0,t1,t2,t3] = gTeams.map(t => t.idnum);
+                clFixtures[0].push({ homeId: t0, awayId: t1, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[0].push({ homeId: t2, awayId: t3, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[1].push({ homeId: t3, awayId: t0, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[1].push({ homeId: t1, awayId: t2, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[2].push({ homeId: t0, awayId: t2, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[2].push({ homeId: t3, awayId: t1, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[3].push({ homeId: t1, awayId: t0, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[3].push({ homeId: t3, awayId: t2, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[4].push({ homeId: t0, awayId: t3, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[4].push({ homeId: t2, awayId: t1, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[5].push({ homeId: t2, awayId: t0, played: false, homeScore: 0, awayScore: 0, group: g });
+                clFixtures[5].push({ homeId: t1, awayId: t3, played: false, homeScore: 0, awayScore: 0, group: g });
+              }
+            });
+
+            europeanCupState = {
+              teams: clTeams,
+              fixtures: clFixtures,
+              europeanPlayerTeamId: playerClTeam ? playerClTeam.idnum : null,
+              knockoutState: {
+                roundOf32Leg1: null, roundOf32Leg2: null,
+                roundOf16Leg1: null, roundOf16Leg2: null,
+                quarterFinalsLeg1: null, quarterFinalsLeg2: null,
+                semiFinalsLeg1: null, semiFinalsLeg2: null,
+                final: null
+              }
+            };
+          } else if (rules.format === "pure_knockout") {
+            const teams = JSON.parse(JSON.stringify(rules.teamsData));
+            let playerTeam = teams.find(t => t.name === teamName);
+            if (!playerTeam) {
+              const domesticNames = roster.map(t => t.name);
+              let indexToReplace = teams.findIndex(t => domesticNames.includes(t.name) && t.name !== teamName);
+              if (indexToReplace === -1) indexToReplace = teams.length - 1;
+              teams[indexToReplace].name = teamName;
+              teams[indexToReplace].primaryColor = activeTeamObj.primaryColor;
+              teams[indexToReplace].secondaryColor = activeTeamObj.secondaryColor;
+              teams[indexToReplace].kit = activeTeamObj.kit;
+              playerTeam = teams[indexToReplace];
+            }
+            const toCamelCase = (str) => str.replace(/_([a-z0-9])/g, (g) => g[1].toUpperCase());
+            const firstStage = rules.stages[0];
+            const firstLegKey = toCamelCase(firstStage) + "Leg1";
+            const secondLegKey = toCamelCase(firstStage) + "Leg2";
+            const leg1Fixtures = [];
+            for (let i = 0; i < teams.length; i += 2) {
+              leg1Fixtures.push({ homeId: teams[i].idnum, awayId: teams[i+1].idnum, played: false, homeScore: 0, awayScore: 0 });
+            }
+            const leg2Fixtures = leg1Fixtures.map(m => ({ homeId: m.awayId, awayId: m.homeId, played: false, homeScore: 0, awayScore: 0 }));
+            const knockoutState = { roundOf32Leg1: null, roundOf32Leg2: null, roundOf16Leg1: null, roundOf16Leg2: null, quarterFinalsLeg1: null, quarterFinalsLeg2: null, semiFinalsLeg1: null, semiFinalsLeg2: null, final: null };
+            knockoutState[firstLegKey] = leg1Fixtures;
+            knockoutState[secondLegKey] = leg2Fixtures;
+            europeanCupState = { teams, europeanPlayerTeamId: playerTeam ? playerTeam.idnum : null, knockoutState };
+          }
+        }
+      }
+    } else {
+      // European Cup Initialization (original logic)
+      const activeQualifiers = qualifiersBySeason[season];
+
+      if (activeQualifiers) {
+        if (activeQualifiers.cl[country]?.includes(teamName)) {
+          europeanCup = "cl";
+        } else if (activeQualifiers.uefa[country]?.includes(teamName)) {
+          europeanCup = "uefa";
+        } else if (activeQualifiers.uecl?.[country]?.includes(teamName)) {
+          europeanCup = "uecl";
+        }
+      }
+
+      if (europeanCup && activeQualifiers) {
+        const rules = europeanCup === "cl" ? clRules[season] : (europeanCup === "uefa" ? uefaRules[season] : ueclRules[season]);
+        
+        // Initialize Calendar
+        const totalDomesticRounds = (roster.length - 1) * 2;
+        const dynamicSchedules = generateDynamicSchedules(totalDomesticRounds, rules);
+        calendar = [];
+        for (let r = 1; r <= totalDomesticRounds; r++) {
+          calendar.push({ type: "league", index: r });
+        }
+
+        // Dynamic calendar slots interleaving using descending order to splice correctly
+        const sortedSlots = [...dynamicSchedules].sort((a, b) => b.offset - a.offset);
+        sortedSlots.forEach(slot => {
+          if (slot.stage !== "final") {
+            calendar.splice(slot.offset, 0, { type: "europe", stage: slot.stage, matchday: slot.matchday });
+          }
+        });
+        sortedSlots.forEach(slot => {
+          if (slot.stage === "final") {
+            calendar.push({ type: "europe", stage: slot.stage, matchday: slot.matchday });
+          }
+        });
+
+        if (rules.format === "group_then_knockout") {
+          // CL Group Stage setup (e.g. 1994 Champions League)
+          const clTeams = JSON.parse(JSON.stringify(rules.teamsData));
+          let playerClTeam = clTeams.find(t => t.name === teamName);
+          if (!playerClTeam && activeQualifiers) {
+            const domesticNames = roster.map(t => t.name);
+            let indexToReplace = clTeams.findIndex(t => domesticNames.includes(t.name) && t.name !== teamName);
+            if (indexToReplace === -1) {
+              const cupQualifiers = activeQualifiers[europeanCup] || {};
+              const mainPlayableClTeams = [
+                ...(cupQualifiers.england || []),
+                ...(cupQualifiers.spain || []),
+                ...(cupQualifiers.germany || []),
+                ...(cupQualifiers.italy || []),
+                ...(cupQualifiers.france || []),
+                ...(cupQualifiers.russia || []),
+                ...(cupQualifiers.portugal || []),
+                ...(cupQualifiers.netherlands || [])
+              ];
+              indexToReplace = clTeams.findIndex(t => !mainPlayableClTeams.includes(t.name));
+              if (indexToReplace === -1) {
+                indexToReplace = clTeams.length - 1;
+              }
+            }
+            if (indexToReplace !== -1) {
+              clTeams[indexToReplace].name = teamName;
+              clTeams[indexToReplace].primaryColor = activeTeamObj.primaryColor;
+              clTeams[indexToReplace].secondaryColor = activeTeamObj.secondaryColor;
+              clTeams[indexToReplace].kit = activeTeamObj.kit;
+              playerClTeam = clTeams[indexToReplace];
+            }
+          }
+          
+          const clFixtures = [];
+          const groups = [...new Set(clTeams.map(t => t.group))].sort();
+          const firstGroupTeams = clTeams.filter(t => t.group === groups[0]);
+          const numMatchdays = firstGroupTeams.length === 5 ? 5 : 6;
+          for (let m = 0; m < numMatchdays; m++) clFixtures.push([]);
+
+          groups.forEach(g => {
+            const gTeams = clTeams.filter(t => t.group === g);
+            if (gTeams.length === 5) {
+              const t0 = gTeams[0].idnum;
+              const t1 = gTeams[1].idnum;
+              const t2 = gTeams[2].idnum;
+              const t3 = gTeams[3].idnum;
+              const t4 = gTeams[4].idnum;
+
+              // Matchday 1
+              clFixtures[0].push({ homeId: t1, awayId: t4, played: false, homeScore: 0, awayScore: 0, group: g });
+              clFixtures[0].push({ homeId: t2, awayId: t3, played: false, homeScore: 0, awayScore: 0, group: g });
+
+              // Matchday 2
+              clFixtures[1].push({ homeId: t0, awayId: t4, played: false, homeScore: 0, awayScore: 0, group: g });
+              clFixtures[1].push({ homeId: t1, awayId: t2, played: false, homeScore: 0, awayScore: 0, group: g });
+
+              // Matchday 3
+              clFixtures[2].push({ homeId: t3, awayId: t0, played: false, homeScore: 0, awayScore: 0, group: g });
+              clFixtures[2].push({ homeId: t4, awayId: t2, played: false, homeScore: 0, awayScore: 0, group: g });
+
+              // Matchday 4
+              clFixtures[3].push({ homeId: t2, awayId: t0, played: false, homeScore: 0, awayScore: 0, group: g });
+              clFixtures[3].push({ homeId: t3, awayId: t1, played: false, homeScore: 0, awayScore: 0, group: g });
+
+              // Matchday 5
+              clFixtures[4].push({ homeId: t0, awayId: t1, played: false, homeScore: 0, awayScore: 0, group: g });
+              clFixtures[4].push({ homeId: t4, awayId: t3, played: false, homeScore: 0, awayScore: 0, group: g });
+            } else {
+              const t0 = gTeams[0].idnum;
+              const t1 = gTeams[1].idnum;
+              const t2 = gTeams[2].idnum;
+              const t3 = gTeams[3].idnum;
+
+              // Matchday 1
+              clFixtures[0].push({ homeId: t0, awayId: t1, played: false, homeScore: 0, awayScore: 0, group: g });
+              clFixtures[0].push({ homeId: t2, awayId: t3, played: false, homeScore: 0, awayScore: 0, group: g });
+              // Matchday 2
+              clFixtures[1].push({ homeId: t3, awayId: t0, played: false, homeScore: 0, awayScore: 0, group: g });
+              clFixtures[1].push({ homeId: t1, awayId: t2, played: false, homeScore: 0, awayScore: 0, group: g });
+              // Matchday 3
+              clFixtures[2].push({ homeId: t0, awayId: t2, played: false, homeScore: 0, awayScore: 0, group: g });
+              clFixtures[2].push({ homeId: t3, awayId: t1, played: false, homeScore: 0, awayScore: 0, group: g });
+              // Matchday 4
+              clFixtures[3].push({ homeId: t1, awayId: t0, played: false, homeScore: 0, awayScore: 0, group: g });
+              clFixtures[3].push({ homeId: t3, awayId: t2, played: false, homeScore: 0, awayScore: 0, group: g });
+              // Matchday 5
+              clFixtures[4].push({ homeId: t0, awayId: t3, played: false, homeScore: 0, awayScore: 0, group: g });
+              clFixtures[4].push({ homeId: t2, awayId: t1, played: false, homeScore: 0, awayScore: 0, group: g });
+              // Matchday 6
+              clFixtures[5].push({ homeId: t2, awayId: t0, played: false, homeScore: 0, awayScore: 0, group: g });
+              clFixtures[5].push({ homeId: t1, awayId: t3, played: false, homeScore: 0, awayScore: 0, group: g });
+            }
+          });
+
+          europeanCupState = {
+            teams: clTeams,
+            fixtures: clFixtures,
+            europeanPlayerTeamId: playerClTeam ? playerClTeam.idnum : null,
+            knockoutState: {
+              roundOf32Leg1: null, roundOf32Leg2: null,
+              roundOf16Leg1: null, roundOf16Leg2: null,
+              quarterFinalsLeg1: null, quarterFinalsLeg2: null,
+              semiFinalsLeg1: null, semiFinalsLeg2: null,
+              final: null
+            }
+          };
+        } else if (rules.format === "league_then_knockout") {
+        // CL/EL/UECL 36-team single league setup
+        const clTeams = JSON.parse(JSON.stringify(rules.teamsData));
+        let playerClTeam = clTeams.find(t => t.name === teamName);
+        if (!playerClTeam && activeQualifiers) {
+          const domesticNames = roster.map(t => t.name);
+          let indexToReplace = clTeams.findIndex(t => domesticNames.includes(t.name) && t.name !== teamName);
+          if (indexToReplace === -1) {
+            const cupQualifiers = activeQualifiers[europeanCup] || {};
+            const mainPlayableClTeams = [
+              ...(cupQualifiers.england || []),
+              ...(cupQualifiers.spain || []),
+              ...(cupQualifiers.germany || []),
+              ...(cupQualifiers.italy || []),
+              ...(cupQualifiers.france || []),
+              ...(cupQualifiers.russia || []),
+              ...(cupQualifiers.portugal || []),
+              ...(cupQualifiers.netherlands || [])
+            ];
+            indexToReplace = clTeams.findIndex(t => !mainPlayableClTeams.includes(t.name));
+            if (indexToReplace === -1) {
+              indexToReplace = clTeams.length - 1;
+            }
+          }
+          if (indexToReplace !== -1) {
+            clTeams[indexToReplace].name = teamName;
+            clTeams[indexToReplace].primaryColor = activeTeamObj.primaryColor;
+            clTeams[indexToReplace].secondaryColor = activeTeamObj.secondaryColor;
+            clTeams[indexToReplace].kit = activeTeamObj.kit;
+            playerClTeam = clTeams[indexToReplace];
+          }
+        }
+
+        const clFixtures = [];
+        const numTeams = clTeams.length; // 36
+        const rounds = 8;
+        
+        const list = [...clTeams];
+        for (let r = 0; r < rounds; r++) {
+          const roundPairs = [];
+          for (let i = 0; i < numTeams / 2; i++) {
+            const home = list[i];
+            const away = list[numTeams - 1 - i];
+            
+            // Alternate home/away to balance
+            if (r % 2 === 0) {
+              roundPairs.push({ homeId: home.idnum, awayId: away.idnum, played: false, homeScore: 0, awayScore: 0 });
+            } else {
+              roundPairs.push({ homeId: away.idnum, awayId: home.idnum, played: false, homeScore: 0, awayScore: 0 });
+            }
+          }
+          clFixtures.push(roundPairs);
+          list.splice(1, 0, list.pop());
+        }
+
+        europeanCupState = {
+          teams: clTeams,
+          fixtures: clFixtures,
+          europeanPlayerTeamId: playerClTeam ? playerClTeam.idnum : null,
+          knockoutState: {
+            playoffsLeg1: null, playoffsLeg2: null,
+            roundOf16Leg1: null, roundOf16Leg2: null,
+            quarterFinalsLeg1: null, quarterFinalsLeg2: null,
+            semiFinalsLeg1: null, semiFinalsLeg2: null,
+            final: null
+          }
+        };
+      } else if (rules.format === "pure_knockout") {
+        // Pure Knockout format setup (e.g. 1990 CL, 1990 UEFA, 1994 UEFA)
+        const teams = JSON.parse(JSON.stringify(rules.teamsData));
+        let playerTeam = teams.find(t => t.name === teamName);
+        if (!playerTeam && activeQualifiers) {
+          const domesticNames = roster.map(t => t.name);
+          let indexToReplace = teams.findIndex(t => domesticNames.includes(t.name) && t.name !== teamName);
+          if (indexToReplace === -1) {
+            const activeQualifiersUefa = activeQualifiers.uefa || {};
+            const activeQualifiersCl = activeQualifiers.cl || {};
+            const mainPlayableTeams = [
+              ...(activeQualifiersUefa.england || activeQualifiersCl.england || []),
+              ...(activeQualifiersUefa.spain || activeQualifiersCl.spain || []),
+              ...(activeQualifiersUefa.germany || activeQualifiersCl.germany || []),
+              ...(activeQualifiersUefa.italy || activeQualifiersCl.italy || []),
+              ...(activeQualifiersUefa.france || activeQualifiersCl.france || []),
+              ...(activeQualifiersUefa.russia || activeQualifiersCl.russia || []),
+              ...(activeQualifiersUefa.portugal || activeQualifiersCl.portugal || []),
+              ...(activeQualifiersUefa.netherlands || activeQualifiersCl.netherlands || [])
+            ];
+            indexToReplace = teams.findIndex(t => !mainPlayableTeams.includes(t.name));
+            if (indexToReplace === -1) {
+              indexToReplace = teams.length - 1;
+            }
+          }
+          if (indexToReplace !== -1) {
+            teams[indexToReplace].name = teamName;
+            teams[indexToReplace].primaryColor = activeTeamObj.primaryColor;
+            teams[indexToReplace].secondaryColor = activeTeamObj.secondaryColor;
+            teams[indexToReplace].kit = activeTeamObj.kit;
+            playerTeam = teams[indexToReplace];
+          }
+        }
+
+        const toCamelCase = (str) => str.replace(/_([a-z0-9])/g, (g) => g[1].toUpperCase());
+        const firstStage = rules.stages[0]; // e.g. "round_of_32" or "quarter_finals"
+        const firstLegKey = toCamelCase(firstStage) + "Leg1";
+        const secondLegKey = toCamelCase(firstStage) + "Leg2";
+
+        const leg1Fixtures = [];
+        for (let i = 0; i < teams.length; i += 2) {
+          leg1Fixtures.push({
+            homeId: teams[i].idnum,
+            awayId: teams[i+1].idnum,
+            played: false,
+            homeScore: 0,
+            awayScore: 0
+          });
+        }
+        const leg2Fixtures = leg1Fixtures.map(m => ({
+          homeId: m.awayId,
+          awayId: m.homeId,
+          played: false,
+          homeScore: 0,
+          awayScore: 0
+        }));
+
+        const knockoutState = {
+          roundOf32Leg1: null, roundOf32Leg2: null,
+          roundOf16Leg1: null, roundOf16Leg2: null,
+          quarterFinalsLeg1: null, quarterFinalsLeg2: null,
+          semiFinalsLeg1: null, semiFinalsLeg2: null,
+          final: null
+        };
+        knockoutState[firstLegKey] = leg1Fixtures;
+        knockoutState[secondLegKey] = leg2Fixtures;
+
+        europeanCupState = {
+          teams: teams,
+          europeanPlayerTeamId: playerTeam ? playerTeam.idnum : null,
+          knockoutState
+        };
+      }
+    } // end if (europeanCup && activeQualifiers)
+  } // end else (European Cup)
+
+    const totalDomesticRounds = (roster.length - 1) * 2;
+    if (!calendar) {
+      calendar = [];
+      for (let r = 1; r <= totalDomesticRounds; r++) {
+        calendar.push({ type: "league", index: r });
+      }
+    }
+
+    const rawDiv1 = (leagueDataMap[season] && leagueDataMap[season][country]) || roster;
+    const rawDiv2 = (leagueDataMapD2[season] && leagueDataMapD2[season][country]) || [];
+    const div1Roster = rawDiv1.map(t => ({ ...t, division: 1 }));
+    const div2Roster = rawDiv2.map(t => ({ ...t, division: 2 }));
+    const fullRoster = [...div1Roster, ...div2Roster];
+    const domesticCupState = createDomesticCup(fullRoster, totalDomesticRounds, country, selectedTeamId);
+    const pTeam = roster.find(t => t.idnum === selectedTeamId);
+    const domesticCupExpectation = getDomesticCupExpectation(pTeam || {}, domesticCupState.bracketSize);
+
+    if (domesticCupState.calendarSchedules) {
+      const domSlots = [...domesticCupState.calendarSchedules].sort((a, b) => b.offset - a.offset);
+      domSlots.forEach(slot => {
+        if (slot.stage !== "final") {
+          calendar.splice(slot.offset, 0, { type: "domestic_cup", stage: slot.stage, isDomesticCup: true });
+        } else {
+          const finalIdx = Math.max(1, calendar.length - 1);
+          calendar.splice(finalIdx, 0, { type: "domestic_cup", stage: slot.stage, isDomesticCup: true });
+        }
+      });
+    }
+
+    const leagueState = {
+      season: `${season}/${String((parseInt(season) + 1) % 100).padStart(2, '0')}`,
+      country: country,
+      region: isSA ? "south_america" : "europe",
+      playerTeamId: selectedTeamId,
+      managerName: managerName || "Manager",
+      boardExpectation: expObj,
+      domesticCupExpectation,
+      domesticCupState,
+      currentRound: 1, // Start at round 1
+      teams: roster,
+      fixtures,
+      europeanCup,
+      europeanCupState,
+      calendar,
+      calendarIndex,
+      fanConfidence: 50,
+      aperturaChampion: null,
+      clausuraChampion: null,
+      division: division,
+      budget: window.lastFetchedStartingBudget || 10.0,
+      lastTransferWindow: ""
+    };
+
+    localStorage.removeItem("retro_manager_profile");
+    localStorage.setItem("retro_league_career", JSON.stringify(leagueState));
+    setIsStarting(false);
+    navigate("/league/dashboard");
+  };
+
+  // Generate Year Array (1980 to 2026)
+  const seasonsList = [];
+  for (let y = 1980; y <= 2026; y++) {
+    seasonsList.push(`${y}`);
+  }
+
+  // Set of seasons that have real data for ALL countries
+  const availableSeasons = new Set(["1985", "1987", "1988", "1989", "1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
+  const russiaSeasons = new Set(["1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
+  const portugalNetherlandsSeasons = new Set(["1987", "1988", "1989", "1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
+
+  const saSeasonsList = new Set(["1990","1991","1992","1993","1994","1995","1996","1997","1998","1999","2000","2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025","2026"]);
+  const colombiaSeasonsList = new Set(["1990","1991","1992","1993","1994","1995","1996","1997","1998","1999","2000","2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025","2026"]);
+
+  const hasData = (yr) => {
+    if (country === "colombia") {
+      return colombiaSeasonsList.has(`${yr}`);
+    }
+    if (country === "argentina" || country === "brazil") {
+      return saSeasonsList.has(`${yr}`);
+    }
+    if (country === "portugal" || country === "netherlands") {
+      return portugalNetherlandsSeasons.has(`${yr}`);
+    }
+    if (country === "russia") {
+      return russiaSeasons.has(`${yr}`);
+    }
+    return availableSeasons.has(`${yr}`);
+  };
+
+
+
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  return (
+    <div className="Match team-select-container">
+      
+      {/* STEP 1: Season & Country Dropdowns Selectors */}
+      {step === 1 && (
+        <div className="animated-slide-in" style={{ width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+          <div className="matchheader selector-header">
+            <h1 className="glowing-header-text">LEAGUE SETUP</h1>
+            <p className="lobby-subtitle">SELECT SEASON YEAR AND DIVISION</p>
+          </div>
+
+          <div className="team-select-card" style={{ width: '100%', padding: '30px' }}>
+            <h2>CHOOSE SEASON</h2>
+            <div className="select-wrapper" style={{ width: '90%', marginBottom: '15px' }}>
+              <select className="team-dropdown" value={season} onChange={(e) => setSeason(e.target.value)}>
+                {seasonsList.map(yr => (
+                  <option key={yr} value={yr}>
+                    {hasData(yr)
+                      ? `Season ${yr} / ${String((parseInt(yr) + 1) % 100).padStart(2, '0')}`
+                      : `Season ${yr} / ${String((parseInt(yr) + 1) % 100).padStart(2, '0')} — Coming Soon`
+                    }
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <h2>CHOOSE COUNTRY</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '90%', marginBottom: '15px' }}>
+              <div className="select-wrapper" style={{ flex: 1, marginBottom: 0 }}>
+                <select className="team-dropdown" value={country} onChange={(e) => setCountry(e.target.value)}>
+                  <option value="england">England</option>
+                  <option value="germany">Germany</option>
+                  <option value="spain">Spain</option>
+                  <option value="italy">Italy</option>
+                  <option value="france">France</option>
+                  <option value="russia">Russia</option>
+                  <option value="portugal">Portugal</option>
+                  <option value="netherlands">Netherlands</option>
+                  <option disabled style={{ color: '#888', fontSize: '10px' }}>─── South America ───</option>
+                  <option value="argentina">Argentina</option>
+                  <option value="brazil">Brazil</option>
+                  <option value="colombia">Colombia</option>
+                </select>
+              </div>
+              <CountryFlag country={country} size={38} style={{ border: '1.5px solid rgba(255, 255, 255, 0.2)', flexShrink: 0 }} />
+            </div>
+
+            <button className="play-match-btn glowing-btn" style={{ marginTop: '20px', width: '90%' }} onClick={handleValidateConfig}>
+              GENERATE TEAMS ➔
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', width: '90%', margin: '20px 0 10px 0' }}>
+              <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.1)' }}></div>
+              <span style={{ padding: '0 10px', fontSize: '9px', color: '#888', letterSpacing: '1px', fontWeight: 'bold' }}>OR</span>
+              <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.1)' }}></div>
+            </div>
+
+            <button
+              onClick={() => document.getElementById("select-import-save-input").click()}
+              className="glowing-btn"
+              style={{
+                width: '90%',
+                padding: '12px',
+                fontSize: '12px',
+                borderColor: '#ffc107',
+                color: '#ffc107',
+                background: 'rgba(255, 193, 7, 0.05)',
+                fontFamily: 'Orbitron, sans-serif',
+                fontWeight: 'bold',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                letterSpacing: '1px',
+                transition: 'all 0.3s ease',
+                border: '1.5px solid #ffc107',
+                boxShadow: '0 0 10px rgba(255, 193, 7, 0.1)'
+              }}
+              title="Import career save from a JSON file"
+              onMouseEnter={(e) => {
+                e.target.style.background = '#ffc107';
+                e.target.style.color = '#050c06';
+                e.target.style.boxShadow = '0 0 20px rgba(255, 193, 7, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'rgba(255, 193, 7, 0.05)';
+                e.target.style.color = '#ffc107';
+                e.target.style.boxShadow = '0 0 10px rgba(255, 193, 7, 0.1)';
+              }}
+            >
+              📂 IMPORT SAVE GAME
+            </button>
+            <input
+              type="file"
+              id="select-import-save-input"
+              accept=".json,application/json"
+              style={{ display: 'none' }}
+              onChange={handleImportSave}
+            />
+          </div>
+          
+          <div style={{ marginTop: '10px' }}>
+            <button className="back-home-btn" onClick={() => navigate("/")}>➔ RETURN TO CABINET</button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 2: England 1993/94 squad select screen */}
+      {step === 2 && (
+        <div className="animated-slide-in" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+          <div className="matchheader selector-header">
+            <h1 className="glowing-header-text">CHOOSE YOUR SQUAD</h1>
+            <p className="lobby-subtitle">{cap(country)} {season}/${String((parseInt(season) + 1) % 100).padStart(2, '0')} - {division === 2 ? 'Second Division' : 'First Division'} League Campaign</p>
+          </div>
+
+          {hasD2 && (
+            <div style={{ display: 'flex', gap: '10px', width: '100%', maxWidth: '450px' }}>
+              <button 
+                className={`play-match-btn ${division === 1 ? 'glowing-btn' : ''}`}
+                style={{ 
+                  flex: 1, 
+                  padding: '8px 16px', 
+                  fontSize: '12px',
+                  background: division === 1 ? 'rgba(0, 255, 100, 0.1)' : 'rgba(0,0,0,0.5)',
+                  border: division === 1 ? '1.5px solid #00ff64' : '1px solid rgba(255,255,255,0.1)',
+                  color: division === 1 ? '#00ff64' : '#aaa',
+                  fontFamily: 'Orbitron, sans-serif'
+                }}
+                onClick={() => { setDivision(1); setSelectedTeamId(null); }}
+              >
+                DIVISION 1
+              </button>
+              <button 
+                className={`play-match-btn ${division === 2 ? 'glowing-btn' : ''}`}
+                style={{ 
+                  flex: 1, 
+                  padding: '8px 16px', 
+                  fontSize: '12px',
+                  background: division === 2 ? 'rgba(0, 255, 100, 0.1)' : 'rgba(0,0,0,0.5)',
+                  border: division === 2 ? '1.5px solid #00ff64' : '1px solid rgba(255,255,255,0.1)',
+                  color: division === 2 ? '#00ff64' : '#aaa',
+                  fontFamily: 'Orbitron, sans-serif'
+                }}
+                onClick={() => { setDivision(2); setSelectedTeamId(null); }}
+              >
+                DIVISION 2
+              </button>
+            </div>
+          )}
+
+          <div className="selection-deck" style={{ flexWrap: 'wrap', gap: '25px', maxWidth: '1100px' }}>
+            
+            {/* Grid of 22 Teams scrollbox */}
+            <div className="teams-grid-scroll-box" style={{ 
+              flexGrow: 1, 
+              height: '450px', 
+              overflowY: 'auto', 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', 
+              gap: '12px',
+              paddingRight: '10px'
+            }}>
+              {roster.map((team) => (
+                <div 
+                  key={team.idnum}
+                  className={`team-select-mini-card ${selectedTeamId === team.idnum ? 'selected-mini-card' : ''}`}
+                  onClick={() => setSelectedTeamId(team.idnum)}
+                  style={{
+                    background: selectedTeamId === team.idnum ? 'rgba(0,255,100,0.06)' : 'rgba(0,0,0,0.4)',
+                    border: selectedTeamId === team.idnum ? '2px solid #00ff64' : '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.25s ease'
+                  }}
+                >
+                  <TeamFlag primaryColor={team.primaryColor} secondaryColor={team.secondaryColor} size={55} />
+                  <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#fff', textAlign: 'center' }}>{team.name}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Team details side board */}
+            <div className="team-select-card" style={{ width: '300px', minHeight: '450px', flexShrink: 0 }}>
+              <h2>TEAM OVERVIEW</h2>
+              {activeTeamObj ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: '12px' }}>
+                  <TeamFlag primaryColor={activeTeamObj.primaryColor} secondaryColor={activeTeamObj.secondaryColor} size={110} />
+                  <h3 style={{ margin: '0', color: '#fff', fontSize: '16px', textAlign: 'center' }}>{activeTeamObj.name}</h3>
+
+                  <div className="stats-box" style={{ width: '90%', padding: '8px 12px' }}>
+                    <div className="stat-row">
+                      <span className="stat-label">Attack</span>
+                      <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${activeTeamObj.attack * 20}%` }}></div></div>
+                      <span className="stat-val">{activeTeamObj.attack}</span>
+                    </div>
+                    <div className="stat-row">
+                      <span className="stat-label">Midfield</span>
+                      <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${activeTeamObj.midfield * 20}%` }}></div></div>
+                      <span className="stat-val">{activeTeamObj.midfield}</span>
+                    </div>
+                    <div className="stat-row">
+                      <span className="stat-label">Defense</span>
+                      <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${activeTeamObj.defense * 20}%` }}></div></div>
+                      <span className="stat-val">{activeTeamObj.defense}</span>
+                    </div>
+                  </div>
+
+                  {/* Manager Name Input */}
+                  <div style={{ width: '90%', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '10px', color: '#00ff64', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'left' }}>Manager Name</label>
+                    <input 
+                      type="text" 
+                      value={managerName} 
+                      onChange={(e) => setManagerName(e.target.value)}
+                      style={{
+                        background: 'rgba(0,0,0,0.5)',
+                        border: '1px solid rgba(0,255,100,0.2)',
+                        borderRadius: '6px',
+                        padding: '6px 10px',
+                        color: '#fff',
+                        fontSize: '13px',
+                        width: '100%',
+                        outline: 'none',
+                        textAlign: 'center'
+                      }}
+                      maxLength={20}
+                    />
+                  </div>
+
+                  {/* Board Expectation */}
+                  <div style={{ 
+                    width: '90%', 
+                    padding: '8px 12px', 
+                    background: 'rgba(0,255,100,0.03)', 
+                    border: '1px solid rgba(0,255,100,0.15)',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '2px'
+                  }}>
+                    <span style={{ fontSize: '9px', color: '#888', textTransform: 'uppercase' }}>Board Expectation</span>
+                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#00ff64' }}>{getExpectation(activeTeamObj, roster)?.text}</span>
+                    <span style={{ fontSize: '10px', color: '#aaa' }}>Goal: {getExpectation(activeTeamObj, roster)?.desc}</span>
+                  </div>
+
+                  <button 
+                    className="play-match-btn glowing-btn" 
+                    style={{ fontSize: '13px', padding: '10px 20px', width: '90%', marginTop: '5px', opacity: isStarting ? 0.6 : 1, cursor: isStarting ? 'not-allowed' : 'pointer' }} 
+                    onClick={handleStartCareer}
+                    disabled={isStarting}
+                  >
+                    {isStarting ? "SETTING UP BOARD ROOM..." : "CONFIRM & START LOBBY"}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '14px', textAlign: 'center' }}>
+                  Select one of the {roster.length} clubs to view historical statistics and kits.
+                </div>
+              )}
+            </div>
+
+          </div>
+
+          <div style={{ marginTop: '20px' }}>
+            <button className="back-home-btn" onClick={() => setStep(1)}>➔ BACK TO SETUP</button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3: Season / League Coming Soon Warning Console */}
+      {step === 3 && (
+        <div className="animated-slide-in" style={{ width: '100%', maxWidth: '550px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+          <div className="matchheader selector-header">
+            <h1 className="glowing-header-text" style={{ background: 'linear-gradient(135deg, #ff4500, #ff8c00)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>COMING SOON!</h1>
+            <p className="lobby-subtitle">Division Under Construction</p>
+          </div>
+
+          <div className="team-select-card" style={{ width: '100%', padding: '30px', border: '1.5px solid #ff4500', boxShadow: '0 0 20px rgba(255, 69, 0, 0.15)', textAlign: 'center' }}>
+            <div style={{ fontSize: '45px', marginBottom: '15px' }}>🚧</div>
+            
+            <p style={{ color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 10px 0' }}>
+              Season {season} - {cap(country)} League is under construction!
+            </p>
+            
+            <p style={{ color: '#a3b3a7', fontSize: '13px', lineHeight: '1.5', margin: '0 0 25px 0' }}>
+              Historic roster databases and kit colors for this league are currently being compiled and will be added in a future update! 
+              <br /><br />
+              In the meantime, enter the legendary **England 1993/94 Premier League** campaign to play right now!
+            </p>
+
+            <button className="play-match-btn glowing-btn" style={{ width: '90%', fontSize: '15px', padding: '12px 20px' }} onClick={handleQuickRedirect}>
+              ➔ PLAY ENGLAND 1993/94 NOW
+            </button>
+          </div>
+
+          <div style={{ marginTop: '20px' }}>
+            <button className="back-home-btn" onClick={() => setStep(1)}>➔ BACK TO SETUP</button>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

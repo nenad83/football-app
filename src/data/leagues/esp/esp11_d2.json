@@ -1,0 +1,22 @@
+[
+  { "idnum": 20, "id": "esp11_d2", "name": "Real Valladolid", "attack": 3, "midfield": 3, "defense": 3, "kit": "esp12/13.png", "primaryColor": "#5C0D6E", "secondaryColor": "#FFFFFF" },
+  { "idnum": 21, "id": "esp11_d2", "name": "Celta Vigo", "attack": 3, "midfield": 2, "defense": 3, "kit": "esp12/16.png", "primaryColor": "#87CEEB", "secondaryColor": "#FFFFFF" },
+  { "idnum": 22, "id": "esp11_d2", "name": "Deportivo La Coruna", "attack": 3, "midfield": 3, "defense": 3, "kit": "esp12/18.png", "primaryColor": "#FFFFFF", "secondaryColor": "#004FA3" },
+  { "idnum": 23, "id": "esp11_d2", "name": "Hercules", "attack": 2, "midfield": 3, "defense": 2, "kit": "esp10/18.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 24, "id": "esp11_d2", "name": "Almeria", "attack": 2, "midfield": 2, "defense": 2, "kit": "esp12/14.png", "primaryColor": "#E2001A", "secondaryColor": "#FFFFFF" },
+  { "idnum": 25, "id": "esp11_d2", "name": "Alcorcon", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFF00", "secondaryColor": "#0000FF" },
+  { "idnum": 26, "id": "esp11_d2", "name": "Elche", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/2.png", "primaryColor": "#FFFFFF", "secondaryColor": "#008000" },
+  { "idnum": 27, "id": "esp11_d2", "name": "Cordoba", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/4.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 28, "id": "esp11_d2", "name": "Barcelona B", "attack": 2, "midfield": 2, "defense": 2, "kit": "esp12/0.png", "primaryColor": "#A50044", "secondaryColor": "#004D98" },
+  { "idnum": 29, "id": "esp11_d2", "name": "Las Palmas", "attack": 2, "midfield": 2, "defense": 2, "kit": "ger88/1.png", "primaryColor": "#FFFF00", "secondaryColor": "#0000FF" },
+  { "idnum": 30, "id": "esp11_d2", "name": "Numancia", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#DD0000", "secondaryColor": "#0000FF" },
+  { "idnum": 31, "id": "esp11_d2", "name": "Huesca", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#E2001A", "secondaryColor": "#0000FF" },
+  { "idnum": 32, "id": "esp11_d2", "name": "Xerez", "attack": 2, "midfield": 2, "defense": 2, "kit": "fra84/1.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 33, "id": "esp11_d2", "name": "Girona", "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/4.png", "primaryColor": "#E2001A", "secondaryColor": "#FFFFFF" },
+  { "idnum": 34, "id": "esp11_d2", "name": "Guadalajara", "attack": 2, "midfield": 2, "defense": 1, "kit": "swe92/0.png", "primaryColor": "#4E3629", "secondaryColor": "#FFFFFF" },
+  { "idnum": 35, "id": "esp11_d2", "name": "Recreativo Huelva", "attack": 2, "midfield": 1, "defense": 2, "kit": "swe92/4.png", "primaryColor": "#004D98", "secondaryColor": "#FFFFFF" },
+  { "idnum": 36, "id": "esp11_d2", "name": "Sabadell", "attack": 2, "midfield": 2, "defense": 1, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 37, "id": "esp11_d2", "name": "Cartagena", "attack": 1, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 38, "id": "esp11_d2", "name": "Alcoyano", "attack": 1, "midfield": 1, "defense": 2, "kit": "swe92/4.png", "primaryColor": "#FFFFFF", "secondaryColor": "#0000FF" },
+  { "idnum": 39, "id": "esp11_d2", "name": "Gimnastic", "attack": 1, "midfield": 1, "defense": 1, "kit": "esp06/19.png", "primaryColor": "#CC0000", "secondaryColor": "#000000" }
+]

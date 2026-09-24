@@ -1,0 +1,22 @@
+[
+  { "idnum": 0,  "id": "esp17", "name": "Barcelona",            "attack": 5, "midfield": 5, "defense": 5, "kit": "esp16/1.png",  "primaryColor": "#004D98", "secondaryColor": "#A50044" },
+  { "idnum": 1,  "id": "esp17", "name": "Atletico Madrid",      "attack": 4, "midfield": 4, "defense": 5, "kit": "esp16/2.png",  "primaryColor": "#CB3524", "secondaryColor": "#0F2E5E" },
+  { "idnum": 2,  "id": "esp17", "name": "Real Madrid",          "attack": 5, "midfield": 5, "defense": 4, "kit": "esp16/0.png",  "primaryColor": "#FFFFFF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 3,  "id": "esp17", "name": "Valencia",             "attack": 4, "midfield": 4, "defense": 4, "kit": "esp16/11.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 4,  "id": "esp17", "name": "Villarreal",           "attack": 4, "midfield": 4, "defense": 4, "kit": "esp16/4.png",  "primaryColor": "#FFD700", "secondaryColor": "#FFD700" },
+  { "idnum": 5,  "id": "esp17", "name": "Real Betis",           "attack": 4, "midfield": 4, "defense": 3, "kit": "esp16/14.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 6,  "id": "esp17", "name": "Sevilla",              "attack": 4, "midfield": 4, "defense": 4, "kit": "esp16/3.png",  "primaryColor": "#C8102E", "secondaryColor": "#FFFFFF" },
+  { "idnum": 7,  "id": "esp17", "name": "Getafe",              "attack": 3, "midfield": 3, "defense": 4, "kit": "swe92/0.png",  "primaryColor": "#0000FF", "secondaryColor": "#0000FF" },
+  { "idnum": 8,  "id": "esp17", "name": "Eibar",                "attack": 3, "midfield": 3, "defense": 3, "kit": "esp16/9.png",  "primaryColor": "#CC0000", "secondaryColor": "#0000FF" },
+  { "idnum": 9,  "id": "esp17", "name": "Girona",               "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/4.png",  "primaryColor": "#CC0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 10, "id": "esp17", "name": "Real Sociedad",        "attack": 3, "midfield": 4, "defense": 3, "kit": "esp16/5.png",  "primaryColor": "#003DA5", "secondaryColor": "#FFFFFF" },
+  { "idnum": 11, "id": "esp17", "name": "Celta Vigo",           "attack": 3, "midfield": 3, "defense": 3, "kit": "esp16/12.png", "primaryColor": "#87CEEB", "secondaryColor": "#FFFFFF" },
+  { "idnum": 12, "id": "esp17", "name": "Espanyol",             "attack": 3, "midfield": 3, "defense": 3, "kit": "esp16/7.png",  "primaryColor": "#004D98", "secondaryColor": "#FFFFFF" },
+  { "idnum": 13, "id": "esp17", "name": "Alaves",               "attack": 3, "midfield": 3, "defense": 3, "kit": "esp16/8.png",  "primaryColor": "#003DA5", "secondaryColor": "#FFFFFF" },
+  { "idnum": 14, "id": "esp17", "name": "Levante",              "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png",  "primaryColor": "#CC0000", "secondaryColor": "#0000FF" },
+  { "idnum": 15, "id": "esp17", "name": "Athletic Bilbao",      "attack": 3, "midfield": 3, "defense": 3, "kit": "esp16/6.png",  "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 16, "id": "esp17", "name": "Leganes",              "attack": 3, "midfield": 3, "defense": 3, "kit": "esp16/16.png", "primaryColor": "#004D98", "secondaryColor": "#FFFFFF" },
+  { "idnum": 17, "id": "esp17", "name": "Deportivo La Coruna",  "attack": 2, "midfield": 3, "defense": 2, "kit": "esp16/15.png", "primaryColor": "#004D98", "secondaryColor": "#FFFFFF" },
+  { "idnum": 18, "id": "esp17", "name": "Las Palmas",           "attack": 2, "midfield": 2, "defense": 2, "kit": "esp16/13.png", "primaryColor": "#FFE600", "secondaryColor": "#00529F" },
+  { "idnum": 19, "id": "esp17", "name": "Malaga",               "attack": 2, "midfield": 2, "defense": 2, "kit": "esp16/10.png", "primaryColor": "#009EE0", "secondaryColor": "#FFFFFF" }
+]

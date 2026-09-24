@@ -1,0 +1,18 @@
+[
+  { "idnum": 0,  "id": "rus15", "name": "CSKA Moscow",          "attack": 4, "midfield": 4, "defense": 4, "kit": "rus15/0.png",  "primaryColor": "#E30613", "secondaryColor": "#0000FF" },
+  { "idnum": 1,  "id": "rus15", "name": "FC Rostov",            "attack": 3, "midfield": 3, "defense": 3, "kit": "rus15/1.png",  "primaryColor": "#FFFF00", "secondaryColor": "#0000FF" },
+  { "idnum": 2,  "id": "rus15", "name": "Zenit St. Petersburg", "attack": 4, "midfield": 4, "defense": 4, "kit": "rus15/2.png",  "primaryColor": "#0095DB", "secondaryColor": "#FFFFFF" },
+  { "idnum": 3,  "id": "rus15", "name": "Krasnodar",             "attack": 3, "midfield": 3, "defense": 3, "kit": "rus15/3.png",  "primaryColor": "#006400", "secondaryColor": "#000000" },
+  { "idnum": 4,  "id": "rus15", "name": "Lokomotiv Moscow",     "attack": 3, "midfield": 3, "defense": 3, "kit": "rus15/4.png",  "primaryColor": "#E52222", "secondaryColor": "#006600" },
+  { "idnum": 5,  "id": "rus15", "name": "Spartak Moscow",       "attack": 3, "midfield": 3, "defense": 3, "kit": "rus15/5.png",  "primaryColor": "#CC0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 6,  "id": "rus15", "name": "Terek Grozny",         "attack": 2, "midfield": 2, "defense": 2, "kit": "rus15/6.png",  "primaryColor": "#00AA00", "secondaryColor": "#FFFFFF" },
+  { "idnum": 7,  "id": "rus15", "name": "Ural Yekaterinburg",   "attack": 2, "midfield": 2, "defense": 2, "kit": "rus15/7.png",  "primaryColor": "#FF6600", "secondaryColor": "#000000" },
+  { "idnum": 8,  "id": "rus15", "name": "Krylia Sovetov",       "attack": 2, "midfield": 2, "defense": 2, "kit": "rus15/8.png",  "primaryColor": "#00A6FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 9,  "id": "rus15", "name": "Rubin Kazan",          "attack": 3, "midfield": 2, "defense": 2, "kit": "rus15/9.png",  "primaryColor": "#800020", "secondaryColor": "#00AA00" },
+  { "idnum": 10, "id": "rus15", "name": "Amkar Perm",           "attack": 2, "midfield": 2, "defense": 2, "kit": "rus15/10.png", "primaryColor": "#CC0000", "secondaryColor": "#000000" },
+  { "idnum": 11, "id": "rus15", "name": "Ufa",                  "attack": 2, "midfield": 2, "defense": 2, "kit": "rus15/11.png", "primaryColor": "#8B0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 12, "id": "rus15", "name": "Anzhi Makhachkala",    "attack": 2, "midfield": 2, "defense": 2, "kit": "rus15/12.png", "primaryColor": "#FFFF00", "secondaryColor": "#008000" },
+  { "idnum": 13, "id": "rus15", "name": "Kuban Krasnodar",      "attack": 2, "midfield": 2, "defense": 2, "kit": "rus15/13.png", "primaryColor": "#FFFF00", "secondaryColor": "#008000" },
+  { "idnum": 14, "id": "rus15", "name": "Dynamo Moscow",         "attack": 2, "midfield": 2, "defense": 2, "kit": "rus15/14.png", "primaryColor": "#005BAA", "secondaryColor": "#FFFFFF" },
+  { "idnum": 15, "id": "rus15", "name": "Mordovia Saransk",     "attack": 2, "midfield": 2, "defense": 1, "kit": "rus15/15.png", "primaryColor": "#8B0000", "secondaryColor": "#0000FF" }
+]
