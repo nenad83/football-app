@@ -83,23 +83,41 @@ export default function TournamentDashboard() {
   const [activeTab, setActiveTab] = useState("standings"); // "standings" or "bracket"
   
   // Manager Profile States
-  const [managerProfile, setManagerProfile] = useState({
-    name: "Sir Alex",
-    photo: null,
-    seasons: 0,
-    wins: 0,
-    draws: 0,
-    losses: 0,
-    points: 0,
-    gf: 0,
-    ga: 0,
-    leagueTitles: 0,
-    cupTitles: 0,
-    history: []
+  const [managerProfile, setManagerProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem("retro_manager_profile");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      name: "Sir Alex",
+      photo: null,
+      seasons: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      points: 0,
+      gf: 0,
+      ga: 0,
+      leagueTitles: 0,
+      cupTitles: 0,
+      history: []
+    };
   });
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editPhoto, setEditPhoto] = useState(null);
+  const [editName, setEditName] = useState(() => {
+    try {
+      const saved = localStorage.getItem("retro_manager_profile");
+      if (saved) return JSON.parse(saved).name || "Sir Alex";
+    } catch (e) {}
+    return "Sir Alex";
+  });
+  const [editPhoto, setEditPhoto] = useState(() => {
+    try {
+      const saved = localStorage.getItem("retro_manager_profile");
+      if (saved) return JSON.parse(saved).photo || null;
+    } catch (e) {}
+    return null;
+  });
   const [showFormationModal, setShowFormationModal] = useState(false);
 
   const reloadTournamentState = () => {
@@ -157,6 +175,7 @@ export default function TournamentDashboard() {
       const parsedProfile = JSON.parse(savedProfile);
       setManagerProfile(parsedProfile);
       setEditName(parsedProfile.name || parsedState.managerName || "Sir Alex");
+      setEditPhoto(parsedProfile.photo || null);
     } else {
       const initialProfile = {
         name: parsedState.managerName || "Sir Alex",
@@ -175,6 +194,7 @@ export default function TournamentDashboard() {
       localStorage.setItem("retro_manager_profile", JSON.stringify(initialProfile));
       setManagerProfile(initialProfile);
       setEditName(initialProfile.name);
+      setEditPhoto(null);
     }
   }, [navigate]);
 
@@ -192,13 +212,19 @@ export default function TournamentDashboard() {
   };
 
   const handleSaveProfile = () => {
+    const photoToSave = editPhoto || managerProfile.photo || null;
     const updated = {
       ...managerProfile,
       name: editName,
-      photo: editPhoto
+      photo: photoToSave
     };
-    localStorage.setItem("retro_manager_profile", JSON.stringify(updated));
+    try {
+      localStorage.setItem("retro_manager_profile", JSON.stringify(updated));
+    } catch (e) {
+      console.warn("Failed to save manager profile", e);
+    }
     setManagerProfile(updated);
+    setEditPhoto(photoToSave);
 
     // Sync current active tournament's manager name
     if (tournamentState) {
@@ -215,8 +241,41 @@ export default function TournamentDashboard() {
 
     const reader = new FileReader();
     reader.onload = (uploadEvent) => {
-      const base64 = uploadEvent.target.result;
-      setEditPhoto(base64);
+      const img = new Image();
+      img.onload = () => {
+        // Create canvas to crop/resize image to a crisp 200x200 square
+        const canvas = document.createElement("canvas");
+        const size = 200;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+
+        // Center-crop square logic
+        const minDim = Math.min(img.width, img.height);
+        const startX = (img.width - minDim) / 2;
+        const startY = (img.height - minDim) / 2;
+
+        ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, size, size);
+        // Clean JPEG compression ~15-25 KB (guarantees localStorage limit is never exceeded)
+        const compressedBase64 = canvas.toDataURL("image/jpeg", 0.85);
+
+        setEditPhoto(compressedBase64);
+
+        // Auto-save immediately to managerProfile and localStorage so it is never lost!
+        try {
+          const currentProfile = JSON.parse(localStorage.getItem("retro_manager_profile") || "{}");
+          const updatedProfile = {
+            ...managerProfile,
+            ...currentProfile,
+            photo: compressedBase64
+          };
+          localStorage.setItem("retro_manager_profile", JSON.stringify(updatedProfile));
+          setManagerProfile(updatedProfile);
+        } catch (err) {
+          console.warn("Failed to auto-save photo to localStorage", err);
+        }
+      };
+      img.src = uploadEvent.target.result;
     };
     reader.readAsDataURL(file);
   };
@@ -335,6 +394,7 @@ export default function TournamentDashboard() {
           localStorage.setItem("retro_manager_profile", JSON.stringify(profileData));
           setManagerProfile(profileData);
           setEditName(profileData.name || stateData.managerName || "Sir Alex");
+          setEditPhoto(profileData.photo || null);
         }
         alert("Tournament save successfully imported! You can continue playing.");
       } catch (err) {
@@ -928,7 +988,12 @@ export default function TournamentDashboard() {
           return (
             <button
               key={tab.id}
-              onClick={() => setOfficeTab(tab.id)}
+              onClick={() => {
+                if (officeTab === "tactics" && tab.id !== "tactics") {
+                  reloadTournamentState();
+                }
+                setOfficeTab(tab.id);
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -964,7 +1029,7 @@ export default function TournamentDashboard() {
       )}
 
       {officeTab === "tactics" && (
-        <div style={{ width: '100%', maxWidth: '1100px', margin: '0 auto' }}>
+        <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto' }}>
           <FormationTacticsModal
             isOpen={true}
             inline={true}
@@ -1176,8 +1241,8 @@ export default function TournamentDashboard() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: 'rgba(0,0,0,0.5)', boxShadow: '0 0 15px rgba(0,255,100,0.2)'
             }}>
-              {editPhoto ? (
-                <img src={editPhoto} alt="Manager Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {(editPhoto || managerProfile?.photo) ? (
+                <img src={editPhoto || managerProfile?.photo} alt="Manager Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <span style={{ fontSize: '48px' }}>👔</span>
               )}
@@ -1776,8 +1841,8 @@ export default function TournamentDashboard() {
                 position: 'relative',
                 boxShadow: '0 0 15px rgba(0,255,100,0.2)'
               }}>
-                {editPhoto ? (
-                  <img src={editPhoto} alt="Manager Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {(editPhoto || managerProfile?.photo) ? (
+                  <img src={editPhoto || managerProfile?.photo} alt="Manager Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <span style={{ fontSize: '48px' }}>👔</span>
                 )}

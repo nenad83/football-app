@@ -19,7 +19,9 @@ import TransferModal from './TransferModal';
 import NewsFeed from './NewsFeed';
 import Fixtures from './Fixtures';
 import { createDomesticCup, advanceDomesticCup, getDomesticCupExpectation, CUP_STAGE_NAMES } from '../utils/domesticCupGenerator';
-import { generateInitialNews, generateMatchdayNews, generateDomesticCupDrawNews, generateDomesticCupMatchNews } from '../utils/newsGenerator';
+import { generateInitialNews, generateMatchdayNews, generateDomesticCupDrawNews, generateDomesticCupMatchNews, generateMonthlyAwardsNews, generateYearlyAwardsNews } from '../utils/newsGenerator';
+import { checkMonthConclusion, generateMatchEvents, recordMatchEventsInStats, calculateMonthlyAwards, calculateYearlyAwards, awardManagerTitle } from '../utils/awardsManager';
+import { loadSeasonRosters } from '../data/rosters/rosterRegistry';
 
 
 
@@ -55,7 +57,7 @@ const simulateFixture = (h, a) => {
 const updateFanConfidence = (currentConfidence, playerTeam, opponentTeam, playerGoals, opponentGoals) => {
   const pRating = playerTeam ? (playerTeam.attack + playerTeam.midfield + playerTeam.defense) / 3 : 3.0;
   const oRating = opponentTeam ? (opponentTeam.attack + opponentTeam.midfield + opponentTeam.defense) / 3 : 3.0;
-  
+
   let change = 0;
   if (playerGoals > opponentGoals) {
     change = 6 + Math.round((oRating - pRating) * 4.5);
@@ -67,7 +69,7 @@ const updateFanConfidence = (currentConfidence, playerTeam, opponentTeam, player
     change = -2 + Math.round((oRating - pRating) * 5);
     change = Math.max(-8, Math.min(8, change));
   }
-  
+
   const startingConf = currentConfidence !== undefined ? currentConfidence : 50;
   return Math.max(0, Math.min(100, startingConf + change));
 };
@@ -381,10 +383,12 @@ const STAGE_ORDER = {
 const calculateManagerPrestige = (profile) => {
   if (!profile) return 0;
   return Math.round(
-    ((profile.seasons || 0) * 25) + 
-    ((profile.leagueTitles || 0) * 100) + 
-    ((profile.cupTitles || 0) * 120) + 
-    ((profile.points || 0) * 0.5)
+    ((profile.seasons || 0) * 25) +
+    ((profile.leagueTitles || 0) * 100) +
+    ((profile.cupTitles || 0) * 120) +
+    ((profile.points || 0) * 0.5) +
+    ((profile.monthlyAwards || 0) * 15) +
+    ((profile.managerOfTheYear || 0) * 50)
   );
 };
 
@@ -547,7 +551,7 @@ const getCupExpectation = (team, cup, rules, cupTeams) => {
   const pct = rank / N;
 
   const stages = rules.stages;
-  
+
   let targetStage = "";
   let text = "";
 
@@ -606,11 +610,11 @@ const getBoardConfidence = (state, standingsList, playerPos, isSouthAmerica) => 
     const rules = getRulesGlobal(state.europeanCup, state.season.split("/")[0], isSouthAmerica);
     const pId = state.europeanCupState.europeanPlayerTeamId;
     const cupTeam = state.europeanCupState.teams.find(t => t.idnum === pId);
-    
+
     if (cupTeam && rules) {
       const cupExpectation = getCupExpectation(cupTeam, state.europeanCup, rules, state.europeanCupState.teams);
       const cupStatus = getPlayerCupStatus(state, isSouthAmerica);
-      
+
       if (cupExpectation && cupStatus && cupStatus.stageReached) {
         let cupScore = 75;
         const orderReached = STAGE_ORDER[cupStatus.stageReached] || 0;
@@ -695,6 +699,7 @@ export default function LeagueDashboard() {
   const [clActiveGroup, setClActiveGroup] = useState("A");
   const [selectedRound, setSelectedRound] = useState(1);
   const [subStandingsTab, setSubStandingsTab] = useState(null);
+  const [leagueViewMode, setLeagueViewMode] = useState("standings"); // "standings" | "scorers" | "assists"
   const [selectedCupStage, setSelectedCupStage] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -721,6 +726,128 @@ export default function LeagueDashboard() {
       ? [...new Set(leagueState.europeanCupState.teams.filter(t => t.group && t.group !== "bye" && t.group !== "champion").map(t => t.group))].sort()
       : [];
   }, [leagueState]);
+
+  const topScorersList = useMemo(() => {
+    const stats = leagueState?.playerStats || {};
+    return Object.values(stats)
+      .filter(p => (p.goals || 0) > 0)
+      .sort((a, b) => (b.goals || 0) - (a.goals || 0))
+      .slice(0, 20);
+  }, [leagueState?.playerStats]);
+
+  const topAssistsList = useMemo(() => {
+    const stats = leagueState?.playerStats || {};
+    return Object.values(stats)
+      .filter(p => (p.assists || 0) > 0)
+      .sort((a, b) => (b.assists || 0) - (a.assists || 0))
+      .slice(0, 20);
+  }, [leagueState?.playerStats]);
+
+  const processRoundStatsAndAwards = (career, roundNumber) => {
+    if (!career || !career.fixtures || !career.teams) return career;
+    const roundIdx = roundNumber - 1;
+    const rFixtures = career.fixtures[roundIdx];
+    if (!Array.isArray(rFixtures)) return career;
+
+    career.playerStats = career.playerStats || {};
+
+    // 1. Generate goalscorers and assists for any played fixture in this round that doesn't have them yet
+    rFixtures.forEach(f => {
+      if (f.played && (!f.scorers || f.scorers.length === 0)) {
+        const hTeam = (career.teams || []).find(t => t.idnum === f.homeId)?.name || f.homeTeamName || `Team ${f.homeId}`;
+        const aTeam = (career.teams || []).find(t => t.idnum === f.awayId)?.name || f.awayTeamName || `Team ${f.awayId}`;
+        const { scorers, assists } = generateMatchEvents(hTeam, aTeam, f.homeScore || 0, f.awayScore || 0, career.season);
+        f.scorers = scorers;
+        f.assists = assists;
+        career.playerStats = recordMatchEventsInStats(career.playerStats, scorers, assists);
+      }
+    });
+
+    const totalLeagueRounds = (career.teams.length - 1) * 2;
+    const pTeam = career.teams.find(t => t.idnum === career.playerTeamId);
+    const userTeamName = pTeam ? pTeam.name : "";
+    const finalManagerName = career.managerName || "Sir Alex";
+
+    // 2. Check Monthly Awards
+    const monthCheck = checkMonthConclusion(roundNumber, totalLeagueRounds, career.country);
+    if (monthCheck.isMonthEnd) {
+      career.monthlyAwards = career.monthlyAwards || [];
+      const alreadyAwarded = career.monthlyAwards.some(m => m.monthName === monthCheck.monthName);
+      if (!alreadyAwarded) {
+        const monthAwards = calculateMonthlyAwards({
+          fixtures: career.fixtures,
+          standings: career.teams,
+          startRound: monthCheck.startRound,
+          endRound: monthCheck.endRound,
+          monthName: monthCheck.monthName,
+          userManagerName: finalManagerName,
+          userTeamName
+        });
+
+        career.monthlyAwards.push({
+          monthName: monthCheck.monthName,
+          ...monthAwards
+        });
+
+        // If user won Manager of the Month, boost manager profile
+        if (monthAwards.motm?.winner?.isUser) {
+          const updatedProf = awardManagerTitle("motm", {
+            monthName: monthCheck.monthName,
+            season: career.season,
+            teamName: userTeamName,
+            points: monthAwards.motm.winner.points,
+            won: monthAwards.motm.winner.won,
+            drawn: monthAwards.motm.winner.drawn,
+            lost: monthAwards.motm.winner.lost
+          });
+          if (updatedProf) setManagerProfile(updatedProf);
+        }
+
+        const awardStories = generateMonthlyAwardsNews({
+          monthName: monthCheck.monthName,
+          motm: monthAwards.motm,
+          potm: monthAwards.potm,
+          round: roundNumber,
+          season: career.season
+        });
+
+        career.newsFeed = [...awardStories, ...(career.newsFeed || [])];
+      }
+    }
+
+    // 3. Check Yearly Awards if final round
+    if (roundNumber >= totalLeagueRounds && !career.hasGeneratedYearlyAwards) {
+      const yearlyAwards = calculateYearlyAwards({
+        standings: career.teams,
+        monthlyAwardsHistory: career.monthlyAwards || [],
+        playerStats: career.playerStats || {},
+        userManagerName: finalManagerName,
+        userTeamName
+      });
+
+      career.yearlyAwards = yearlyAwards;
+      career.hasGeneratedYearlyAwards = true;
+
+      if (yearlyAwards.moty?.winner?.isUser) {
+        const updatedProf = awardManagerTitle("moty", {
+          season: career.season,
+          teamName: userTeamName
+        });
+        if (updatedProf) setManagerProfile(updatedProf);
+      }
+
+      const yearlyStories = generateYearlyAwardsNews({
+        moty: yearlyAwards.moty,
+        poty: yearlyAwards.poty,
+        round: roundNumber,
+        season: career.season
+      });
+
+      career.newsFeed = [...yearlyStories, ...(career.newsFeed || [])];
+    }
+
+    return career;
+  };
 
   // Sort Standings Table (dynamic based on Apertura/Clausura tabs)
   const standings = useMemo(() => {
@@ -756,23 +883,41 @@ export default function LeagueDashboard() {
   }, [leagueState?.currentRound]);
 
   // Manager Profile States
-  const [managerProfile, setManagerProfile] = useState({
-    name: "Sir Alex",
-    photo: null,
-    seasons: 0,
-    wins: 0,
-    draws: 0,
-    losses: 0,
-    points: 0,
-    gf: 0,
-    ga: 0,
-    leagueTitles: 0,
-    cupTitles: 0,
-    history: []
+  const [managerProfile, setManagerProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem("retro_manager_profile");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      name: "Sir Alex",
+      photo: null,
+      seasons: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      points: 0,
+      gf: 0,
+      ga: 0,
+      leagueTitles: 0,
+      cupTitles: 0,
+      history: []
+    };
   });
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editPhoto, setEditPhoto] = useState(null);
+  const [editName, setEditName] = useState(() => {
+    try {
+      const saved = localStorage.getItem("retro_manager_profile");
+      if (saved) return JSON.parse(saved).name || "Sir Alex";
+    } catch (e) {}
+    return "Sir Alex";
+  });
+  const [editPhoto, setEditPhoto] = useState(() => {
+    try {
+      const saved = localStorage.getItem("retro_manager_profile");
+      if (saved) return JSON.parse(saved).photo || null;
+    } catch (e) {}
+    return null;
+  });
   const [nextSeasonTeams, setNextSeasonTeams] = useState([]);
   const [jobOffers, setJobOffers] = useState([]);
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -805,6 +950,9 @@ export default function LeagueDashboard() {
       return;
     }
     const parsedCareer = JSON.parse(raw);
+    if (parsedCareer.season) {
+      loadSeasonRosters(parsedCareer.season).catch(() => { });
+    }
 
     // Auto-initialize budget for pre-existing saves if undefined
     if (parsedCareer.budget === undefined) {
@@ -828,7 +976,7 @@ export default function LeagueDashboard() {
       parsedCareer.lastTransferWindow = "";
       localStorage.setItem("retro_league_career", JSON.stringify(parsedCareer));
     }
-    
+
     // Sync stats of domestic teams in the European Cup with their updated domestic stats
     if (parsedCareer.teams && parsedCareer.europeanCupState && parsedCareer.europeanCupState.teams) {
       let changed = false;
@@ -836,8 +984,8 @@ export default function LeagueDashboard() {
         const domesticTeam = parsedCareer.teams.find(t => t.name === euroTeam.name);
         if (domesticTeam) {
           if (euroTeam.attack !== domesticTeam.attack ||
-              euroTeam.midfield !== domesticTeam.midfield ||
-              euroTeam.defense !== domesticTeam.defense) {
+            euroTeam.midfield !== domesticTeam.midfield ||
+            euroTeam.defense !== domesticTeam.defense) {
             euroTeam.attack = domesticTeam.attack;
             euroTeam.midfield = domesticTeam.midfield;
             euroTeam.defense = domesticTeam.defense;
@@ -863,11 +1011,30 @@ export default function LeagueDashboard() {
       localStorage.setItem("retro_league_career", JSON.stringify(parsedCareer));
     }
 
-    // Auto-generate post-match news for last played round if not generated yet
+    // Auto-generate post-match news & process awards for last played round
     if (parsedCareer.teams && parsedCareer.fixtures) {
+      // Backfill any played fixtures that lack scorers/assists
+      parsedCareer.playerStats = parsedCareer.playerStats || {};
+      parsedCareer.fixtures.forEach(rFixtures => {
+        if (Array.isArray(rFixtures)) {
+          rFixtures.forEach(f => {
+            if (f.played && (!f.scorers || f.scorers.length === 0)) {
+              const hTeam = (parsedCareer.teams || []).find(t => t.idnum === f.homeId)?.name || f.homeTeamName || `Team ${f.homeId}`;
+              const aTeam = (parsedCareer.teams || []).find(t => t.idnum === f.awayId)?.name || f.awayTeamName || `Team ${f.awayId}`;
+              const { scorers, assists } = generateMatchEvents(hTeam, aTeam, f.homeScore || 0, f.awayScore || 0, parsedCareer.season);
+              f.scorers = scorers;
+              f.assists = assists;
+              parsedCareer.playerStats = recordMatchEventsInStats(parsedCareer.playerStats, scorers, assists);
+            }
+          });
+        }
+      });
+
       const lastCompletedRound = parsedCareer.currentRound - 1;
-      const hasNewsForLastRound = parsedCareer.newsFeed?.some(n => n.round === lastCompletedRound);
-      if (lastCompletedRound >= 1 && !hasNewsForLastRound) {
+      const hasMatchNewsForLastRound = parsedCareer.newsFeed?.some(
+        n => n.round === lastCompletedRound && (n.category === "match" || n.category === "league")
+      );
+      if (lastCompletedRound >= 1 && !hasMatchNewsForLastRound) {
         const roundFixtures = parsedCareer.fixtures[lastCompletedRound - 1];
         if (roundFixtures) {
           const pId = parsedCareer.playerTeamId;
@@ -878,7 +1045,7 @@ export default function LeagueDashboard() {
             const playerTeam = parsedCareer.teams.find(t => t.idnum === pId);
             const opponentTeam = parsedCareer.teams.find(t => t.idnum === opponentId);
             const currentInjuries = JSON.parse(localStorage.getItem(`retro_player_injuries_${playerTeam?.name}_${parsedCareer.season}`) || "[]");
-            
+
             const nextRoundFixtures = parsedCareer.fixtures[lastCompletedRound];
             const nextUserFixture = nextRoundFixtures?.find(f => f.homeId === pId || f.awayId === pId);
             const nextOpponentId = nextUserFixture ? (nextUserFixture.homeId === pId ? nextUserFixture.awayId : nextUserFixture.homeId) : null;
@@ -896,13 +1063,28 @@ export default function LeagueDashboard() {
               injuries: currentInjuries,
               budget: parsedCareer.budget,
               fanConfidence: parsedCareer.fanConfidence || 50,
-              boardConfidence: 60
+              boardConfidence: 60,
+              season: parsedCareer.season,
+              fullFixturesList: parsedCareer.fixtures,
+              playerTeamId: pId
             });
 
-            parsedCareer.newsFeed = [...newStories, ...(parsedCareer.newsFeed || [])];
+            // If awards for this round are already in newsFeed (e.g. existing save),
+            // place newStories directly below the awards so awards remain at the top.
+            const existingRoundAwards = (parsedCareer.newsFeed || []).filter(
+              n => n.round === lastCompletedRound && (n.category === "award" || n.category === "yearlyAward")
+            );
+            const otherNews = (parsedCareer.newsFeed || []).filter(
+              n => !(n.round === lastCompletedRound && (n.category === "award" || n.category === "yearlyAward"))
+            );
+            parsedCareer.newsFeed = [...existingRoundAwards, ...newStories, ...otherNews];
             localStorage.setItem("retro_league_career", JSON.stringify(parsedCareer));
           }
         }
+      }
+
+      if (lastCompletedRound >= 1) {
+        processRoundStatsAndAwards(parsedCareer, lastCompletedRound);
       }
     }
 
@@ -917,7 +1099,7 @@ export default function LeagueDashboard() {
       const fullRoster = [...div1Roster, ...div2Roster];
       const totalLeagueRounds = (parsedCareer.teams.length - 1) * 2;
       parsedCareer.domesticCupState = createDomesticCup(fullRoster, totalLeagueRounds, parsedCareer.country, parsedCareer.playerTeamId);
-      
+
       const pTeam = parsedCareer.teams.find(t => t.idnum === parsedCareer.playerTeamId);
       parsedCareer.domesticCupExpectation = getDomesticCupExpectation(pTeam || {}, parsedCareer.domesticCupState.bracketSize);
 
@@ -970,6 +1152,7 @@ export default function LeagueDashboard() {
       const parsedProfile = JSON.parse(savedProfile);
       setManagerProfile(parsedProfile);
       setEditName(parsedProfile.name || parsedCareer.managerName || "Sir Alex");
+      setEditPhoto(parsedProfile.photo || null);
     } else {
       const initialProfile = {
         name: parsedCareer.managerName || "Sir Alex",
@@ -988,17 +1171,24 @@ export default function LeagueDashboard() {
       localStorage.setItem("retro_manager_profile", JSON.stringify(initialProfile));
       setManagerProfile(initialProfile);
       setEditName(initialProfile.name);
+      setEditPhoto(null);
     }
   }, [navigate]);
 
   const handleSaveProfile = () => {
+    const photoToSave = editPhoto || managerProfile.photo || null;
     const updated = {
       ...managerProfile,
       name: editName,
-      photo: editPhoto
+      photo: photoToSave
     };
-    localStorage.setItem("retro_manager_profile", JSON.stringify(updated));
+    try {
+      localStorage.setItem("retro_manager_profile", JSON.stringify(updated));
+    } catch (e) {
+      console.warn("Failed to save manager profile", e);
+    }
     setManagerProfile(updated);
+    setEditPhoto(photoToSave);
 
     // Sync current active career's manager name
     if (leagueState) {
@@ -1015,8 +1205,41 @@ export default function LeagueDashboard() {
 
     const reader = new FileReader();
     reader.onload = (uploadEvent) => {
-      const base64 = uploadEvent.target.result;
-      setEditPhoto(base64);
+      const img = new Image();
+      img.onload = () => {
+        // Create canvas to crop/resize image to a crisp 200x200 square
+        const canvas = document.createElement("canvas");
+        const size = 200;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+
+        // Center-crop square logic
+        const minDim = Math.min(img.width, img.height);
+        const startX = (img.width - minDim) / 2;
+        const startY = (img.height - minDim) / 2;
+
+        ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, size, size);
+        // Clean JPEG compression ~15-25 KB (guarantees localStorage limit is never exceeded)
+        const compressedBase64 = canvas.toDataURL("image/jpeg", 0.85);
+
+        setEditPhoto(compressedBase64);
+
+        // Auto-save immediately to managerProfile and localStorage so it is never lost!
+        try {
+          const currentProfile = JSON.parse(localStorage.getItem("retro_manager_profile") || "{}");
+          const updatedProfile = {
+            ...managerProfile,
+            ...currentProfile,
+            photo: compressedBase64
+          };
+          localStorage.setItem("retro_manager_profile", JSON.stringify(updatedProfile));
+          setManagerProfile(updatedProfile);
+        } catch (err) {
+          console.warn("Failed to auto-save photo to localStorage", err);
+        }
+      };
+      img.src = uploadEvent.target.result;
     };
     reader.readAsDataURL(file);
   };
@@ -1033,7 +1256,7 @@ export default function LeagueDashboard() {
         const sortedByRating = [...allTeams]
           .map(t => ({ idnum: t.idnum, rating: (t.attack + t.midfield + t.defense) / 3 }))
           .sort((a, b) => b.rating - a.rating);
-        
+
         const teamIndex = sortedByRating.findIndex(t => t.idnum === team.idnum);
         const rank = teamIndex !== -1 ? teamIndex + 1 : 1;
         const N = allTeams.length;
@@ -1059,7 +1282,7 @@ export default function LeagueDashboard() {
       const sortedByRating = [...allTeams]
         .map(t => ({ idnum: t.idnum, rating: (t.attack + t.midfield + t.defense) / 3 }))
         .sort((a, b) => b.rating - a.rating);
-      
+
       const teamIndex = sortedByRating.findIndex(t => t.idnum === team.idnum);
       const rank = teamIndex !== -1 ? teamIndex + 1 : 1;
       const N = allTeams.length;
@@ -1227,7 +1450,7 @@ export default function LeagueDashboard() {
           const countryDataD2 = (leagueDataMapD2[nextStartYrStr] && leagueDataMapD2[nextStartYrStr][otherCountry])
             ? leagueDataMapD2[nextStartYrStr][otherCountry].map(t => ({ ...t, division: 2 }))
             : [];
-          
+
           // Format teams with rating
           const formattedTeams = [...countryDataD1, ...countryDataD2].map(t => ({
             ...t,
@@ -1320,7 +1543,7 @@ export default function LeagueDashboard() {
 
           const relegatedNames = (historicalRelegated[startYrStr] && historicalRelegated[startYrStr][country]) || [];
           const nextD2Roster = (leagueDataMapD2[nextStartYrStr] && leagueDataMapD2[nextStartYrStr][country]) || [];
-          
+
           const relegated = relegatedNames.map(name => {
             const match = nextD2Roster.find(t => t.name.toLowerCase() === name.toLowerCase());
             return match ? { ...match } : {
@@ -1442,7 +1665,7 @@ export default function LeagueDashboard() {
       const confidence = getBoardConfidence(leagueState, standingsSorted, playerPos, isSA);
       const fanConf = leagueState.fanConfidence !== undefined ? leagueState.fanConfidence : 50;
       const combinedConf = (confidence + fanConf) / 2;
-      
+
       let currentWarningSacked = leagueState.warningSacked;
       let stateChanged = false;
 
@@ -1473,10 +1696,10 @@ export default function LeagueDashboard() {
     if (!leagueState || leagueState.isSacked) return;
     const { calendar, calendarIndex, currentRound, teams, playerTeamId, region, country } = leagueState;
     const totalRounds = (teams.length - 1) * 2;
-    const isSeasonOverCalculated = calendar 
-      ? calendarIndex >= calendar.length 
+    const isSeasonOverCalculated = calendar
+      ? calendarIndex >= calendar.length
       : currentRound > totalRounds;
-    
+
     if (isSeasonOverCalculated) return;
 
     const standingsList = [...teams].sort((a, b) => {
@@ -1488,7 +1711,7 @@ export default function LeagueDashboard() {
     });
     const playerPos = standingsList.findIndex(t => t.idnum === playerTeamId) + 1;
     const isSA = region === "south_america" || country === "argentina" || country === "brazil" || country === "colombia";
-    
+
     const confidence = getBoardConfidence(leagueState, standingsList, playerPos, isSA);
     const fanConfidence = leagueState.fanConfidence !== undefined ? leagueState.fanConfidence : 50;
 
@@ -1562,7 +1785,9 @@ export default function LeagueDashboard() {
       lost: playerTeamStats.lost,
       points: playerTeamStats.points,
       leagueTitle: titlesWonCount,
-      cupTitle: totalCupTitlesWon
+      cupTitle: totalCupTitlesWon,
+      monthlyAwardsWon: (leagueState.monthlyAwards || []).filter(m => m.motm?.winner?.isUser).length,
+      managerOfTheYearWon: leagueState.yearlyAwards?.moty?.winner?.isUser ? 1 : 0
     };
     const updatedProfile = {
       ...managerProfile,
@@ -1678,7 +1903,7 @@ export default function LeagueDashboard() {
 
     // Get selected team details
     const selectedTeamObj = finalNextSeasonTeams.find(t => t.idnum === selectedTeamId);
-    
+
     // Team stats upgrades are removed as they are calculated dynamically based on player lineup
 
     const selectedTeamName = selectedTeamObj ? selectedTeamObj.name : "";
@@ -1907,14 +2132,14 @@ export default function LeagueDashboard() {
         const clFixtures = [];
         const numTeams = euroTeams.length; // 36
         const rounds = 8;
-        
+
         const list = [...euroTeams];
         for (let r = 0; r < rounds; r++) {
           const roundPairs = [];
           for (let i = 0; i < numTeams / 2; i++) {
             const home = list[i];
             const away = list[numTeams - 1 - i];
-            
+
             // Alternate home/away to balance
             if (r % 2 === 0) {
               roundPairs.push({ homeId: home.idnum, awayId: away.idnum, played: false, homeScore: 0, awayScore: 0 });
@@ -1990,7 +2215,7 @@ export default function LeagueDashboard() {
     const eraMultiplier = 1 + (parseInt(nextSeasonStr.split("/")[0]) - 1980) * 0.04;
     const newClubBaseBudget = Math.max(0.5, parseFloat((Math.pow(avgRating, 2.2) * divisionMultiplier * eraMultiplier).toFixed(1)));
     const isPlayerRenewing = selectedTeamId === playerTeamId || selectedTeamObj.name.toLowerCase() === playerTeamObj.name.toLowerCase();
-    
+
     let nextBudget = newClubBaseBudget;
     if (isPlayerRenewing) {
       const finalConfidence = getBoardConfidence(leagueState, currentStandings, pPos, isSA);
@@ -2073,10 +2298,10 @@ export default function LeagueDashboard() {
       const cupState = leagueState.europeanCupState;
       const currentEvent = leagueState.calendar[leagueState.calendarIndex];
       const seasonShort = leagueState.season.split("/")[0];
-      if ((seasonShort === "1999" || seasonShort === "2000" || seasonShort === "2001") && 
-          currentEvent.type === "europe" && 
-          currentEvent.matchday > 6 && 
-          cupState.teams.length === 32) {
+      if ((seasonShort === "1999" || seasonShort === "2000" || seasonShort === "2001") &&
+        currentEvent.type === "europe" &&
+        currentEvent.matchday > 6 &&
+        cupState.teams.length === 32) {
         if (advanceCLGroupStageToKnockouts) {
           const stateCopy = JSON.parse(JSON.stringify(leagueState));
           advanceCLGroupStageToKnockouts(stateCopy.europeanCupState);
@@ -2085,7 +2310,7 @@ export default function LeagueDashboard() {
         }
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueState]);
 
   useEffect(() => {
@@ -2111,8 +2336,8 @@ export default function LeagueDashboard() {
       }
 
       // 2. Check if Clausura is complete and needs champion declaration
-      const isSeasonOverCalculated = leagueState.calendar 
-        ? leagueState.calendarIndex >= leagueState.calendar.length 
+      const isSeasonOverCalculated = leagueState.calendar
+        ? leagueState.calendarIndex >= leagueState.calendar.length
         : currentRound > totalRounds;
 
       if (isSeasonOverCalculated && !clausuraChampion) {
@@ -2136,10 +2361,10 @@ export default function LeagueDashboard() {
       // Find the player's team name
       const team = leagueState.teams.find(t => t.idnum === leagueState.playerTeamId);
       const teamName = team ? team.name : "";
-      
+
       const rosterKey = teamName ? `retro_roster_${teamName}_${leagueState.season}` : null;
       const lineupKey = teamName ? `retro_lineup_${teamName}_${leagueState.season}` : null;
-      
+
       let cachedRoster = rosterKey ? localStorage.getItem(rosterKey) : null;
       let cachedLineup = lineupKey ? localStorage.getItem(lineupKey) : null;
 
@@ -2221,7 +2446,7 @@ export default function LeagueDashboard() {
         if (importedData.career && importedData.managerProfile) {
           careerData = importedData.career;
           profileData = importedData.managerProfile;
-          
+
           // Import all rosters if present
           if (importedData.rosters) {
             Object.entries(importedData.rosters).forEach(([key, val]) => {
@@ -2232,7 +2457,7 @@ export default function LeagueDashboard() {
           } else if (importedData.rosterKey && importedData.rosterData) {
             localStorage.setItem(importedData.rosterKey, JSON.stringify(importedData.rosterData));
           }
-          
+
           // Import all lineups if present
           if (importedData.lineups) {
             Object.entries(importedData.lineups).forEach(([key, val]) => {
@@ -2260,6 +2485,7 @@ export default function LeagueDashboard() {
           localStorage.setItem("retro_manager_profile", JSON.stringify(profileData));
           setManagerProfile(profileData);
           setEditName(profileData.name || careerData.managerName || "Sir Alex");
+          setEditPhoto(profileData.photo || null);
         } else {
           localStorage.removeItem("retro_manager_profile");
           const initialProfile = {
@@ -2278,6 +2504,7 @@ export default function LeagueDashboard() {
           };
           setManagerProfile(initialProfile);
           setEditName(initialProfile.name);
+          setEditPhoto(null);
         }
 
         alert("Career save and manager profile successfully imported!");
@@ -3664,10 +3891,14 @@ export default function LeagueDashboard() {
           injuries: currentInjuries,
           budget: stateCopy.budget,
           fanConfidence: stateCopy.fanConfidence || 50,
-          boardConfidence: 60
+          boardConfidence: 60,
+          season: stateCopy.season,
+          fullFixturesList: stateCopy.fixtures,
+          playerTeamId: pId
         });
 
         stateCopy.newsFeed = [...newMatchNews, ...(stateCopy.newsFeed || [])];
+        stateCopy = processRoundStatsAndAwards(stateCopy, currentEvent.index);
         localStorage.setItem("retro_league_career", JSON.stringify(stateCopy));
       }
 
@@ -3711,7 +3942,7 @@ export default function LeagueDashboard() {
       if (!m.played) {
         const h = domCup.participatingTeams?.find(t => t.idnum === m.homeId) || stateCopy.teams.find(t => t.idnum === m.homeId) || { attack: 2, midfield: 2, defense: 2 };
         const a = domCup.participatingTeams?.find(t => t.idnum === m.awayId) || stateCopy.teams.find(t => t.idnum === m.awayId) || { attack: 2, midfield: 2, defense: 2 };
-        
+
         const { homeGoals, awayGoals } = simulateFixture(h, a);
         m.homeScore = homeGoals;
         m.awayScore = awayGoals;
@@ -3808,8 +4039,8 @@ export default function LeagueDashboard() {
           <p className="lobby-subtitle" style={{ textAlign: 'left' }}>
             Season {season}
             {isAperturaClausuraLeague && (
-              isSeasonOver 
-                ? " (Season Over)" 
+              isSeasonOver
+                ? " (Season Over)"
                 : (currentRound <= halfRounds ? " (Apertura)" : " (Clausura)")
             )}
             {" "} - {cap(country)} {division === 2 ? "Division 2" : "Division 1"}
@@ -3905,7 +4136,12 @@ export default function LeagueDashboard() {
           return (
             <button
               key={tab.id}
-              onClick={() => setOfficeTab(tab.id)}
+              onClick={() => {
+                if (officeTab === "tactics" && tab.id !== "tactics") {
+                  reloadLeagueState();
+                }
+                setOfficeTab(tab.id);
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -3941,7 +4177,7 @@ export default function LeagueDashboard() {
       )}
 
       {officeTab === "tactics" && (
-        <div style={{ width: '100%', maxWidth: '1100px', margin: '0 auto' }}>
+        <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto' }}>
           <FormationTacticsModal
             isOpen={true}
             inline={true}
@@ -4143,8 +4379,8 @@ export default function LeagueDashboard() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: 'rgba(0,0,0,0.5)', boxShadow: '0 0 15px rgba(0,255,100,0.2)'
             }}>
-              {editPhoto ? (
-                <img src={editPhoto} alt="Manager Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {(editPhoto || managerProfile?.photo) ? (
+                <img src={editPhoto || managerProfile?.photo} alt="Manager Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <span style={{ fontSize: '48px' }}>👔</span>
               )}
@@ -4219,22 +4455,30 @@ export default function LeagueDashboard() {
               👔 CAREER LIFETIME STATISTICS
             </h4>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', fontSize: '11px', textAlign: 'center' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', fontSize: '11px', textAlign: 'center' }}>
               <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.seasons}</span>
+                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.seasons || 0}</span>
                 <span style={{ fontSize: '8.5px', color: '#888' }}>Seasons</span>
               </div>
               <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#ffd700', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.leagueTitles}</span>
+                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#ffd700', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.leagueTitles || 0}</span>
                 <span style={{ fontSize: '8.5px', color: '#888' }}>League 🏆</span>
               </div>
               <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#00e5ff', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.cupTitles}</span>
+                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#00e5ff', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.cupTitles || 0}</span>
                 <span style={{ fontSize: '8.5px', color: '#888' }}>Cup ⭐</span>
               </div>
               <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#00ff64', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.wins}</span>
+                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#00ff64', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.wins || 0}</span>
                 <span style={{ fontSize: '8.5px', color: '#888' }}>Wins</span>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
+                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#ffd700', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.monthlyAwards || 0}</span>
+                <span style={{ fontSize: '8.5px', color: '#888' }}>Monthly 🎖️</span>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
+                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#ff0055', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.managerOfTheYear || 0}</span>
+                <span style={{ fontSize: '8.5px', color: '#888' }}>Year MVP 👑</span>
               </div>
             </div>
           </div>
@@ -4253,9 +4497,11 @@ export default function LeagueDashboard() {
                   <div key={index} style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', padding: '8px 10px', fontSize: '10.5px', color: '#ccc', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
                       <span style={{ color: '#00e5ff' }}>📅 {h.season} - {h.team}</span>
-                      <span style={{ display: 'flex', gap: '3px' }}>
+                      <span style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                         {h.leagueTitle > 0 && <span title="League Champion" style={{ color: '#ffd700' }}>🏆</span>}
                         {h.cupTitle > 0 && <span title="Cup Winner" style={{ color: '#00ff64' }}>⭐</span>}
+                        {h.monthlyAwardsWon > 0 && <span title={`${h.monthlyAwardsWon}x Manager of the Month`} style={{ color: '#ffd700', fontSize: '9px', background: 'rgba(255,215,0,0.15)', padding: '1px 4px', borderRadius: '3px' }}>🎖️x{h.monthlyAwardsWon}</span>}
+                        {h.managerOfTheYearWon > 0 && <span title="Manager of the Year" style={{ color: '#ff0055', fontSize: '9px', background: 'rgba(255,0,85,0.15)', padding: '1px 4px', borderRadius: '3px' }}>👑 MOTY</span>}
                       </span>
                     </div>
                     <div style={{ fontSize: '10px', color: '#aaa' }}>
@@ -4272,1235 +4518,1447 @@ export default function LeagueDashboard() {
       {officeTab === "home" && (
         <div className="match-arena-layout" style={{ maxWidth: '1100px' }}>
 
-        {/* Left Grid Card: Standings / Standings Tab */}
-        <div className="glass-card standings-table-card" style={{
-          width: '58%',
-          flexGrow: 1,
-          padding: '20px',
-          height: '480px',
-          overflowY: 'auto'
-        }}>
-          {(europeanCup || leagueState?.domesticCupState) && (
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => setActiveTab("league")}
-                className="back-home-btn"
-                style={{
-                  fontSize: '11px',
-                  padding: '6px 12px',
-                  borderColor: activeTab === "league" ? '#ffd700' : 'rgba(255,255,255,0.1)',
-                  background: activeTab === "league" ? 'rgba(255, 215, 0, 0.08)' : 'transparent',
-                  color: activeTab === "league" ? '#ffd700' : '#888'
-                }}
-              >
-                🏆 DOMESTIC LEAGUE
-              </button>
-              {leagueState?.domesticCupState && (
+          {/* Left Grid Card: Standings / Standings Tab */}
+          <div className="glass-card standings-table-card" style={{
+            width: '58%',
+            flexGrow: 1,
+            padding: '20px',
+            height: '480px',
+            overflowY: 'auto'
+          }}>
+            {(europeanCup || leagueState?.domesticCupState) && (
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px', flexWrap: 'wrap' }}>
                 <button
-                  onClick={() => setActiveTab("cup")}
+                  onClick={() => setActiveTab("league")}
                   className="back-home-btn"
                   style={{
                     fontSize: '11px',
                     padding: '6px 12px',
-                    borderColor: activeTab === "cup" ? '#ff0055' : 'rgba(255,255,255,0.1)',
-                    background: activeTab === "cup" ? 'rgba(255, 0, 85, 0.12)' : 'transparent',
-                    color: activeTab === "cup" ? '#ff0055' : '#888'
+                    borderColor: activeTab === "league" ? '#ffd700' : 'rgba(255,255,255,0.1)',
+                    background: activeTab === "league" ? 'rgba(255, 215, 0, 0.08)' : 'transparent',
+                    color: activeTab === "league" ? '#ffd700' : '#888'
                   }}
                 >
-                  🥊 {leagueState.domesticCupState.cupName?.toUpperCase() || "DOMESTIC CUP"}
+                  🏆 DOMESTIC LEAGUE
                 </button>
-              )}
-              {europeanCup && (
-                <button
-                  onClick={() => setActiveTab("europe")}
-                  className="back-home-btn"
-                  style={{
-                    fontSize: '11px',
-                    padding: '6px 12px',
-                    borderColor: activeTab === "europe" ? '#00e5ff' : 'rgba(255,255,255,0.1)',
-                    background: activeTab === "europe" ? 'rgba(0, 229, 255, 0.08)' : 'transparent',
-                    color: activeTab === "europe" ? '#00e5ff' : '#888'
-                  }}
-                >
-                  {isSouthAmerica ? "⭐ SOUTH AMERICAN COMPETITION" : "⭐ EUROPEAN COMPETITION"}
-                </button>
-              )}
-            </div>
-          )}
-
-          {activeTab === "league" ? (
-            <>
-              <h3 className="team-card-title" style={{ textAlign: 'left', marginBottom: '15px', color: '#ffd700' }}>
-                {isAperturaClausuraLeague 
-                  ? `${activeSubStandings.toUpperCase()} STANDINGS` 
-                  : "LEAGUE STANDINGS"
-                }
-              </h3>
-
-              {isAperturaClausuraLeague && (
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
+                {leagueState?.domesticCupState && (
                   <button
-                    onClick={() => setSubStandingsTab("apertura")}
+                    onClick={() => setActiveTab("cup")}
                     className="back-home-btn"
                     style={{
                       fontSize: '11px',
                       padding: '6px 12px',
-                      borderColor: activeSubStandings === "apertura" ? '#ffd700' : 'rgba(255,255,255,0.1)',
-                      background: activeSubStandings === "apertura" ? 'rgba(255, 215, 0, 0.08)' : 'transparent',
-                      color: activeSubStandings === "apertura" ? '#ffd700' : '#888',
-                      cursor: 'pointer'
+                      borderColor: activeTab === "cup" ? '#ff0055' : 'rgba(255,255,255,0.1)',
+                      background: activeTab === "cup" ? 'rgba(255, 0, 85, 0.12)' : 'transparent',
+                      color: activeTab === "cup" ? '#ff0055' : '#888'
                     }}
                   >
-                    Apertura
+                    🥊 {leagueState.domesticCupState.cupName?.toUpperCase() || "DOMESTIC CUP"}
+                  </button>
+                )}
+                {europeanCup && (
+                  <button
+                    onClick={() => setActiveTab("europe")}
+                    className="back-home-btn"
+                    style={{
+                      fontSize: '11px',
+                      padding: '6px 12px',
+                      borderColor: activeTab === "europe" ? '#00e5ff' : 'rgba(255,255,255,0.1)',
+                      background: activeTab === "europe" ? 'rgba(0, 229, 255, 0.08)' : 'transparent',
+                      color: activeTab === "europe" ? '#00e5ff' : '#888'
+                    }}
+                  >
+                    {isSouthAmerica ? "⭐ SOUTH AMERICAN COMPETITION" : "⭐ EUROPEAN COMPETITION"}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {activeTab === "league" ? (
+              <>
+                {/* League View Mode Switcher */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '15px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setLeagueViewMode("standings")}
+                    style={{
+                      fontSize: '11px',
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      fontFamily: 'Orbitron',
+                      fontWeight: 'bold',
+                      border: leagueViewMode === "standings" ? '1px solid #ffd700' : '1px solid rgba(255,255,255,0.1)',
+                      background: leagueViewMode === "standings" ? 'rgba(255, 215, 0, 0.12)' : 'transparent',
+                      color: leagueViewMode === "standings" ? '#ffd700' : '#888',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    📋 LEAGUE TABLE
                   </button>
                   <button
-                    onClick={() => setSubStandingsTab("clausura")}
-                    className="back-home-btn"
+                    onClick={() => setLeagueViewMode("scorers")}
                     style={{
                       fontSize: '11px',
-                      padding: '6px 12px',
-                      borderColor: activeSubStandings === "clausura" ? '#ffd700' : 'rgba(255,255,255,0.1)',
-                      background: activeSubStandings === "clausura" ? 'rgba(255, 215, 0, 0.08)' : 'transparent',
-                      color: activeSubStandings === "clausura" ? '#ffd700' : '#888',
-                      cursor: 'pointer'
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      fontFamily: 'Orbitron',
+                      fontWeight: 'bold',
+                      border: leagueViewMode === "scorers" ? '1px solid #00ff64' : '1px solid rgba(255,255,255,0.1)',
+                      background: leagueViewMode === "scorers" ? 'rgba(0, 255, 100, 0.12)' : 'transparent',
+                      color: leagueViewMode === "scorers" ? '#00ff64' : '#888',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
                     }}
                   >
-                    Clausura
+                    ⚽ TOP SCORERS
                   </button>
                   <button
-                    onClick={() => setSubStandingsTab("aggregate")}
-                    className="back-home-btn"
+                    onClick={() => setLeagueViewMode("assists")}
                     style={{
                       fontSize: '11px',
-                      padding: '6px 12px',
-                      borderColor: activeSubStandings === "aggregate" ? '#ffd700' : 'rgba(255,255,255,0.1)',
-                      background: activeSubStandings === "aggregate" ? 'rgba(255, 215, 0, 0.08)' : 'transparent',
-                      color: activeSubStandings === "aggregate" ? '#ffd700' : '#888',
-                      cursor: 'pointer'
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      fontFamily: 'Orbitron',
+                      fontWeight: 'bold',
+                      border: leagueViewMode === "assists" ? '1px solid #00e5ff' : '1px solid rgba(255,255,255,0.1)',
+                      background: leagueViewMode === "assists" ? 'rgba(0, 229, 255, 0.12)' : 'transparent',
+                      color: leagueViewMode === "assists" ? '#00e5ff' : '#888',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
                     }}
                   >
-                    Aggregate
+                    🎯 TOP ASSISTS
                   </button>
                 </div>
-              )}
 
-              <table className="retro-standings-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#888', textTransform: 'uppercase', fontSize: '10px', textAlign: 'center' }}>
-                    <th style={{ padding: '8px 5px', textAlign: 'left' }}>Pos</th>
-                    <th style={{ padding: '8px 5px', textAlign: 'left' }}>Team</th>
-                    <th style={{ padding: '8px 5px' }}>P</th>
-                    <th style={{ padding: '8px 5px' }}>W</th>
-                    <th style={{ padding: '8px 5px' }}>D</th>
-                    <th style={{ padding: '8px 5px' }}>L</th>
-                    <th style={{ padding: '8px 5px' }}>GD</th>
-                    <th style={{ padding: '8px 5px', color: '#ffd700' }}>Pts</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {standings.map((team, index) => {
-                    const isPlayer = team.idnum === playerTeamId;
-                    return (
-                      <tr
-                        key={team.idnum}
-                        style={{
-                          borderBottom: '1px solid rgba(255,255,255,0.03)',
-                          background: isPlayer ? 'rgba(0, 255, 100, 0.04)' : 'transparent',
-                          color: isPlayer ? '#00ff64' : '#fff',
-                          fontWeight: isPlayer ? 'bold' : 'normal'
-                        }}
-                      >
-                        <td style={{ padding: '10px 5px', textAlign: 'left', fontWeight: 'bold' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ minWidth: '24px', display: 'inline-block' }}>{index + 1}.</span>
-                            {(() => {
-                              const pos = index + 1;
-                              const showQualDots = !isAperturaClausuraLeague || activeSubStandings === "aggregate";
-                              let color = null;
-                              if (showQualDots) {
-                                if (division === 2) {
-                                  if (pos <= 3) color = '#00ff64'; // Green for Promotion
-                                } else {
-                                  if (pos <= clSpotsCount) color = '#00ff64'; // Green for CL/Libertadores
-                                  else if (pos <= clSpotsCount + uefaSpotsCount) color = '#00e5ff'; // Blue for UEFA/Sudamericana
-                                  else if (pos <= clSpotsCount + uefaSpotsCount + ueclSpotsCount) color = '#ffd700'; // Yellow/Gold for UECL
-                                  else if (pos > standings.length - 3) color = '#ff3b30'; // Red for Relegation
-                                }
-                              }
-
-                              if (!color) return (
-                                <span style={{ display: 'inline-block', width: '8px', height: '8px', flexShrink: 0 }} />
-                              );
-                              return (
-                                <span 
-                                  style={{
-                                    display: 'inline-block',
-                                    width: '8px',
-                                    height: '8px',
-                                    borderRadius: '50%',
-                                    background: color,
-                                    boxShadow: `0 0 6px ${color}`,
-                                    flexShrink: 0
-                                  }}
-                                  title={
-                                    division === 2
-                                      ? "Promotion Zone"
-                                      : pos <= clSpotsCount 
-                                        ? (isSouthAmerica ? "Copa Libertadores Zone" : "Champions League Zone") 
-                                        : pos <= clSpotsCount + uefaSpotsCount 
-                                          ? (isSouthAmerica ? "Copa Sudamericana Zone" : "UEFA Cup / Europa League Zone") 
-                                          : pos <= clSpotsCount + uefaSpotsCount + ueclSpotsCount 
-                                            ? "Conference League Zone" 
-                                            : "Relegation Zone"
-                                  }
-                                />
-                              );
-                            })()}
-                          </div>
-                        </td>
-                        <td style={{ padding: '10px 5px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <TeamFlag primaryColor={team.primaryColor} secondaryColor={team.secondaryColor} size={28} />
-                          <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '140px' }} title={team.name}>
-                            {team.name} {isPlayer && " (You)"}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.played}</td>
-                        <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.won}</td>
-                        <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.drawn}</td>
-                        <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.lost}</td>
-                        <td style={{ padding: '10px 5px', textAlign: 'center', color: (team.gf - team.ga) > 0 ? '#00ff64' : ((team.gf - team.ga) < 0 ? '#ff4500' : '#888') }}>
-                          {(team.gf - team.ga) > 0 ? `+${team.gf - team.ga}` : (team.gf - team.ga)}
-                        </td>
-                        <td style={{ padding: '10px 5px', textAlign: 'center', color: isPlayer ? '#00ff64' : '#ffd700', fontWeight: 'bold' }}>{team.points}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              {/* Standings Legend */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', marginTop: '15px', padding: '10px', background: 'rgba(0,0,0,0.25)', borderRadius: '8px', fontSize: '11px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                {division === 2 ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00ff64', boxShadow: '0 0 6px #00ff64' }}></span>
-                    <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>Promotion Zone</span>
-                  </div>
-                ) : (
+                {leagueViewMode === "standings" && (
                   <>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00ff64', boxShadow: '0 0 6px #00ff64' }}></span>
-                      <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>{isSouthAmerica ? "Copa Libertadores" : "Champions League"}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00e5ff', boxShadow: '0 0 6px #00e5ff' }}></span>
-                      <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>{isSouthAmerica ? "Copa Sudamericana" : "Europa League"}</span>
-                    </div>
-                    {ueclSpotsCount > 0 && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#ffd700', boxShadow: '0 0 6px #ffd700' }}></span>
-                        <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>Conference League</span>
+                    <h3 className="team-card-title" style={{ textAlign: 'left', marginBottom: '15px', color: '#ffd700' }}>
+                      {isAperturaClausuraLeague
+                        ? `${activeSubStandings.toUpperCase()} STANDINGS`
+                        : "LEAGUE STANDINGS"
+                      }
+                    </h3>
+
+                    {isAperturaClausuraLeague && (
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
+                        <button
+                          onClick={() => setSubStandingsTab("apertura")}
+                          className="back-home-btn"
+                          style={{
+                            fontSize: '11px',
+                            padding: '6px 12px',
+                            borderColor: activeSubStandings === "apertura" ? '#ffd700' : 'rgba(255,255,255,0.1)',
+                            background: activeSubStandings === "apertura" ? 'rgba(255, 215, 0, 0.08)' : 'transparent',
+                            color: activeSubStandings === "apertura" ? '#ffd700' : '#888',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Apertura
+                        </button>
+                        <button
+                          onClick={() => setSubStandingsTab("clausura")}
+                          className="back-home-btn"
+                          style={{
+                            fontSize: '11px',
+                            padding: '6px 12px',
+                            borderColor: activeSubStandings === "clausura" ? '#ffd700' : 'rgba(255,255,255,0.1)',
+                            background: activeSubStandings === "clausura" ? 'rgba(255, 215, 0, 0.08)' : 'transparent',
+                            color: activeSubStandings === "clausura" ? '#ffd700' : '#888',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Clausura
+                        </button>
+                        <button
+                          onClick={() => setSubStandingsTab("aggregate")}
+                          className="back-home-btn"
+                          style={{
+                            fontSize: '11px',
+                            padding: '6px 12px',
+                            borderColor: activeSubStandings === "aggregate" ? '#ffd700' : 'rgba(255,255,255,0.1)',
+                            background: activeSubStandings === "aggregate" ? 'rgba(255, 215, 0, 0.08)' : 'transparent',
+                            color: activeSubStandings === "aggregate" ? '#ffd700' : '#888',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Aggregate
+                        </button>
                       </div>
                     )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#ff3b30', boxShadow: '0 0 6px #ff3b30' }}></span>
-                      <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>Relegation</span>
+
+                    <table className="retro-standings-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#888', textTransform: 'uppercase', fontSize: '10px', textAlign: 'center' }}>
+                          <th style={{ padding: '8px 5px', textAlign: 'left' }}>Pos</th>
+                          <th style={{ padding: '8px 5px', textAlign: 'left' }}>Team</th>
+                          <th style={{ padding: '8px 5px' }}>P</th>
+                          <th style={{ padding: '8px 5px' }}>W</th>
+                          <th style={{ padding: '8px 5px' }}>D</th>
+                          <th style={{ padding: '8px 5px' }}>L</th>
+                          <th style={{ padding: '8px 5px' }}>GD</th>
+                          <th style={{ padding: '8px 5px', color: '#ffd700' }}>Pts</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {standings.map((team, index) => {
+                          const isPlayer = team.idnum === playerTeamId;
+                          return (
+                            <tr
+                              key={team.idnum}
+                              style={{
+                                borderBottom: '1px solid rgba(255,255,255,0.03)',
+                                background: isPlayer ? 'rgba(0, 255, 100, 0.04)' : 'transparent',
+                                color: isPlayer ? '#00ff64' : '#fff',
+                                fontWeight: isPlayer ? 'bold' : 'normal'
+                              }}
+                            >
+                              <td style={{ padding: '10px 5px', textAlign: 'left', fontWeight: 'bold' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ minWidth: '24px', display: 'inline-block' }}>{index + 1}.</span>
+                                  {(() => {
+                                    const pos = index + 1;
+                                    const showQualDots = !isAperturaClausuraLeague || activeSubStandings === "aggregate";
+                                    let color = null;
+                                    if (showQualDots) {
+                                      if (division === 2) {
+                                        if (pos <= 3) color = '#00ff64'; // Green for Promotion
+                                      } else {
+                                        if (pos <= clSpotsCount) color = '#00ff64'; // Green for CL/Libertadores
+                                        else if (pos <= clSpotsCount + uefaSpotsCount) color = '#00e5ff'; // Blue for UEFA/Sudamericana
+                                        else if (pos <= clSpotsCount + uefaSpotsCount + ueclSpotsCount) color = '#ffd700'; // Yellow/Gold for UECL
+                                        else if (pos > standings.length - 3) color = '#ff3b30'; // Red for Relegation
+                                      }
+                                    }
+
+                                    if (!color) return (
+                                      <span style={{ display: 'inline-block', width: '8px', height: '8px', flexShrink: 0 }} />
+                                    );
+                                    return (
+                                      <span
+                                        style={{
+                                          display: 'inline-block',
+                                          width: '8px',
+                                          height: '8px',
+                                          borderRadius: '50%',
+                                          background: color,
+                                          boxShadow: `0 0 6px ${color}`,
+                                          flexShrink: 0
+                                        }}
+                                        title={
+                                          division === 2
+                                            ? "Promotion Zone"
+                                            : pos <= clSpotsCount
+                                              ? (isSouthAmerica ? "Copa Libertadores Zone" : "Champions League Zone")
+                                              : pos <= clSpotsCount + uefaSpotsCount
+                                                ? (isSouthAmerica ? "Copa Sudamericana Zone" : "UEFA Cup / Europa League Zone")
+                                                : pos <= clSpotsCount + uefaSpotsCount + ueclSpotsCount
+                                                  ? "Conference League Zone"
+                                                  : "Relegation Zone"
+                                        }
+                                      />
+                                    );
+                                  })()}
+                                </div>
+                              </td>
+                              <td style={{ padding: '10px 5px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <TeamFlag primaryColor={team.primaryColor} secondaryColor={team.secondaryColor} size={28} />
+                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '140px' }} title={team.name}>
+                                  {team.name} {isPlayer && " (You)"}
+                                </span>
+                              </td>
+                              <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.played}</td>
+                              <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.won}</td>
+                              <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.drawn}</td>
+                              <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.lost}</td>
+                              <td style={{ padding: '10px 5px', textAlign: 'center', color: (team.gf - team.ga) > 0 ? '#00ff64' : ((team.gf - team.ga) < 0 ? '#ff4500' : '#888') }}>
+                                {(team.gf - team.ga) > 0 ? `+${team.gf - team.ga}` : (team.gf - team.ga)}
+                              </td>
+                              <td style={{ padding: '10px 5px', textAlign: 'center', color: isPlayer ? '#00ff64' : '#ffd700', fontWeight: 'bold' }}>{team.points}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+
+                    {/* Standings Legend */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', marginTop: '15px', padding: '10px', background: 'rgba(0,0,0,0.25)', borderRadius: '8px', fontSize: '11px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      {division === 2 ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00ff64', boxShadow: '0 0 6px #00ff64' }}></span>
+                          <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>Promotion Zone</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00ff64', boxShadow: '0 0 6px #00ff64' }}></span>
+                            <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>{isSouthAmerica ? "Copa Libertadores" : "Champions League"}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00e5ff', boxShadow: '0 0 6px #00e5ff' }}></span>
+                            <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>{isSouthAmerica ? "Copa Sudamericana" : "Europa League"}</span>
+                          </div>
+                          {ueclSpotsCount > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#ffd700', boxShadow: '0 0 6px #ffd700' }}></span>
+                              <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>Conference League</span>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#ff3b30', boxShadow: '0 0 6px #ff3b30' }}></span>
+                            <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>Relegation</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </>
                 )}
-              </div>
-            </>
-          ) : activeTab === "cup" ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 className="team-card-title" style={{ textAlign: 'left', margin: 0, color: '#ff0055' }}>
-                  {leagueState?.domesticCupState?.cupName?.toUpperCase() || 'DOMESTIC CUP'}
-                </h3>
-                <span style={{ fontSize: '10.5px', color: '#ff0055', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
-                  {leagueState?.domesticCupState?.isCompleted 
-                    ? `🏆 CHAMPION: ${leagueState?.domesticCupState?.winnerName?.toUpperCase()}` 
-                    : `STAGE: ${CUP_STAGE_NAMES[leagueState?.domesticCupState?.stage]?.toUpperCase()}`}
-                </span>
-              </div>
 
-              {leagueState?.domesticCupState && (
-                <div>
-                  <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                    {leagueState.domesticCupState.stages.map(stg => {
-                      const isCurrent = leagueState.domesticCupState.stage === stg;
-                      const matches = leagueState.domesticCupState.knockoutState[stg] || [];
-                      const isPlayed = matches.length > 0 && matches.every(m => m.played);
-                      return (
-                        <button
-                          key={stg}
-                          onClick={() => setSelectedCupStage(stg)}
-                          style={{
-                            padding: '5px 10px',
-                            borderRadius: '6px',
-                            fontSize: '10px',
-                            fontWeight: 'bold',
-                            fontFamily: 'Orbitron, sans-serif',
-                            letterSpacing: '0.5px',
-                            cursor: 'pointer',
-                            border: (selectedCupStage || leagueState.domesticCupState.stage) === stg ? '1px solid #ff0055' : '1px solid rgba(255,255,255,0.08)',
-                            background: (selectedCupStage || leagueState.domesticCupState.stage) === stg ? 'rgba(255,0,85,0.2)' : 'rgba(0,0,0,0.3)',
-                            color: (selectedCupStage || leagueState.domesticCupState.stage) === stg ? '#ff0055' : (isPlayed ? '#00ff64' : '#888')
-                          }}
-                        >
-                          {CUP_STAGE_NAMES[stg]?.toUpperCase() || stg.toUpperCase()} {isCurrent ? '⚡' : (isPlayed ? '✓' : '')}
-                        </button>
-                      );
-                    })}
+                {leagueViewMode === "scorers" && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <h3 className="team-card-title" style={{ textAlign: 'left', margin: '0 0 10px 0', color: '#00ff64' }}>
+                      ⚽ TOP GOALSCORERS (GOLDEN BOOT)
+                    </h3>
+                    {topScorersList.length === 0 ? (
+                      <div style={{ padding: '30px 10px', textAlign: 'center', color: '#666', fontSize: '12px' }}>
+                        No goals recorded yet this season. Play or simulate matches to see the Golden Boot race unfold!
+                      </div>
+                    ) : (
+                      <table className="retro-standings-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#888', textTransform: 'uppercase', fontSize: '10px', textAlign: 'center' }}>
+                            <th style={{ padding: '8px 5px', textAlign: 'left', width: '45px' }}>Rank</th>
+                            <th style={{ padding: '8px 5px', textAlign: 'left' }}>Player</th>
+                            <th style={{ padding: '8px 5px', textAlign: 'left' }}>Club</th>
+                            <th style={{ padding: '8px 5px', textAlign: 'center', width: '50px' }}>Pos</th>
+                            <th style={{ padding: '8px 5px', textAlign: 'center', color: '#00ff64', width: '60px' }}>Goals</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {topScorersList.map((player, idx) => {
+                            const userClub = leagueState?.teams?.find(t => t.idnum === leagueState?.playerTeamId)?.name;
+                            const isUserTeam = userClub && player.team === userClub;
+                            const rankBadge = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
+                            return (
+                              <tr
+                                key={idx}
+                                style={{
+                                  borderBottom: '1px solid rgba(255,255,255,0.03)',
+                                  background: isUserTeam ? 'rgba(0, 255, 100, 0.08)' : (idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent'),
+                                  color: isUserTeam ? '#00ff64' : '#fff'
+                                }}
+                              >
+                                <td style={{ padding: '9px 5px', textAlign: 'left', fontWeight: 'bold' }}>
+                                  {rankBadge}
+                                </td>
+                                <td style={{ padding: '9px 5px', textAlign: 'left', fontWeight: 'bold' }}>
+                                  {player.name}
+                                </td>
+                                <td style={{ padding: '9px 5px', textAlign: 'left', color: '#aaa', fontSize: '12px' }}>
+                                  {player.team}
+                                </td>
+                                <td style={{ padding: '9px 5px', textAlign: 'center', color: '#888', fontSize: '11px', fontFamily: 'Orbitron' }}>
+                                  {player.position || 'FW'}
+                                </td>
+                                <td style={{ padding: '9px 5px', textAlign: 'center', color: '#00ff64', fontWeight: 'bold', fontFamily: 'Orbitron', fontSize: '14px' }}>
+                                  {player.goals}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
                   </div>
+                )}
 
-                  {(() => {
-                    const activeStg = selectedCupStage || leagueState.domesticCupState.stage;
-                    const stageMatches = leagueState.domesticCupState.knockoutState[activeStg] || [];
-                    if (stageMatches.length === 0) {
+                {leagueViewMode === "assists" && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <h3 className="team-card-title" style={{ textAlign: 'left', margin: '0 0 10px 0', color: '#00e5ff' }}>
+                      🎯 TOP ASSIST PROVIDERS (PLAYMAKER LEADERS)
+                    </h3>
+                    {topAssistsList.length === 0 ? (
+                      <div style={{ padding: '30px 10px', textAlign: 'center', color: '#666', fontSize: '12px' }}>
+                        No assists recorded yet this season. Play or simulate matches to see the Playmaker leaderboard!
+                      </div>
+                    ) : (
+                      <table className="retro-standings-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#888', textTransform: 'uppercase', fontSize: '10px', textAlign: 'center' }}>
+                            <th style={{ padding: '8px 5px', textAlign: 'left', width: '45px' }}>Rank</th>
+                            <th style={{ padding: '8px 5px', textAlign: 'left' }}>Player</th>
+                            <th style={{ padding: '8px 5px', textAlign: 'left' }}>Club</th>
+                            <th style={{ padding: '8px 5px', textAlign: 'center', width: '50px' }}>Pos</th>
+                            <th style={{ padding: '8px 5px', textAlign: 'center', color: '#00e5ff', width: '60px' }}>Assists</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {topAssistsList.map((player, idx) => {
+                            const userClub = leagueState?.teams?.find(t => t.idnum === leagueState?.playerTeamId)?.name;
+                            const isUserTeam = userClub && player.team === userClub;
+                            const rankBadge = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
+                            return (
+                              <tr
+                                key={idx}
+                                style={{
+                                  borderBottom: '1px solid rgba(255,255,255,0.03)',
+                                  background: isUserTeam ? 'rgba(0, 229, 255, 0.08)' : (idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent'),
+                                  color: isUserTeam ? '#00e5ff' : '#fff'
+                                }}
+                              >
+                                <td style={{ padding: '9px 5px', textAlign: 'left', fontWeight: 'bold' }}>
+                                  {rankBadge}
+                                </td>
+                                <td style={{ padding: '9px 5px', textAlign: 'left', fontWeight: 'bold' }}>
+                                  {player.name}
+                                </td>
+                                <td style={{ padding: '9px 5px', textAlign: 'left', color: '#aaa', fontSize: '12px' }}>
+                                  {player.team}
+                                </td>
+                                <td style={{ padding: '9px 5px', textAlign: 'center', color: '#888', fontSize: '11px', fontFamily: 'Orbitron' }}>
+                                  {player.position || 'MF'}
+                                </td>
+                                <td style={{ padding: '9px 5px', textAlign: 'center', color: '#00e5ff', fontWeight: 'bold', fontFamily: 'Orbitron', fontSize: '14px' }}>
+                                  {player.assists}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : activeTab === "cup" ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 className="team-card-title" style={{ textAlign: 'left', margin: 0, color: '#ff0055' }}>
+                    {leagueState?.domesticCupState?.cupName?.toUpperCase() || 'DOMESTIC CUP'}
+                  </h3>
+                  <span style={{ fontSize: '10.5px', color: '#ff0055', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                    {leagueState?.domesticCupState?.isCompleted
+                      ? `🏆 CHAMPION: ${leagueState?.domesticCupState?.winnerName?.toUpperCase()}`
+                      : `STAGE: ${CUP_STAGE_NAMES[leagueState?.domesticCupState?.stage]?.toUpperCase()}`}
+                  </span>
+                </div>
+
+                {leagueState?.domesticCupState && (
+                  <div>
+                    <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                      {leagueState.domesticCupState.stages.map(stg => {
+                        const isCurrent = leagueState.domesticCupState.stage === stg;
+                        const matches = leagueState.domesticCupState.knockoutState[stg] || [];
+                        const isPlayed = matches.length > 0 && matches.every(m => m.played);
+                        return (
+                          <button
+                            key={stg}
+                            onClick={() => setSelectedCupStage(stg)}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              fontSize: '10px',
+                              fontWeight: 'bold',
+                              fontFamily: 'Orbitron, sans-serif',
+                              letterSpacing: '0.5px',
+                              cursor: 'pointer',
+                              border: (selectedCupStage || leagueState.domesticCupState.stage) === stg ? '1px solid #ff0055' : '1px solid rgba(255,255,255,0.08)',
+                              background: (selectedCupStage || leagueState.domesticCupState.stage) === stg ? 'rgba(255,0,85,0.2)' : 'rgba(0,0,0,0.3)',
+                              color: (selectedCupStage || leagueState.domesticCupState.stage) === stg ? '#ff0055' : (isPlayed ? '#00ff64' : '#888')
+                            }}
+                          >
+                            {CUP_STAGE_NAMES[stg]?.toUpperCase() || stg.toUpperCase()} {isCurrent ? '⚡' : (isPlayed ? '✓' : '')}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {(() => {
+                      const activeStg = selectedCupStage || leagueState.domesticCupState.stage;
+                      const stageMatches = leagueState.domesticCupState.knockoutState[activeStg] || [];
+                      if (stageMatches.length === 0) {
+                        return (
+                          <div style={{ textAlign: 'center', padding: '20px', color: '#888', fontFamily: 'Orbitron', fontSize: '12px' }}>
+                            Stage matches draw not generated yet.
+                          </div>
+                        );
+                      }
                       return (
-                        <div style={{ textAlign: 'center', padding: '20px', color: '#888', fontFamily: 'Orbitron', fontSize: '12px' }}>
-                          Stage matches draw not generated yet.
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' }}>
+                          {stageMatches.map(m => {
+                            const isUserMatch = m.homeId === leagueState.playerTeamId || m.awayId === leagueState.playerTeamId;
+                            const homeTeamObj = leagueState.domesticCupState.participatingTeams.find(t => t.idnum === m.homeId) || leagueState.teams.find(t => t.idnum === m.homeId);
+                            const awayTeamObj = leagueState.domesticCupState.participatingTeams.find(t => t.idnum === m.awayId) || leagueState.teams.find(t => t.idnum === m.awayId);
+
+                            return (
+                              <div
+                                key={m.id}
+                                style={{
+                                  background: isUserMatch ? 'rgba(255, 0, 85, 0.12)' : 'rgba(0, 0, 0, 0.35)',
+                                  border: isUserMatch ? '1.5px solid #ff0055' : '1px solid rgba(255, 255, 255, 0.08)',
+                                  borderRadius: '8px',
+                                  padding: '8px 12px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '5px'
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: isUserMatch ? '#ff0055' : '#888', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                                  <span>{m.stageName || CUP_STAGE_NAMES[activeStg]}</span>
+                                  <span>{m.played ? (m.penaltyHomeScore !== null ? 'PENALTIES' : 'FULL TIME') : 'UPCOMING'}</span>
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                                    {homeTeamObj && <TeamFlag primaryColor={homeTeamObj.primaryColor} secondaryColor={homeTeamObj.secondaryColor} size={18} />}
+                                    <span style={{ fontSize: '11.5px', fontWeight: m.homeId === leagueState.playerTeamId ? 'bold' : 'normal', color: m.homeId === leagueState.playerTeamId ? '#00ff64' : '#fff' }}>
+                                      {m.homeName}
+                                    </span>
+                                  </div>
+
+                                  <div style={{ padding: '2px 6px', background: 'rgba(0,0,0,0.6)', borderRadius: '4px', fontSize: '11.5px', fontWeight: 'bold', fontFamily: 'Orbitron', color: m.played ? '#ffd700' : '#666' }}>
+                                    {m.played ? `${m.homeScore} - ${m.awayScore}` : 'VS'}
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, justifyContent: 'flex-end' }}>
+                                    <span style={{ fontSize: '11.5px', fontWeight: m.awayId === leagueState.playerTeamId ? 'bold' : 'normal', color: m.awayId === leagueState.playerTeamId ? '#00ff64' : '#fff' }}>
+                                      {m.awayName}
+                                    </span>
+                                    {awayTeamObj && <TeamFlag primaryColor={awayTeamObj.primaryColor} secondaryColor={awayTeamObj.secondaryColor} size={18} />}
+                                  </div>
+                                </div>
+
+                                {m.played && m.penaltyHomeScore !== null && (
+                                  <div style={{ textAlign: 'center', fontSize: '9.5px', color: '#00e5ff', fontFamily: 'Orbitron', marginTop: '1px' }}>
+                                    Pens: {m.penaltyHomeScore} - {m.penaltyAwayScore}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       );
-                    }
-                    return (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' }}>
-                        {stageMatches.map(m => {
-                          const isUserMatch = m.homeId === leagueState.playerTeamId || m.awayId === leagueState.playerTeamId;
-                          const homeTeamObj = leagueState.domesticCupState.participatingTeams.find(t => t.idnum === m.homeId) || leagueState.teams.find(t => t.idnum === m.homeId);
-                          const awayTeamObj = leagueState.domesticCupState.participatingTeams.find(t => t.idnum === m.awayId) || leagueState.teams.find(t => t.idnum === m.awayId);
+                    })()}
+                  </div>
+                )}
+              </div>
+            ) : (
+              (rules && rules.format !== "pure_knockout") ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <h3 className="team-card-title" style={{ color: '#00e5ff', margin: '0' }}>
+                      {isSouthAmerica
+                        ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA")
+                        : (europeanCup === "cl"
+                          ? "UEFA CHAMPIONS LEAGUE"
+                          : (europeanCup === "uefa"
+                            ? (parseInt(season.split("/")[0]) >= 2009 ? "UEFA EUROPA LEAGUE" : "UEFA CUP")
+                            : "UEFA CONFERENCE LEAGUE"))}{" "}
+                      {isLeagueStageCup ? "- LEAGUE STAGE" : `- GROUP ${clActiveGroup}`}
+                    </h3>
+                    {!isLeagueStageCup && activeGroupsList.length > 0 && (
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        {activeGroupsList.map(g => (
+                          <button
+                            key={g}
+                            onClick={() => setClActiveGroup(g)}
+                            style={{
+                              background: clActiveGroup === g ? '#00e5ff' : 'rgba(0,0,0,0.4)',
+                              border: `1px solid ${clActiveGroup === g ? '#00e5ff' : 'rgba(255,255,255,0.1)'}`,
+                              borderRadius: '4px',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              fontSize: '11px',
+                              padding: '4px 8px',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            {g}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
+                  <table className="retro-standings-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#888', textTransform: 'uppercase', fontSize: '10px', textAlign: 'center' }}>
+                        <th style={{ padding: '8px 5px', textAlign: 'left' }}>Pos</th>
+                        <th style={{ padding: '8px 5px', textAlign: 'left' }}>Team</th>
+                        <th style={{ padding: '8px 5px' }}>P</th>
+                        <th style={{ padding: '8px 5px' }}>W</th>
+                        <th style={{ padding: '8px 5px' }}>D</th>
+                        <th style={{ padding: '8px 5px' }}>L</th>
+                        <th style={{ padding: '8px 5px' }}>GD</th>
+                        <th style={{ padding: '8px 5px', color: '#00e5ff' }}>Pts</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getCLGroupStandings(clActiveGroup).map((team, index) => {
+                        const isPlayer = team.name === playerTeamObj.name;
+                        return (
+                          <tr
+                            key={team.idnum}
+                            style={{
+                              borderBottom: '1px solid rgba(255,255,255,0.03)',
+                              background: isPlayer ? 'rgba(0, 229, 255, 0.04)' : 'transparent',
+                              color: isPlayer ? '#00e5ff' : '#fff',
+                              fontWeight: isPlayer ? 'bold' : 'normal'
+                            }}
+                          >
+                            <td style={{ padding: '10px 5px', textAlign: 'left', fontWeight: 'bold' }}>{index + 1}</td>
+                            <td style={{ padding: '10px 5px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <TeamFlag primaryColor={team.primaryColor} secondaryColor={team.secondaryColor} size={28} />
+                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '140px' }} title={team.name}>
+                                {team.name} {isPlayer && " (You)"}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.played}</td>
+                            <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.won}</td>
+                            <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.drawn}</td>
+                            <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.lost}</td>
+                            <td style={{ padding: '10px 5px', textAlign: 'center', color: (team.gf - team.ga) > 0 ? '#00ff64' : ((team.gf - team.ga) < 0 ? '#ff4500' : '#888') }}>
+                              {(team.gf - team.ga) > 0 ? `+${team.gf - team.ga}` : (team.gf - team.ga)}
+                            </td>
+                            <td style={{ padding: '10px 5px', textAlign: 'center', color: isPlayer ? '#00e5ff' : '#ffd700', fontWeight: 'bold' }}>{team.points}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  {/* Brackets Summary if Knockout is active */}
+                  {europeanCupState.knockoutState && (
+                    europeanCupState.knockoutState.playoffsLeg1 ||
+                    europeanCupState.knockoutState.roundOf16Leg1 ||
+                    europeanCupState.knockoutState.quarterFinalsLeg1 ||
+                    europeanCupState.knockoutState.semiFinalsLeg1 ||
+                    europeanCupState.knockoutState.final
+                  ) && (
+                      <div style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '15px' }}>
+                        <h3 className="team-card-title" style={{ color: '#00e5ff', fontSize: '13px', textAlign: 'left', marginBottom: '10px' }}>
+                          ⭐ KNOCKOUT BRACKET STAGES
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                          {/* Final */}
+                          {europeanCupState.knockoutState.final && (
+                            <div style={{ background: 'rgba(255,215,0,0.03)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,215,0,0.1)' }}>
+                              <h4 style={{ color: '#ffd700', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Grand Final</h4>
+                              {europeanCupState.knockoutState.final.map((m, i) => {
+                                const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
+                                const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
+                                return (
+                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff' }}>
+                                    <span style={{ fontWeight: 'bold' }}>{h?.name || "TBD"}</span>
+                                    <span style={{ fontFamily: 'Orbitron', color: '#ffd700' }}>
+                                      {m.played ? `${m.homeScore} - ${m.awayScore}${m.penaltyHomeScore !== undefined ? ` (${m.penaltyHomeScore}-${m.penaltyAwayScore} pen)` : ""}` : "vs"}
+                                    </span>
+                                    <span style={{ fontWeight: 'bold' }}>{a?.name || "TBD"}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Semi-Finals */}
+                          {europeanCupState.knockoutState.semiFinalsLeg1 && (
+                            <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                              <h4 style={{ color: '#00e5ff', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Semi-Finals</h4>
+                              {europeanCupState.knockoutState.semiFinalsLeg1.map((m, i) => {
+                                const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
+                                const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
+                                const m2 = europeanCupState.knockoutState.semiFinalsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
+                                return (
+                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
+                                    <span>{h?.name || "TBD"}</span>
+                                    <span style={{ fontFamily: 'Orbitron' }}>
+                                      L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
+                                    </span>
+                                    <span>{a?.name || "TBD"}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Quarter-Finals */}
+                          {europeanCupState.knockoutState.quarterFinalsLeg1 && (
+                            <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                              <h4 style={{ color: '#888', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Quarter-Finals</h4>
+                              {europeanCupState.knockoutState.quarterFinalsLeg1.map((m, i) => {
+                                const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
+                                const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
+                                const m2 = europeanCupState.knockoutState.quarterFinalsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
+                                return (
+                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
+                                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h?.name}>{h?.name || "TBD"}</span>
+                                    <span style={{ fontFamily: 'Orbitron' }}>
+                                      L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
+                                    </span>
+                                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a?.name}>{a?.name || "TBD"}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Round of 16 */}
+                          {europeanCupState.knockoutState.roundOf16Leg1 && (
+                            <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                              <h4 style={{ color: '#888', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Round of 16</h4>
+                              {europeanCupState.knockoutState.roundOf16Leg1.map((m, i) => {
+                                const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
+                                const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
+                                const m2 = europeanCupState.knockoutState.roundOf16Leg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
+                                return (
+                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
+                                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h?.name}>{h?.name || "TBD"}</span>
+                                    <span style={{ fontFamily: 'Orbitron' }}>
+                                      L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
+                                    </span>
+                                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a?.name}>{a?.name || "TBD"}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Playoffs */}
+                          {europeanCupState.knockoutState.playoffsLeg1 && (
+                            <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                              <h4 style={{ color: '#888', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Knockout Playoffs</h4>
+                              {europeanCupState.knockoutState.playoffsLeg1.map((m, i) => {
+                                const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
+                                const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
+                                const m2 = europeanCupState.knockoutState.playoffsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
+                                return (
+                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
+                                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h?.name}>{h?.name || "TBD"}</span>
+                                    <span style={{ fontFamily: 'Orbitron' }}>
+                                      L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
+                                    </span>
+                                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a?.name}>{a?.name || "TBD"}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                </>
+              ) : (
+                // Knockout Bracket standings (UEFA Cup or 1990/91 Champions Cup)
+                <>
+                  <h3 className="team-card-title" style={{ color: '#00e5ff', marginBottom: '15px' }}>
+                    🏆 {isSouthAmerica
+                      ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA")
+                      : (europeanCup === "cl"
+                        ? (parseInt(season.split("/")[0]) >= 1992 ? "CHAMPIONS LEAGUE" : "CHAMPIONS CUP")
+                        : (europeanCup === "uefa"
+                          ? (parseInt(season.split("/")[0]) >= 2009 ? "EUROPA LEAGUE" : "UEFA CUP")
+                          : "CONFERENCE LEAGUE"))} - KNOCKOUT BRACKET
+                  </h3>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    {/* Final Bracket */}
+                    {europeanCupState.knockoutState.final && (
+                      <div style={{ background: 'rgba(255,215,0,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,215,0,0.1)' }}>
+                        <h4 style={{ color: '#ffd700', margin: '0 0 8px 0', fontSize: '12px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Grand Final</h4>
+                        {europeanCupState.knockoutState.final.map((m, i) => {
+                          const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
+                          const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
                           return (
-                            <div
-                              key={m.id}
-                              style={{
-                                background: isUserMatch ? 'rgba(255, 0, 85, 0.12)' : 'rgba(0, 0, 0, 0.35)',
-                                border: isUserMatch ? '1.5px solid #ff0055' : '1px solid rgba(255, 255, 255, 0.08)',
-                                borderRadius: '8px',
-                                padding: '8px 12px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '5px'
-                              }}
-                            >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: isUserMatch ? '#ff0055' : '#888', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
-                                <span>{m.stageName || CUP_STAGE_NAMES[activeStg]}</span>
-                                <span>{m.played ? (m.penaltyHomeScore !== null ? 'PENALTIES' : 'FULL TIME') : 'UPCOMING'}</span>
-                              </div>
-
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
-                                  {homeTeamObj && <TeamFlag primaryColor={homeTeamObj.primaryColor} secondaryColor={homeTeamObj.secondaryColor} size={18} />}
-                                  <span style={{ fontSize: '11.5px', fontWeight: m.homeId === leagueState.playerTeamId ? 'bold' : 'normal', color: m.homeId === leagueState.playerTeamId ? '#00ff64' : '#fff' }}>
-                                    {m.homeName}
-                                  </span>
-                                </div>
-
-                                <div style={{ padding: '2px 6px', background: 'rgba(0,0,0,0.6)', borderRadius: '4px', fontSize: '11.5px', fontWeight: 'bold', fontFamily: 'Orbitron', color: m.played ? '#ffd700' : '#666' }}>
-                                  {m.played ? `${m.homeScore} - ${m.awayScore}` : 'VS'}
-                                </div>
-
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, justifyContent: 'flex-end' }}>
-                                  <span style={{ fontSize: '11.5px', fontWeight: m.awayId === leagueState.playerTeamId ? 'bold' : 'normal', color: m.awayId === leagueState.playerTeamId ? '#00ff64' : '#fff' }}>
-                                    {m.awayName}
-                                  </span>
-                                  {awayTeamObj && <TeamFlag primaryColor={awayTeamObj.primaryColor} secondaryColor={awayTeamObj.secondaryColor} size={18} />}
-                                </div>
-                              </div>
-
-                              {m.played && m.penaltyHomeScore !== null && (
-                                <div style={{ textAlign: 'center', fontSize: '9.5px', color: '#00e5ff', fontFamily: 'Orbitron', marginTop: '1px' }}>
-                                  Pens: {m.penaltyHomeScore} - {m.penaltyAwayScore}
-                                </div>
-                              )}
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#fff' }}>
+                              <span style={{ fontWeight: 'bold' }}>{h.name}</span>
+                              <span style={{ fontFamily: 'Orbitron', color: '#ffd700' }}>{m.played ? `${m.homeScore} - ${m.awayScore}` : "vs"}</span>
+                              <span style={{ fontWeight: 'bold' }}>{a.name}</span>
                             </div>
                           );
                         })}
                       </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-          ) : (
-            (rules && rules.format !== "pure_knockout") ? (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                  <h3 className="team-card-title" style={{ color: '#00e5ff', margin: '0' }}>
-                    {isSouthAmerica
-                      ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA")
-                      : (europeanCup === "cl"
-                          ? "UEFA CHAMPIONS LEAGUE"
-                          : (europeanCup === "uefa"
-                              ? (parseInt(season.split("/")[0]) >= 2009 ? "UEFA EUROPA LEAGUE" : "UEFA CUP")
-                              : "UEFA CONFERENCE LEAGUE"))}{" "}
-                    {isLeagueStageCup ? "- LEAGUE STAGE" : `- GROUP ${clActiveGroup}`}
-                  </h3>
-                  {!isLeagueStageCup && activeGroupsList.length > 0 && (
-                    <div style={{ display: 'flex', gap: '5px' }}>
-                      {activeGroupsList.map(g => (
-                                <button
-                                  key={g}
-                                  onClick={() => setClActiveGroup(g)}
-                                  style={{
-                                    background: clActiveGroup === g ? '#00e5ff' : 'rgba(0,0,0,0.4)',
-                                    border: `1px solid ${clActiveGroup === g ? '#00e5ff' : 'rgba(255,255,255,0.1)'}`,
-                                    borderRadius: '4px',
-                                    color: '#fff',
-                                    cursor: 'pointer',
-                                    fontSize: '11px',
-                                    padding: '4px 8px',
-                                    fontWeight: 'bold'
-                                  }}
-                                >
-                                  {g}
-                                </button>
-                              ))}
-                    </div>
-                  )}
-                </div>
+                    )}
 
-                <table className="retro-standings-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#888', textTransform: 'uppercase', fontSize: '10px', textAlign: 'center' }}>
-                      <th style={{ padding: '8px 5px', textAlign: 'left' }}>Pos</th>
-                      <th style={{ padding: '8px 5px', textAlign: 'left' }}>Team</th>
-                      <th style={{ padding: '8px 5px' }}>P</th>
-                      <th style={{ padding: '8px 5px' }}>W</th>
-                      <th style={{ padding: '8px 5px' }}>D</th>
-                      <th style={{ padding: '8px 5px' }}>L</th>
-                      <th style={{ padding: '8px 5px' }}>GD</th>
-                      <th style={{ padding: '8px 5px', color: '#00e5ff' }}>Pts</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {getCLGroupStandings(clActiveGroup).map((team, index) => {
-                      const isPlayer = team.name === playerTeamObj.name;
-                      return (
-                        <tr
-                          key={team.idnum}
-                          style={{
-                            borderBottom: '1px solid rgba(255,255,255,0.03)',
-                            background: isPlayer ? 'rgba(0, 229, 255, 0.04)' : 'transparent',
-                            color: isPlayer ? '#00e5ff' : '#fff',
-                            fontWeight: isPlayer ? 'bold' : 'normal'
-                          }}
-                        >
-                          <td style={{ padding: '10px 5px', textAlign: 'left', fontWeight: 'bold' }}>{index + 1}</td>
-                          <td style={{ padding: '10px 5px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <TeamFlag primaryColor={team.primaryColor} secondaryColor={team.secondaryColor} size={28} />
-                            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '140px' }} title={team.name}>
-                              {team.name} {isPlayer && " (You)"}
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.played}</td>
-                          <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.won}</td>
-                          <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.drawn}</td>
-                          <td style={{ padding: '10px 5px', textAlign: 'center' }}>{team.lost}</td>
-                          <td style={{ padding: '10px 5px', textAlign: 'center', color: (team.gf - team.ga) > 0 ? '#00ff64' : ((team.gf - team.ga) < 0 ? '#ff4500' : '#888') }}>
-                            {(team.gf - team.ga) > 0 ? `+${team.gf - team.ga}` : (team.gf - team.ga)}
-                          </td>
-                          <td style={{ padding: '10px 5px', textAlign: 'center', color: isPlayer ? '#00e5ff' : '#ffd700', fontWeight: 'bold' }}>{team.points}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                    {/* Semi Finals Bracket */}
+                    {europeanCupState.knockoutState.semiFinalsLeg1 && (
+                      <div style={{ background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                        <h4 style={{ color: '#00e5ff', margin: '0 0 8px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Semi-Finals</h4>
+                        {europeanCupState.knockoutState.semiFinalsLeg1.map((m, i) => {
+                          const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
+                          const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
+                          const m2 = europeanCupState.knockoutState.semiFinalsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
+                          return (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
+                              <span>{h.name}</span>
+                              <span style={{ fontFamily: 'Orbitron' }}>
+                                L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
+                              </span>
+                              <span>{a.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
 
-                {/* Brackets Summary if Knockout is active */}
-                {europeanCupState.knockoutState && (
-                  europeanCupState.knockoutState.playoffsLeg1 ||
-                  europeanCupState.knockoutState.roundOf16Leg1 ||
-                  europeanCupState.knockoutState.quarterFinalsLeg1 ||
-                  europeanCupState.knockoutState.semiFinalsLeg1 ||
-                  europeanCupState.knockoutState.final
-                ) && (
-                  <div style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '15px' }}>
-                    <h3 className="team-card-title" style={{ color: '#00e5ff', fontSize: '13px', textAlign: 'left', marginBottom: '10px' }}>
-                      ⭐ KNOCKOUT BRACKET STAGES
-                    </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                      {/* Final */}
-                      {europeanCupState.knockoutState.final && (
-                        <div style={{ background: 'rgba(255,215,0,0.03)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,215,0,0.1)' }}>
-                          <h4 style={{ color: '#ffd700', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Grand Final</h4>
-                          {europeanCupState.knockoutState.final.map((m, i) => {
-                            const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                            const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                            return (
-                              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff' }}>
-                                <span style={{ fontWeight: 'bold' }}>{h?.name || "TBD"}</span>
-                                <span style={{ fontFamily: 'Orbitron', color: '#ffd700' }}>
-                                  {m.played ? `${m.homeScore} - ${m.awayScore}${m.penaltyHomeScore !== undefined ? ` (${m.penaltyHomeScore}-${m.penaltyAwayScore} pen)` : ""}` : "vs"}
-                                </span>
-                                <span style={{ fontWeight: 'bold' }}>{a?.name || "TBD"}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                    {/* Quarter Finals Bracket */}
+                    {europeanCupState.knockoutState.quarterFinalsLeg1 && (
+                      <div style={{ background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                        <h4 style={{ color: '#888', margin: '0 0 8px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Quarter-Finals</h4>
+                        {europeanCupState.knockoutState.quarterFinalsLeg1.map((m, i) => {
+                          const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
+                          const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
+                          const m2 = europeanCupState.knockoutState.quarterFinalsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
+                          return (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
+                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h.name}>{h.name}</span>
+                              <span style={{ fontFamily: 'Orbitron' }}>
+                                L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
+                              </span>
+                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a.name}>{a.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
 
-                      {/* Semi-Finals */}
-                      {europeanCupState.knockoutState.semiFinalsLeg1 && (
-                        <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                          <h4 style={{ color: '#00e5ff', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Semi-Finals</h4>
-                          {europeanCupState.knockoutState.semiFinalsLeg1.map((m, i) => {
-                            const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                            const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                            const m2 = europeanCupState.knockoutState.semiFinalsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                            return (
-                              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                                <span>{h?.name || "TBD"}</span>
-                                <span style={{ fontFamily: 'Orbitron' }}>
-                                  L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                                </span>
-                                <span>{a?.name || "TBD"}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                    {/* Round of 16 Bracket */}
+                    {europeanCupState.knockoutState.roundOf16Leg1 && (
+                      <div style={{ background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                        <h4 style={{ color: '#888', margin: '0 0 8px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Round of 16</h4>
+                        {europeanCupState.knockoutState.roundOf16Leg1.map((m, i) => {
+                          const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
+                          const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
+                          const m2 = europeanCupState.knockoutState.roundOf16Leg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
+                          return (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
+                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h.name}>{h.name}</span>
+                              <span style={{ fontFamily: 'Orbitron' }}>
+                                L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
+                              </span>
+                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a.name}>{a.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
 
-                      {/* Quarter-Finals */}
-                      {europeanCupState.knockoutState.quarterFinalsLeg1 && (
-                        <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                          <h4 style={{ color: '#888', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Quarter-Finals</h4>
-                          {europeanCupState.knockoutState.quarterFinalsLeg1.map((m, i) => {
-                            const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                            const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                            const m2 = europeanCupState.knockoutState.quarterFinalsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                            return (
-                              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h?.name}>{h?.name || "TBD"}</span>
-                                <span style={{ fontFamily: 'Orbitron' }}>
-                                  L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                                </span>
-                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a?.name}>{a?.name || "TBD"}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Round of 16 */}
-                      {europeanCupState.knockoutState.roundOf16Leg1 && (
-                        <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                          <h4 style={{ color: '#888', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Round of 16</h4>
-                          {europeanCupState.knockoutState.roundOf16Leg1.map((m, i) => {
-                            const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                            const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                            const m2 = europeanCupState.knockoutState.roundOf16Leg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                            return (
-                              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h?.name}>{h?.name || "TBD"}</span>
-                                <span style={{ fontFamily: 'Orbitron' }}>
-                                  L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                                </span>
-                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a?.name}>{a?.name || "TBD"}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Playoffs */}
-                      {europeanCupState.knockoutState.playoffsLeg1 && (
-                        <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                          <h4 style={{ color: '#888', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Knockout Playoffs</h4>
-                          {europeanCupState.knockoutState.playoffsLeg1.map((m, i) => {
-                            const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                            const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                            const m2 = europeanCupState.knockoutState.playoffsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                            return (
-                              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h?.name}>{h?.name || "TBD"}</span>
-                                <span style={{ fontFamily: 'Orbitron' }}>
-                                  L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                                </span>
-                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a?.name}>{a?.name || "TBD"}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
+                    {/* Round of 32 Bracket */}
+                    {europeanCupState.knockoutState.roundOf32Leg1 && (
+                      <div style={{ background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                        <h4 style={{ color: '#888', margin: '0 0 8px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Round of 32</h4>
+                        {europeanCupState.knockoutState.roundOf32Leg1.map((m, i) => {
+                          const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
+                          const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
+                          const m2 = europeanCupState.knockoutState.roundOf32Leg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
+                          return (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
+                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h.name}>{h.name}</span>
+                              <span style={{ fontFamily: 'Orbitron' }}>
+                                L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
+                              </span>
+                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a.name}>{a.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-              </>
-            ) : (
-              // Knockout Bracket standings (UEFA Cup or 1990/91 Champions Cup)
-              <>
-                <h3 className="team-card-title" style={{ color: '#00e5ff', marginBottom: '15px' }}>
-                  🏆 {isSouthAmerica
-                    ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA")
-                    : (europeanCup === "cl"
-                        ? (parseInt(season.split("/")[0]) >= 1992 ? "CHAMPIONS LEAGUE" : "CHAMPIONS CUP")
-                        : (europeanCup === "uefa"
-                            ? (parseInt(season.split("/")[0]) >= 2009 ? "EUROPA LEAGUE" : "UEFA CUP")
-                            : "CONFERENCE LEAGUE"))} - KNOCKOUT BRACKET
-                </h3>
+                </>
+              )
+            )}
+          </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  {/* Final Bracket */}
-                  {europeanCupState.knockoutState.final && (
-                    <div style={{ background: 'rgba(255,215,0,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,215,0,0.1)' }}>
-                      <h4 style={{ color: '#ffd700', margin: '0 0 8px 0', fontSize: '12px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Grand Final</h4>
-                      {europeanCupState.knockoutState.final.map((m, i) => {
-                        const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                        const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                        return (
-                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#fff' }}>
-                            <span style={{ fontWeight: 'bold' }}>{h.name}</span>
-                            <span style={{ fontFamily: 'Orbitron', color: '#ffd700' }}>{m.played ? `${m.homeScore} - ${m.awayScore}` : "vs"}</span>
-                            <span style={{ fontWeight: 'bold' }}>{a.name}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+          {/* Right Grid: Next Match Preview Board */}
+          <div style={{ width: '40%', display: 'flex', flexDirection: 'column', gap: '20px', flexShrink: 0 }}>
 
-                  {/* Semi Finals Bracket */}
-                  {europeanCupState.knockoutState.semiFinalsLeg1 && (
-                    <div style={{ background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                      <h4 style={{ color: '#00e5ff', margin: '0 0 8px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Semi-Finals</h4>
-                      {europeanCupState.knockoutState.semiFinalsLeg1.map((m, i) => {
-                        const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                        const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                        const m2 = europeanCupState.knockoutState.semiFinalsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                        return (
-                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                            <span>{h.name}</span>
-                            <span style={{ fontFamily: 'Orbitron' }}>
-                              L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                            </span>
-                            <span>{a.name}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Quarter Finals Bracket */}
-                  {europeanCupState.knockoutState.quarterFinalsLeg1 && (
-                    <div style={{ background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                      <h4 style={{ color: '#888', margin: '0 0 8px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Quarter-Finals</h4>
-                      {europeanCupState.knockoutState.quarterFinalsLeg1.map((m, i) => {
-                        const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                        const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                        const m2 = europeanCupState.knockoutState.quarterFinalsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                        return (
-                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h.name}>{h.name}</span>
-                            <span style={{ fontFamily: 'Orbitron' }}>
-                              L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                            </span>
-                            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a.name}>{a.name}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Round of 16 Bracket */}
-                  {europeanCupState.knockoutState.roundOf16Leg1 && (
-                    <div style={{ background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                      <h4 style={{ color: '#888', margin: '0 0 8px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Round of 16</h4>
-                      {europeanCupState.knockoutState.roundOf16Leg1.map((m, i) => {
-                        const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                        const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                        const m2 = europeanCupState.knockoutState.roundOf16Leg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                        return (
-                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h.name}>{h.name}</span>
-                            <span style={{ fontFamily: 'Orbitron' }}>
-                              L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                            </span>
-                            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a.name}>{a.name}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Round of 32 Bracket */}
-                  {europeanCupState.knockoutState.roundOf32Leg1 && (
-                    <div style={{ background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                      <h4 style={{ color: '#888', margin: '0 0 8px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Round of 32</h4>
-                      {europeanCupState.knockoutState.roundOf32Leg1.map((m, i) => {
-                        const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                        const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                        const m2 = europeanCupState.knockoutState.roundOf32Leg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                        return (
-                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h.name}>{h.name}</span>
-                            <span style={{ fontFamily: 'Orbitron' }}>
-                              L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                            </span>
-                            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a.name}>{a.name}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </>
-            )
-          )}
-        </div>
-
-        {/* Right Grid: Next Match Preview Board */}
-        <div style={{ width: '40%', display: 'flex', flexDirection: 'column', gap: '20px', flexShrink: 0 }}>
-
-          {!isSeasonOver ? (
-            <div
-              className="glass-card next-match-panel animated-slide-in"
-              style={{
-                padding: '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '15px',
-                border: isEuropeanMatchNext ? '1.5px solid #00e5ff' : '1px solid rgba(255,255,255,0.08)',
-                boxShadow: isEuropeanMatchNext ? '0 0 15px rgba(0, 229, 255, 0.15)' : 'none'
-              }}
-            >
-              {isEuropeanMatchNext ? (
-                <>
-                  <h3 className="team-card-title" style={{ color: '#00e5ff', fontSize: '14px', letterSpacing: '1px', textShadow: '0 0 8px rgba(0, 229, 255, 0.4)' }}>
-                    ⭐ {isSouthAmerica
-                      ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA NIGHT")
-                      : (europeanCup === "cl"
+            {!isSeasonOver ? (
+              <div
+                className="glass-card next-match-panel animated-slide-in"
+                style={{
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '15px',
+                  border: isEuropeanMatchNext ? '1.5px solid #00e5ff' : '1px solid rgba(255,255,255,0.08)',
+                  boxShadow: isEuropeanMatchNext ? '0 0 15px rgba(0, 229, 255, 0.15)' : 'none'
+                }}
+              >
+                {isEuropeanMatchNext ? (
+                  <>
+                    <h3 className="team-card-title" style={{ color: '#00e5ff', fontSize: '14px', letterSpacing: '1px', textShadow: '0 0 8px rgba(0, 229, 255, 0.4)' }}>
+                      ⭐ {isSouthAmerica
+                        ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA NIGHT")
+                        : (europeanCup === "cl"
                           ? "UEFA CHAMPIONS LEAGUE"
                           : (europeanCup === "uefa"
-                              ? (parseInt(season.split("/")[0]) >= 2009 ? "UEFA EUROPA LEAGUE" : "UEFA CUP NIGHT")
-                              : "UEFA CONFERENCE LEAGUE NIGHT"))}
-                  </h3>
+                            ? (parseInt(season.split("/")[0]) >= 2009 ? "UEFA EUROPA LEAGUE" : "UEFA CUP NIGHT")
+                            : "UEFA CONFERENCE LEAGUE NIGHT"))}
+                    </h3>
 
-                  {isRestWeek ? (
-                    <div style={{ margin: '15px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <span style={{ fontSize: '32px' }}>💤</span>
-                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>REST WEEK - SQUAD RESTED</span>
-                      <span style={{ fontSize: '11px', color: '#aaa', padding: '0 15px', lineHeight: '1.4' }}>
-                        Your team did not qualify for this knockout stage. Click below to simulate the midweek matches.
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="versus-preview" style={{ display: 'flex', width: '100%', justifyContent: 'space-around', alignItems: 'center', margin: '10px 0' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
-                        <TeamFlag primaryColor={europeanIsHome ? playerTeamObj.primaryColor : europeanOpponent.primaryColor} secondaryColor={europeanIsHome ? playerTeamObj.secondaryColor : europeanOpponent.secondaryColor} size={80} />
-                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{europeanIsHome ? playerTeamObj.name : europeanOpponent.name}</span>
-                        <span style={{ fontSize: '9px', color: '#888' }}>{europeanIsHome ? "HOME" : "AWAY"}</span>
+                    {isRestWeek ? (
+                      <div style={{ margin: '15px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <span style={{ fontSize: '32px' }}>💤</span>
+                        <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>REST WEEK - SQUAD RESTED</span>
+                        <span style={{ fontSize: '11px', color: '#aaa', padding: '0 15px', lineHeight: '1.4' }}>
+                          Your team did not qualify for this knockout stage. Click below to simulate the midweek matches.
+                        </span>
                       </div>
+                    ) : (
+                      <div className="versus-preview" style={{ display: 'flex', width: '100%', justifyContent: 'space-around', alignItems: 'center', margin: '10px 0' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
+                          <TeamFlag primaryColor={europeanIsHome ? playerTeamObj.primaryColor : europeanOpponent.primaryColor} secondaryColor={europeanIsHome ? playerTeamObj.secondaryColor : europeanOpponent.secondaryColor} size={80} />
+                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{europeanIsHome ? playerTeamObj.name : europeanOpponent.name}</span>
+                          <span style={{ fontSize: '9px', color: '#888' }}>{europeanIsHome ? "HOME" : "AWAY"}</span>
+                        </div>
 
-                      <div style={{ fontFamily: 'Orbitron', fontWeight: 'bold', fontSize: '16px', color: '#00e5ff' }}>VS</div>
+                        <div style={{ fontFamily: 'Orbitron', fontWeight: 'bold', fontSize: '16px', color: '#00e5ff' }}>VS</div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
-                        <TeamFlag primaryColor={europeanIsHome ? europeanOpponent.primaryColor : playerTeamObj.primaryColor} secondaryColor={europeanIsHome ? europeanOpponent.secondaryColor : playerTeamObj.secondaryColor} size={80} />
-                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{europeanIsHome ? europeanOpponent.name : playerTeamObj.name}</span>
-                        <span style={{ fontSize: '9px', color: '#888' }}>{europeanIsHome ? "AWAY" : "HOME"}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
+                          <TeamFlag primaryColor={europeanIsHome ? europeanOpponent.primaryColor : playerTeamObj.primaryColor} secondaryColor={europeanIsHome ? europeanOpponent.secondaryColor : playerTeamObj.secondaryColor} size={80} />
+                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{europeanIsHome ? europeanOpponent.name : playerTeamObj.name}</span>
+                          <span style={{ fontSize: '9px', color: '#888' }}>{europeanIsHome ? "AWAY" : "HOME"}</span>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {!isRestWeek && (
-                    <div className="stats-box" style={{ width: '90%', padding: '10px 15px', gap: '8px', fontSize: '12px', display: 'flex', flexDirection: 'column' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                        <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? playerTeamObj.attack : europeanOpponent.attack}</span>
-                        <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>ATTACK</span>
-                        <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? europeanOpponent.attack : playerTeamObj.attack}</span>
+                    {!isRestWeek && (
+                      <div className="stats-box" style={{ width: '90%', padding: '10px 15px', gap: '8px', fontSize: '12px', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
+                          <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? playerTeamObj.attack : europeanOpponent.attack}</span>
+                          <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>ATTACK</span>
+                          <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? europeanOpponent.attack : playerTeamObj.attack}</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
+                          <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? playerTeamObj.midfield : europeanOpponent.midfield}</span>
+                          <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>MIDFIELD</span>
+                          <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? europeanOpponent.midfield : playerTeamObj.midfield}</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
+                          <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? playerTeamObj.defense : europeanOpponent.defense}</span>
+                          <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>DEFENSE</span>
+                          <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? europeanOpponent.defense : playerTeamObj.defense}</span>
+                        </div>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                        <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? playerTeamObj.midfield : europeanOpponent.midfield}</span>
-                        <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>MIDFIELD</span>
-                        <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? europeanOpponent.midfield : playerTeamObj.midfield}</span>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                        <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? playerTeamObj.defense : europeanOpponent.defense}</span>
-                        <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>DEFENSE</span>
-                        <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? europeanOpponent.defense : playerTeamObj.defense}</span>
-                      </div>
-                    </div>
-                  )}
+                    )}
 
-                  {isRestWeek ? (
-                    <button
-                      className="match-control-btn kickoff-theme-btn glowing-btn pulse"
-                      style={{ width: '95%', background: 'linear-gradient(135deg, #0091ff, #00e5ff)', borderColor: '#00e5ff' }}
-                      onClick={handleKickOff}
-                    >
-                      SIMULATE MIDWEEK ROUND ➔
-                    </button>
-                  ) : (
-                    <div style={{ display: 'flex', width: '95%', gap: '10px', justifyContent: 'center' }}>
+                    {isRestWeek ? (
                       <button
                         className="match-control-btn kickoff-theme-btn glowing-btn pulse"
-                        style={{ flex: 1, background: 'linear-gradient(135deg, #0091ff, #00e5ff)', borderColor: '#00e5ff' }}
+                        style={{ width: '95%', background: 'linear-gradient(135deg, #0091ff, #00e5ff)', borderColor: '#00e5ff' }}
                         onClick={handleKickOff}
                       >
-                        {isSouthAmerica ? "ENTER CONTINENTAL STAGE ➔" : "ENTER EUROPEAN STAGE ➔"}
+                        SIMULATE MIDWEEK ROUND ➔
                       </button>
-                      <button 
-                        className="match-control-btn" 
-                        style={{ width: '35%', fontSize: '11px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.02)', color: '#aaa', cursor: 'pointer' }} 
+                    ) : (
+                      <div style={{ display: 'flex', width: '95%', gap: '10px', justifyContent: 'center' }}>
+                        <button
+                          className="match-control-btn kickoff-theme-btn glowing-btn pulse"
+                          style={{ flex: 1, background: 'linear-gradient(135deg, #0091ff, #00e5ff)', borderColor: '#00e5ff' }}
+                          onClick={handleKickOff}
+                        >
+                          {isSouthAmerica ? "ENTER CONTINENTAL STAGE ➔" : "ENTER EUROPEAN STAGE ➔"}
+                        </button>
+                        <button
+                          className="match-control-btn"
+                          style={{ width: '35%', fontSize: '11px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.02)', color: '#aaa', cursor: 'pointer' }}
+                          onClick={handleSimulateRound}
+                        >
+                          SIM ROUND
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <h3 className="team-card-title" style={{ color: isDomesticCupNext ? '#ff0055' : '#00ff64' }}>
+                      {isDomesticCupNext ? `🥊 ${leagueState?.domesticCupState?.cupName?.toUpperCase() || 'DOMESTIC CUP'} MATCH` : "NEXT MATCH FIXTURE"}
+                    </h3>
+
+                    {!opponentTeamObj ? (
+                      <div style={{ margin: '15px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <span style={{ fontSize: '32px' }}>🥊</span>
+                        <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>
+                          {isDomesticCupNext ? "REST / NEUTRAL CUP ROUND" : "NO UPCOMING FIXTURE"}
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#aaa', padding: '0 15px', lineHeight: '1.4' }}>
+                          {isDomesticCupNext ? "Your team has no match in this stage. Click below to simulate the round." : "No upcoming match scheduled."}
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="versus-preview" style={{ display: 'flex', width: '100%', justifyContent: 'space-around', alignItems: 'center', margin: '10px 0' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
+                            <TeamFlag primaryColor={isHome ? playerTeamObj.primaryColor : opponentTeamObj.primaryColor} secondaryColor={isHome ? playerTeamObj.secondaryColor : opponentTeamObj.secondaryColor} size={80} />
+                            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{isHome ? playerTeamObj.name : opponentTeamObj.name}</span>
+                            <span style={{ fontSize: '9px', color: '#888' }}>{isHome ? "HOME" : "AWAY"}</span>
+                          </div>
+
+                          <div style={{ fontFamily: 'Orbitron', fontWeight: 'bold', fontSize: '16px', color: isDomesticCupNext ? '#ff0055' : '#ff4500' }}>VS</div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
+                            <TeamFlag primaryColor={isHome ? opponentTeamObj.primaryColor : playerTeamObj.primaryColor} secondaryColor={isHome ? opponentTeamObj.secondaryColor : playerTeamObj.secondaryColor} size={80} />
+                            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{isHome ? opponentTeamObj.name : playerTeamObj.name}</span>
+                            <span style={{ fontSize: '9px', color: '#888' }}>{isHome ? "AWAY" : "HOME"}</span>
+                          </div>
+                        </div>
+
+                        <div className="stats-box" style={{ width: '90%', padding: '10px 15px', gap: '8px', fontSize: '12px', display: 'flex', flexDirection: 'column' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
+                            <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{isHome ? playerTeamObj.attack : opponentTeamObj.attack}</span>
+                            <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>ATTACK</span>
+                            <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{isHome ? opponentTeamObj.attack : playerTeamObj.attack}</span>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
+                            <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{isHome ? playerTeamObj.midfield : opponentTeamObj.midfield}</span>
+                            <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>MIDFIELD</span>
+                            <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{isHome ? opponentTeamObj.midfield : playerTeamObj.midfield}</span>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
+                            <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{isHome ? playerTeamObj.defense : opponentTeamObj.defense}</span>
+                            <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>DEFENSE</span>
+                            <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{isHome ? opponentTeamObj.defense : playerTeamObj.defense}</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    <div style={{ display: 'flex', width: '95%', gap: '10px', justifyContent: 'center' }}>
+                      <button className="match-control-btn kickoff-theme-btn glowing-btn pulse" style={{ flex: 1, background: isDomesticCupNext ? 'linear-gradient(135deg, #ff0055, #ff4081)' : undefined, borderColor: isDomesticCupNext ? '#ff0055' : undefined }} onClick={handleKickOff}>
+                        {isDomesticCupNext ? `PLAY CUP MATCH ➔` : `PLAY ROUND ${currentEvent.index}`}
+                      </button>
+                      <button
+                        className="match-control-btn"
+                        style={{ width: '35%', fontSize: '11px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.02)', color: '#aaa', cursor: 'pointer' }}
                         onClick={handleSimulateRound}
                       >
                         SIM ROUND
                       </button>
                     </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <h3 className="team-card-title" style={{ color: isDomesticCupNext ? '#ff0055' : '#00ff64' }}>
-                    {isDomesticCupNext ? `🥊 ${leagueState?.domesticCupState?.cupName?.toUpperCase() || 'DOMESTIC CUP'} MATCH` : "NEXT MATCH FIXTURE"}
-                  </h3>
-
-                  {!opponentTeamObj ? (
-                    <div style={{ margin: '15px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <span style={{ fontSize: '32px' }}>🥊</span>
-                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>
-                        {isDomesticCupNext ? "REST / NEUTRAL CUP ROUND" : "NO UPCOMING FIXTURE"}
-                      </span>
-                      <span style={{ fontSize: '11px', color: '#aaa', padding: '0 15px', lineHeight: '1.4' }}>
-                        {isDomesticCupNext ? "Your team has no match in this stage. Click below to simulate the round." : "No upcoming match scheduled."}
-                      </span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="versus-preview" style={{ display: 'flex', width: '100%', justifyContent: 'space-around', alignItems: 'center', margin: '10px 0' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
-                          <TeamFlag primaryColor={isHome ? playerTeamObj.primaryColor : opponentTeamObj.primaryColor} secondaryColor={isHome ? playerTeamObj.secondaryColor : opponentTeamObj.secondaryColor} size={80} />
-                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{isHome ? playerTeamObj.name : opponentTeamObj.name}</span>
-                          <span style={{ fontSize: '9px', color: '#888' }}>{isHome ? "HOME" : "AWAY"}</span>
-                        </div>
-
-                        <div style={{ fontFamily: 'Orbitron', fontWeight: 'bold', fontSize: '16px', color: isDomesticCupNext ? '#ff0055' : '#ff4500' }}>VS</div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
-                          <TeamFlag primaryColor={isHome ? opponentTeamObj.primaryColor : playerTeamObj.primaryColor} secondaryColor={isHome ? opponentTeamObj.secondaryColor : playerTeamObj.secondaryColor} size={80} />
-                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{isHome ? opponentTeamObj.name : playerTeamObj.name}</span>
-                          <span style={{ fontSize: '9px', color: '#888' }}>{isHome ? "AWAY" : "HOME"}</span>
-                        </div>
-                      </div>
-
-                      <div className="stats-box" style={{ width: '90%', padding: '10px 15px', gap: '8px', fontSize: '12px', display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                          <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{isHome ? playerTeamObj.attack : opponentTeamObj.attack}</span>
-                          <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>ATTACK</span>
-                          <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{isHome ? opponentTeamObj.attack : playerTeamObj.attack}</span>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                          <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{isHome ? playerTeamObj.midfield : opponentTeamObj.midfield}</span>
-                          <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>MIDFIELD</span>
-                          <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{isHome ? opponentTeamObj.midfield : playerTeamObj.midfield}</span>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                          <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{isHome ? playerTeamObj.defense : opponentTeamObj.defense}</span>
-                          <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>DEFENSE</span>
-                          <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{isHome ? opponentTeamObj.defense : playerTeamObj.defense}</span>
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  <div style={{ display: 'flex', width: '95%', gap: '10px', justifyContent: 'center' }}>
-                    <button className="match-control-btn kickoff-theme-btn glowing-btn pulse" style={{ flex: 1, background: isDomesticCupNext ? 'linear-gradient(135deg, #ff0055, #ff4081)' : undefined, borderColor: isDomesticCupNext ? '#ff0055' : undefined }} onClick={handleKickOff}>
-                      {isDomesticCupNext ? `PLAY CUP MATCH ➔` : `PLAY ROUND ${currentEvent.index}`}
-                    </button>
-                    <button 
-                      className="match-control-btn" 
-                      style={{ width: '35%', fontSize: '11px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.02)', color: '#aaa', cursor: 'pointer' }} 
-                      onClick={handleSimulateRound}
-                    >
-                      SIM ROUND
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          ) : (
-            (() => {
-              const verdict = getBoardVerdict(playerPosition, finalExpectation);
-              return (
-                <div className="glass-card season-over-panel animated-slide-in" style={{
-                  padding: '25px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '15px',
-                  border: `2px solid ${verdict.color}`,
-                  boxShadow: `0 0 20px ${verdict.color}33`,
-                  maxHeight: '520px',
-                  overflowY: 'auto'
-                }}>
-                  <div style={{ fontSize: '40px' }}>{playerPosition === 1 ? "🏆" : (verdict.tier === "disgraced" ? "💼❌" : "💼📋")}</div>
-
-                  <h3 className="team-card-title" style={{ color: verdict.color, fontSize: '18px', textTransform: 'uppercase', letterSpacing: '1px', margin: '0' }}>
-                    {verdict.title}
-                  </h3>
-
-                  <div style={{
-                    background: 'rgba(0,0,0,0.5)',
-                    border: `1px solid ${verdict.color}33`,
-                    borderRadius: '8px',
-                    padding: '12px 15px',
-                    color: '#fff',
-                    fontSize: '12px',
-                    lineHeight: '1.4',
-                    textAlign: 'center',
-                    width: '90%'
+                  </>
+                )}
+              </div>
+            ) : (
+              (() => {
+                const verdict = getBoardVerdict(playerPosition, finalExpectation);
+                return (
+                  <div className="glass-card season-over-panel animated-slide-in" style={{
+                    padding: '25px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '15px',
+                    border: `2px solid ${verdict.color}`,
+                    boxShadow: `0 0 20px ${verdict.color}33`,
+                    maxHeight: '520px',
+                    overflowY: 'auto'
                   }}>
-                    {verdict.verdict}
-                  </div>
+                    <div style={{ fontSize: '40px' }}>{playerPosition === 1 ? "🏆" : (verdict.tier === "disgraced" ? "💼❌" : "💼📋")}</div>
 
-                  <div className="stats-box" style={{ width: '90%', padding: '8px 12px', gap: '3px', fontSize: '11.5px', textAlign: 'center' }}>
-                    <div style={{ fontWeight: 'bold', color: '#fff' }}>
-                      Pos {playerPosition} | Pts {playerTeamObj.points} | GD {playerTeamObj.gf - playerTeamObj.ga}
+                    <h3 className="team-card-title" style={{ color: verdict.color, fontSize: '18px', textTransform: 'uppercase', letterSpacing: '1px', margin: '0' }}>
+                      {verdict.title}
+                    </h3>
+
+                    <div style={{
+                      background: 'rgba(0,0,0,0.5)',
+                      border: `1px solid ${verdict.color}33`,
+                      borderRadius: '8px',
+                      padding: '12px 15px',
+                      color: '#fff',
+                      fontSize: '12px',
+                      lineHeight: '1.4',
+                      textAlign: 'center',
+                      width: '90%'
+                    }}>
+                      {verdict.verdict}
                     </div>
-                  </div>
 
-                  {verdict.tier === "disgraced" ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '95%', alignItems: 'center' }}>
-                      <span style={{ color: '#ff3333', fontSize: '11px', fontWeight: 'bold', textAlign: 'center' }}>
-                        GAME OVER - BLACKLISTED BY ALL PROFESSIONAL CLUBS!
-                      </span>
-                      <button
-                        className="play-match-btn glowing-btn"
-                        style={{ fontSize: '13px', padding: '10px 20px', width: '100%', borderColor: verdict.color, color: verdict.color }}
-                        onClick={handleResetCareer}
-                      >
-                        RETIRE & START NEW CAREER
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', width: '100%', marginTop: '10px' }}>
-
-                      {/* Renewal Option (Stay at current club) */}
-                      <div style={{
-                        background: 'rgba(255,255,255,0.02)',
-                        border: '1px solid rgba(255,255,255,0.06)',
-                        borderRadius: '10px',
-                        padding: '12px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '11px', color: '#aaa', fontWeight: 'bold' }}>CURRENT CLUB CONTRACT</span>
-                          <span style={{
-                            fontSize: '9px',
-                            padding: '2px 6px',
-                            borderRadius: '3px',
-                            background: verdict.tier !== "decent_sacked" ? 'rgba(0, 255, 100, 0.1)' : 'rgba(255, 51, 81, 0.1)',
-                            color: verdict.tier !== "decent_sacked" ? '#00ff64' : '#ff3333'
-                          }}>
-                            {verdict.tier !== "decent_sacked" ? "OFFERED" : "SACKED"}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <TeamFlag primaryColor={playerTeamObj.primaryColor} secondaryColor={playerTeamObj.secondaryColor} size={30} />
-                          <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                            <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#fff' }}>{playerTeamObj.name}</span>
-                            <span style={{ fontSize: '10px', color: '#888' }}>Expectation: {finalExpectation.text}</span>
-                          </div>
-                        </div>
-
-                        {verdict.tier !== "decent_sacked" ? (
-                          <button
-                            className="play-match-btn glowing-btn pulse"
-                            style={{
-                              fontSize: '11px',
-                              padding: '8px',
-                              width: '100%',
-                              borderColor: '#00ff64',
-                              color: '#00ff64',
-                              background: 'rgba(0, 255, 100, 0.03)'
-                            }}
-                            onClick={() => {
-                              handleSignContract(playerTeamId);
-                            }}
-                          >
-                            ⚽ STAY & RENEW CONTRACT
-                          </button>
-                        ) : (
-                          <button
-                            className="play-match-btn"
-                            disabled
-                            style={{
-                              fontSize: '11px',
-                              padding: '8px',
-                              width: '100%',
-                              borderColor: 'rgba(255,255,255,0.05)',
-                              color: '#666',
-                              background: 'rgba(0,0,0,0.2)',
-                              cursor: 'not-allowed'
-                            }}
-                          >
-                            🔒 CONTRACT TERMINATED
-                          </button>
-                        )}
+                    <div className="stats-box" style={{ width: '90%', padding: '8px 12px', gap: '3px', fontSize: '11.5px', textAlign: 'center' }}>
+                      <div style={{ fontWeight: 'bold', color: '#fff' }}>
+                        Pos {playerPosition} | Pts {playerTeamObj.points} | GD {playerTeamObj.gf - playerTeamObj.ga}
                       </div>
+                    </div>
 
-                      {/* Job Offers Grid */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <h4 style={{
-                          fontSize: '11px',
-                          color: '#00e5ff',
-                          fontWeight: 'bold',
-                          margin: '0',
-                          textAlign: 'left',
-                          fontFamily: 'Orbitron',
-                          letterSpacing: '1px'
+                    {verdict.tier === "disgraced" ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '95%', alignItems: 'center' }}>
+                        <span style={{ color: '#ff3333', fontSize: '11px', fontWeight: 'bold', textAlign: 'center' }}>
+                          GAME OVER - BLACKLISTED BY ALL PROFESSIONAL CLUBS!
+                        </span>
+                        <button
+                          className="play-match-btn glowing-btn"
+                          style={{ fontSize: '13px', padding: '10px 20px', width: '100%', borderColor: verdict.color, color: verdict.color }}
+                          onClick={handleResetCareer}
+                        >
+                          RETIRE & START NEW CAREER
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', width: '100%', marginTop: '10px' }}>
+
+                        {/* Renewal Option (Stay at current club) */}
+                        <div style={{
+                          background: 'rgba(255,255,255,0.02)',
+                          border: '1px solid rgba(255,255,255,0.06)',
+                          borderRadius: '10px',
+                          padding: '12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px'
                         }}>
-                          💼 INCOMING JOB OFFERS ({jobOffers.length})
-                        </h4>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '200px', overflowY: 'auto', paddingRight: '5px' }}>
-                          {jobOffers.map((offer) => (
-                            <div key={offer.idnum} style={{
-                              background: 'rgba(0,0,0,0.4)',
-                              border: '1px solid rgba(0, 229, 255, 0.1)',
-                              borderRadius: '8px',
-                              padding: '10px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '6px'
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '11px', color: '#aaa', fontWeight: 'bold' }}>CURRENT CLUB CONTRACT</span>
+                            <span style={{
+                              fontSize: '9px',
+                              padding: '2px 6px',
+                              borderRadius: '3px',
+                              background: verdict.tier !== "decent_sacked" ? 'rgba(0, 255, 100, 0.1)' : 'rgba(255, 51, 81, 0.1)',
+                              color: verdict.tier !== "decent_sacked" ? '#00ff64' : '#ff3333'
                             }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <TeamFlag primaryColor={offer.primaryColor} secondaryColor={offer.secondaryColor} size={25} />
-                                  <span style={{ fontWeight: 'bold', fontSize: '12px', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    {offer.name} <CountryFlag country={offer.country} size={18} />
+                              {verdict.tier !== "decent_sacked" ? "OFFERED" : "SACKED"}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <TeamFlag primaryColor={playerTeamObj.primaryColor} secondaryColor={playerTeamObj.secondaryColor} size={30} />
+                            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                              <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#fff' }}>{playerTeamObj.name}</span>
+                              <span style={{ fontSize: '10px', color: '#888' }}>Expectation: {finalExpectation.text}</span>
+                            </div>
+                          </div>
+
+                          {verdict.tier !== "decent_sacked" ? (
+                            <button
+                              className="play-match-btn glowing-btn pulse"
+                              style={{
+                                fontSize: '11px',
+                                padding: '8px',
+                                width: '100%',
+                                borderColor: '#00ff64',
+                                color: '#00ff64',
+                                background: 'rgba(0, 255, 100, 0.03)'
+                              }}
+                              onClick={() => {
+                                handleSignContract(playerTeamId);
+                              }}
+                            >
+                              ⚽ STAY & RENEW CONTRACT
+                            </button>
+                          ) : (
+                            <button
+                              className="play-match-btn"
+                              disabled
+                              style={{
+                                fontSize: '11px',
+                                padding: '8px',
+                                width: '100%',
+                                borderColor: 'rgba(255,255,255,0.05)',
+                                color: '#666',
+                                background: 'rgba(0,0,0,0.2)',
+                                cursor: 'not-allowed'
+                              }}
+                            >
+                              🔒 CONTRACT TERMINATED
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Job Offers Grid */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <h4 style={{
+                            fontSize: '11px',
+                            color: '#00e5ff',
+                            fontWeight: 'bold',
+                            margin: '0',
+                            textAlign: 'left',
+                            fontFamily: 'Orbitron',
+                            letterSpacing: '1px'
+                          }}>
+                            💼 INCOMING JOB OFFERS ({jobOffers.length})
+                          </h4>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '200px', overflowY: 'auto', paddingRight: '5px' }}>
+                            {jobOffers.map((offer) => (
+                              <div key={offer.idnum} style={{
+                                background: 'rgba(0,0,0,0.4)',
+                                border: '1px solid rgba(0, 229, 255, 0.1)',
+                                borderRadius: '8px',
+                                padding: '10px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '6px'
+                              }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <TeamFlag primaryColor={offer.primaryColor} secondaryColor={offer.secondaryColor} size={25} />
+                                    <span style={{ fontWeight: 'bold', fontSize: '12px', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      {offer.name} <CountryFlag country={offer.country} size={18} />
+                                    </span>
+                                  </div>
+                                  <span style={{ fontSize: '9px', color: '#888' }}>
+                                    ATT {offer.attack} | MID {offer.midfield} | DEF {offer.defense}
                                   </span>
                                 </div>
-                                <span style={{ fontSize: '9px', color: '#888' }}>
-                                  ATT {offer.attack} | MID {offer.midfield} | DEF {offer.defense}
-                                </span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '9.5px', color: '#aaa', textAlign: 'left' }}>
+                                    Expectation: {offer.expectation.text}
+                                  </span>
+                                  <button
+                                    className="play-match-btn glowing-btn"
+                                    style={{
+                                      fontSize: '9.5px',
+                                      padding: '4px 10px',
+                                      borderColor: '#00e5ff',
+                                      color: '#00e5ff',
+                                      background: 'rgba(0, 229, 255, 0.02)'
+                                    }}
+                                    onClick={() => handleSignContract(offer.idnum)}
+                                  >
+                                    SIGN CONTRACT ➔
+                                  </button>
+                                </div>
                               </div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '9.5px', color: '#aaa', textAlign: 'left' }}>
-                                  Expectation: {offer.expectation.text}
-                                </span>
-                                <button
-                                  className="play-match-btn glowing-btn"
-                                  style={{
-                                    fontSize: '9.5px',
-                                    padding: '4px 10px',
-                                    borderColor: '#00e5ff',
-                                    color: '#00e5ff',
-                                    background: 'rgba(0, 229, 255, 0.02)'
-                                  }}
-                                  onClick={() => handleSignContract(offer.idnum)}
-                                >
-                                  SIGN CONTRACT ➔
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Quit Career option */}
-                      <button
-                        className="play-match-btn"
-                        style={{ fontSize: '11px', padding: '8px', width: '100%', borderColor: '#ff4500', color: '#ff4500', background: 'transparent' }}
-                        onClick={handleResetCareer}
-                      >
-                        ❌ RETIRE & RESET CAREER
-                      </button>
-
-                    </div>
-                  )}
-                </div>
-              );
-            })()
-          )}
-
-          {/* Active Tactical Overview Panel */}
-          {!isSeasonOver && (
-            <div className="glass-card next-match-panel" style={{ padding: '15px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <h3 className="team-card-title" style={{ fontSize: '13px', textAlign: 'left', color: '#00ff64', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>⚽ ACTIVE FORMATION & TACTICS</span>
-                <button
-                  onClick={() => setOfficeTab("tactics")}
-                  style={{ background: 'transparent', border: '1px solid rgba(0, 255, 100, 0.3)', borderRadius: '4px', color: '#00ff64', cursor: 'pointer', fontSize: '10px', padding: '2px 8px', fontWeight: 'bold', fontFamily: 'Orbitron' }}
-                >
-                  EDIT TACTICS ➔
-                </button>
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#888' }}>Active Formation:</span>
-                  <span style={{ fontWeight: 'bold', color: '#00ff64', fontFamily: 'Orbitron' }}>
-                    ⚽ {activeFormation}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#888' }}>Squad Tactic Style:</span>
-                  <span style={{ fontWeight: 'bold', color: '#00e5ff', fontFamily: 'Orbitron' }}>
-                    {playerTacticalFocus}
-                  </span>
-                </div>
-                
-                {/* Visual Pitch */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '6px' }}>
-                  <FormationPitch formation={activeFormation} isSelected={false} size="small" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Round Schedule Feed scrollbox */}
-          {!isSeasonOver && !isEuropeanMatchNext && (
-            <div className="glass-card fixtures-feed-panel" style={{ padding: '15px 20px', height: '200px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <h3 className="team-card-title" style={{
-                fontSize: '13px',
-                textAlign: 'left',
-                color: '#888',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
-                paddingBottom: '6px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRound(prev => Math.max(1, prev - 1))}
-                    disabled={selectedRound <= 1}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: selectedRound <= 1 ? 'rgba(255,255,255,0.15)' : '#ffd700',
-                      cursor: selectedRound <= 1 ? 'default' : 'pointer',
-                      fontSize: '14px',
-                      padding: '0 5px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.2s ease'
-                    }}
-                    title="Previous Round"
-                  >
-                    ◀
-                  </button>
-                  <span>ROUND {selectedRound} SCHEDULE</span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRound(prev => Math.min(totalRounds, prev + 1))}
-                    disabled={selectedRound >= totalRounds}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: selectedRound >= totalRounds ? 'rgba(255,255,255,0.15)' : '#ffd700',
-                      cursor: selectedRound >= totalRounds ? 'default' : 'pointer',
-                      fontSize: '14px',
-                      padding: '0 5px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.2s ease'
-                    }}
-                    title="Next Round"
-                  >
-                    ▶
-                  </button>
-                </div>
-                {selectedRound === (currentEvent.index || currentRound) && (
-                  <span style={{
-                    fontSize: '9px',
-                    background: 'rgba(0, 255, 100, 0.1)',
-                    color: '#00ff64',
-                    padding: '2px 6px',
-                    borderRadius: '3px',
-                    fontFamily: 'Orbitron',
-                    fontWeight: 'bold'
-                  }}>
-                    ACTIVE
-                  </span>
-                )}
-              </h3>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', flexGrow: 1 }}>
-                {fixtures[selectedRound - 1]?.map((f, idx) => {
-                  const hTeam = teams.find(t => t.idnum === f.homeId);
-                  const aTeam = teams.find(t => t.idnum === f.awayId);
-                  if (!hTeam || !aTeam) return null;
-                  const isPlayerFixture = f.homeId === playerTeamId || f.awayId === playerTeamId;
-
-                  return (
-                    <div
-                      key={idx}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        fontSize: '11px',
-                        padding: '4px 6px',
-                        borderRadius: '6px',
-                        background: isPlayerFixture ? 'rgba(0, 255, 100, 0.03)' : 'transparent',
-                        border: isPlayerFixture ? '1px dashed rgba(0, 255, 100, 0.2)' : 'none',
-                        color: isPlayerFixture ? '#00ff64' : '#fff'
-                      }}
-                    >
-                      <span style={{ width: '42%', textAlign: 'left', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={hTeam.name}>{hTeam.name}</span>
-
-                      <span style={{ fontWeight: 'bold', fontFamily: 'Orbitron', color: f.played ? '#00ff64' : '#ff4500' }}>
-                        {f.played ? `${f.homeScore} - ${f.awayScore}` : "vs"}
-                      </span>
-
-                      <span style={{ width: '42%', textAlign: 'right', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={aTeam.name}>{aTeam.name}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* European Match Schedule Feed scrollbox */}
-          {!isSeasonOver && isEuropeanMatchNext && (
-            <div className="glass-card fixtures-feed-panel" style={{ padding: '15px 20px', height: '200px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <h3 className="team-card-title" style={{ fontSize: '13px', textAlign: 'left', color: '#00e5ff', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
-                MIDWEEK FIXTURES (CUP MATCHDAY {currentEvent.matchday})
-              </h3>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', flexGrow: 1 }}>
-                {(europeanCup === "cl" || (rules && (rules.format === "group_then_knockout" || rules.format === "league_then_knockout"))) ? (
-                  (currentEvent.stage === "group_stage" || currentEvent.stage === "league_stage") ? (
-                    (() => {
-                      const fixturesList = europeanCupState.fixtures[currentEvent.matchday - 1];
-                      if (!fixturesList) return <div style={{ fontSize: '11px', color: '#888' }}>Fixtures pending...</div>;
-                      const filteredFixtures = currentEvent.stage === "league_stage"
-                        ? fixturesList.filter(f => f.homeId === europeanCupState.europeanPlayerTeamId || f.awayId === europeanCupState.europeanPlayerTeamId)
-                        : fixturesList.filter(f => f.group === playerTeamObj.group || f.group === clActiveGroup);
-                      return filteredFixtures.map((f, idx) => {
-                        const hTeam = europeanCupState.teams.find(t => t.idnum === f.homeId);
-                        const aTeam = europeanCupState.teams.find(t => t.idnum === f.awayId);
-                        const isPlayerFixture = f.homeId === europeanCupState.europeanPlayerTeamId || f.awayId === europeanCupState.europeanPlayerTeamId;
-
-                        return (
-                          <div
-                            key={idx}
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              fontSize: '11px',
-                              padding: '4px 6px',
-                              borderRadius: '6px',
-                              background: isPlayerFixture ? 'rgba(0, 229, 255, 0.03)' : 'transparent',
-                              border: isPlayerFixture ? '1px dashed rgba(0, 229, 255, 0.2)' : 'none',
-                              color: isPlayerFixture ? '#00e5ff' : '#fff'
-                            }}
-                          >
-                            <span style={{ width: '42%', textAlign: 'left', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={hTeam.name}>{hTeam.name}</span>
-                            <span style={{ fontWeight: 'bold', fontFamily: 'Orbitron', color: f.played ? '#00e5ff' : '#ff4500' }}>
-                              {f.played ? `${f.homeScore} - ${f.awayScore}` : "vs"}
-                            </span>
-                            <span style={{ width: '42%', textAlign: 'right', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={aTeam.name}>{aTeam.name}</span>
+                            ))}
                           </div>
-                        );
-                      });
-                    })()
+                        </div>
+
+                        {/* Quit Career option */}
+                        <button
+                          className="play-match-btn"
+                          style={{ fontSize: '11px', padding: '8px', width: '100%', borderColor: '#ff4500', color: '#ff4500', background: 'transparent' }}
+                          onClick={handleResetCareer}
+                        >
+                          ❌ RETIRE & RESET CAREER
+                        </button>
+
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
+            )}
+
+            {/* Active Tactical Overview Panel */}
+            {!isSeasonOver && (
+              <div className="glass-card next-match-panel" style={{ padding: '15px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <h3 className="team-card-title" style={{ fontSize: '13px', textAlign: 'left', color: '#00ff64', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>⚽ ACTIVE FORMATION & TACTICS</span>
+                  <button
+                    onClick={() => setOfficeTab("tactics")}
+                    style={{ background: 'transparent', border: '1px solid rgba(0, 255, 100, 0.3)', borderRadius: '4px', color: '#00ff64', cursor: 'pointer', fontSize: '10px', padding: '2px 8px', fontWeight: 'bold', fontFamily: 'Orbitron' }}
+                  >
+                    EDIT TACTICS ➔
+                  </button>
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#888' }}>Active Formation:</span>
+                    <span style={{ fontWeight: 'bold', color: '#00ff64', fontFamily: 'Orbitron' }}>
+                      ⚽ {activeFormation}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#888' }}>Squad Tactic Style:</span>
+                    <span style={{ fontWeight: 'bold', color: '#00e5ff', fontFamily: 'Orbitron' }}>
+                      {playerTacticalFocus}
+                    </span>
+                  </div>
+
+                  {/* Visual Pitch */}
+                  <div style={{ display: 'flex', justifyContent: 'center', marginTop: '6px' }}>
+                    <FormationPitch formation={activeFormation} isSelected={false} size="small" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Round Schedule Feed scrollbox */}
+            {!isSeasonOver && !isEuropeanMatchNext && (
+              <div className="glass-card fixtures-feed-panel" style={{ padding: '15px 20px', height: '200px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <h3 className="team-card-title" style={{
+                  fontSize: '13px',
+                  textAlign: 'left',
+                  color: '#888',
+                  borderBottom: '1px solid rgba(255,255,255,0.05)',
+                  paddingBottom: '6px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRound(prev => Math.max(1, prev - 1))}
+                      disabled={selectedRound <= 1}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: selectedRound <= 1 ? 'rgba(255,255,255,0.15)' : '#ffd700',
+                        cursor: selectedRound <= 1 ? 'default' : 'pointer',
+                        fontSize: '14px',
+                        padding: '0 5px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease'
+                      }}
+                      title="Previous Round"
+                    >
+                      ◀
+                    </button>
+                    <span>ROUND {selectedRound} SCHEDULE</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRound(prev => Math.min(totalRounds, prev + 1))}
+                      disabled={selectedRound >= totalRounds}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: selectedRound >= totalRounds ? 'rgba(255,255,255,0.15)' : '#ffd700',
+                        cursor: selectedRound >= totalRounds ? 'default' : 'pointer',
+                        fontSize: '14px',
+                        padding: '0 5px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease'
+                      }}
+                      title="Next Round"
+                    >
+                      ▶
+                    </button>
+                  </div>
+                  {selectedRound === (currentEvent.index || currentRound) && (
+                    <span style={{
+                      fontSize: '9px',
+                      background: 'rgba(0, 255, 100, 0.1)',
+                      color: '#00ff64',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      fontFamily: 'Orbitron',
+                      fontWeight: 'bold'
+                    }}>
+                      ACTIVE
+                    </span>
+                  )}
+                </h3>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', flexGrow: 1 }}>
+                  {fixtures[selectedRound - 1]?.map((f, idx) => {
+                    const hTeam = teams.find(t => t.idnum === f.homeId);
+                    const aTeam = teams.find(t => t.idnum === f.awayId);
+                    if (!hTeam || !aTeam) return null;
+                    const isPlayerFixture = f.homeId === playerTeamId || f.awayId === playerTeamId;
+
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: '11px',
+                          padding: '4px 6px',
+                          borderRadius: '6px',
+                          background: isPlayerFixture ? 'rgba(0, 255, 100, 0.03)' : 'transparent',
+                          border: isPlayerFixture ? '1px dashed rgba(0, 255, 100, 0.2)' : 'none',
+                          color: isPlayerFixture ? '#00ff64' : '#fff'
+                        }}
+                      >
+                        <span style={{ width: '42%', textAlign: 'left', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={hTeam.name}>{hTeam.name}</span>
+
+                        <span style={{ fontWeight: 'bold', fontFamily: 'Orbitron', color: f.played ? '#00ff64' : '#ff4500' }}>
+                          {f.played ? `${f.homeScore} - ${f.awayScore}` : "vs"}
+                        </span>
+
+                        <span style={{ width: '42%', textAlign: 'right', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={aTeam.name}>{aTeam.name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* European Match Schedule Feed scrollbox */}
+            {!isSeasonOver && isEuropeanMatchNext && (
+              <div className="glass-card fixtures-feed-panel" style={{ padding: '15px 20px', height: '200px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <h3 className="team-card-title" style={{ fontSize: '13px', textAlign: 'left', color: '#00e5ff', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
+                  MIDWEEK FIXTURES (CUP MATCHDAY {currentEvent.matchday})
+                </h3>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', flexGrow: 1 }}>
+                  {(europeanCup === "cl" || (rules && (rules.format === "group_then_knockout" || rules.format === "league_then_knockout"))) ? (
+                    (currentEvent.stage === "group_stage" || currentEvent.stage === "league_stage") ? (
+                      (() => {
+                        const fixturesList = europeanCupState.fixtures[currentEvent.matchday - 1];
+                        if (!fixturesList) return <div style={{ fontSize: '11px', color: '#888' }}>Fixtures pending...</div>;
+                        const filteredFixtures = currentEvent.stage === "league_stage"
+                          ? fixturesList.filter(f => f.homeId === europeanCupState.europeanPlayerTeamId || f.awayId === europeanCupState.europeanPlayerTeamId)
+                          : fixturesList.filter(f => f.group === playerTeamObj.group || f.group === clActiveGroup);
+                        return filteredFixtures.map((f, idx) => {
+                          const hTeam = europeanCupState.teams.find(t => t.idnum === f.homeId);
+                          const aTeam = europeanCupState.teams.find(t => t.idnum === f.awayId);
+                          const isPlayerFixture = f.homeId === europeanCupState.europeanPlayerTeamId || f.awayId === europeanCupState.europeanPlayerTeamId;
+
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                fontSize: '11px',
+                                padding: '4px 6px',
+                                borderRadius: '6px',
+                                background: isPlayerFixture ? 'rgba(0, 229, 255, 0.03)' : 'transparent',
+                                border: isPlayerFixture ? '1px dashed rgba(0, 229, 255, 0.2)' : 'none',
+                                color: isPlayerFixture ? '#00e5ff' : '#fff'
+                              }}
+                            >
+                              <span style={{ width: '42%', textAlign: 'left', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={hTeam.name}>{hTeam.name}</span>
+                              <span style={{ fontWeight: 'bold', fontFamily: 'Orbitron', color: f.played ? '#00e5ff' : '#ff4500' }}>
+                                {f.played ? `${f.homeScore} - ${f.awayScore}` : "vs"}
+                              </span>
+                              <span style={{ width: '42%', textAlign: 'right', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={aTeam.name}>{aTeam.name}</span>
+                            </div>
+                          );
+                        });
+                      })()
+                    ) : (
+                      // CL Knockout fixtures summary list
+                      (() => {
+                        const stage = currentEvent.stage;
+                        const matchday = currentEvent.matchday;
+                        const toCamelCase = (str) => str.replace(/_([a-z0-9])/g, (g) => g[1].toUpperCase());
+                        const kStateKey = toCamelCase(stage) + (stage !== "final" ? "Leg" + matchday : "");
+                        const bracket = europeanCupState.knockoutState[kStateKey];
+                        if (!bracket) return <div style={{ fontSize: '11px', color: '#888' }}>Bracket pending...</div>;
+                        return bracket.map((m, idx) => {
+                          const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
+                          const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
+                          const isPlayerFixture = m.homeId === europeanCupState.europeanPlayerTeamId || m.awayId === europeanCupState.europeanPlayerTeamId;
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                fontSize: '11px',
+                                padding: '4px 6px',
+                                borderRadius: '6px',
+                                background: isPlayerFixture ? 'rgba(0, 229, 255, 0.03)' : 'transparent',
+                                border: isPlayerFixture ? '1px dashed rgba(0, 229, 255, 0.2)' : 'none',
+                                color: isPlayerFixture ? '#00e5ff' : '#fff'
+                              }}
+                            >
+                              <span style={{ width: '42%', textAlign: 'left', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={h.name}>{h.name}</span>
+                              <span style={{ fontWeight: 'bold', fontFamily: 'Orbitron', color: m.played ? '#00e5ff' : '#ff4500' }}>
+                                {m.played ? `${m.homeScore} - ${m.awayScore}` : "vs"}
+                              </span>
+                              <span style={{ width: '42%', textAlign: 'right', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</span>
+                            </div>
+                          );
+                        });
+                      })()
+                    )
                   ) : (
-                    // CL Knockout fixtures summary list
+                    // UEFA fixtures summary list
                     (() => {
                       const stage = currentEvent.stage;
                       const matchday = currentEvent.matchday;
@@ -5535,49 +5993,12 @@ export default function LeagueDashboard() {
                         );
                       });
                     })()
-                  )
-                ) : (
-                  // UEFA fixtures summary list
-                  (() => {
-                    const stage = currentEvent.stage;
-                    const matchday = currentEvent.matchday;
-                    const toCamelCase = (str) => str.replace(/_([a-z0-9])/g, (g) => g[1].toUpperCase());
-                    const kStateKey = toCamelCase(stage) + (stage !== "final" ? "Leg" + matchday : "");
-                    const bracket = europeanCupState.knockoutState[kStateKey];
-                    if (!bracket) return <div style={{ fontSize: '11px', color: '#888' }}>Bracket pending...</div>;
-                    return bracket.map((m, idx) => {
-                      const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                      const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                      const isPlayerFixture = m.homeId === europeanCupState.europeanPlayerTeamId || m.awayId === europeanCupState.europeanPlayerTeamId;
-                      return (
-                        <div
-                          key={idx}
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            fontSize: '11px',
-                            padding: '4px 6px',
-                            borderRadius: '6px',
-                            background: isPlayerFixture ? 'rgba(0, 229, 255, 0.03)' : 'transparent',
-                            border: isPlayerFixture ? '1px dashed rgba(0, 229, 255, 0.2)' : 'none',
-                            color: isPlayerFixture ? '#00e5ff' : '#fff'
-                          }}
-                        >
-                          <span style={{ width: '42%', textAlign: 'left', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={h.name}>{h.name}</span>
-                          <span style={{ fontWeight: 'bold', fontFamily: 'Orbitron', color: m.played ? '#00e5ff' : '#ff4500' }}>
-                            {m.played ? `${m.homeScore} - ${m.awayScore}` : "vs"}
-                          </span>
-                          <span style={{ width: '42%', textAlign: 'right', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</span>
-                        </div>
-                      );
-                    });
-                  })()
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-        </div>
+          </div>
 
         </div>
       )}
@@ -5634,8 +6055,8 @@ export default function LeagueDashboard() {
                 position: 'relative',
                 boxShadow: '0 0 15px rgba(0,255,100,0.2)'
               }}>
-                {editPhoto ? (
-                  <img src={editPhoto} alt="Manager Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {(editPhoto || managerProfile?.photo) ? (
+                  <img src={editPhoto || managerProfile?.photo} alt="Manager Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <span style={{ fontSize: '48px' }}>👔</span>
                 )}
@@ -5750,6 +6171,16 @@ export default function LeagueDashboard() {
                     {managerProfile.wins + managerProfile.draws + managerProfile.losses}
                   </span>
                   <span style={{ fontSize: '9px', color: '#888' }}>Matches Played</span>
+                </div>
+
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.02)' }}>
+                  <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#ffd700', fontFamily: 'Orbitron' }}>{managerProfile.monthlyAwards || 0}</span>
+                  <span style={{ fontSize: '9px', color: '#888' }}>Monthly Awards 🎖️</span>
+                </div>
+
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.02)' }}>
+                  <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#ff0055', fontFamily: 'Orbitron' }}>{managerProfile.managerOfTheYear || 0}</span>
+                  <span style={{ fontSize: '9px', color: '#888' }}>Manager of Year 👑</span>
                 </div>
               </div>
 

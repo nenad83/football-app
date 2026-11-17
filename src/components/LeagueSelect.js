@@ -9,24 +9,25 @@ import { clRules } from '../data/cl/clRules';
 import { uefaRules } from '../data/uefa/uefaRules';
 import { ueclRules } from '../data/uecl/ueclRules';
 import { clibRules } from '../data/clib/clibRules';
-import { csudRules } from '../data/csud/csudRules';import CountryFlag from './CountryFlag';
+import { csudRules } from '../data/csud/csudRules'; import CountryFlag from './CountryFlag';
 import { createDomesticCup, getDomesticCupExpectation } from '../utils/domesticCupGenerator';
+import { loadSeasonRosters } from '../data/rosters/rosterRegistry';
 
 
 // Inline premium vector Team Flag component
 const TeamFlag = ({ primaryColor, secondaryColor, size = 120 }) => {
   const isSolid = !secondaryColor || primaryColor === secondaryColor;
   const flagHeight = Math.round(size * 0.65);
-  
+
   return (
-    <svg 
-      width={size} 
-      height={flagHeight} 
-      viewBox="0 0 100 65" 
-      className="team-flag" 
-      style={{ 
-        borderRadius: '6px', 
-        overflow: 'hidden', 
+    <svg
+      width={size}
+      height={flagHeight}
+      viewBox="0 0 100 65"
+      className="team-flag"
+      style={{
+        borderRadius: '6px',
+        overflow: 'hidden',
         border: '1.5px solid rgba(255, 255, 255, 0.15)',
         boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
         filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.25))',
@@ -191,7 +192,7 @@ export default function LeagueSelect() {
   const [division, setDivision] = useState(1); // 1 = D1, 2 = D2
   const [isStarting, setIsStarting] = useState(false);
 
-  
+
   const navigate = useNavigate();
 
   const getExpectation = (team, allTeams = null) => {
@@ -204,7 +205,7 @@ export default function LeagueSelect() {
         const sortedByRating = [...allTeams]
           .map(t => ({ idnum: t.idnum, rating: (t.attack + t.midfield + t.defense) / 3 }))
           .sort((a, b) => b.rating - a.rating);
-        
+
         const teamIndex = sortedByRating.findIndex(t => t.idnum === team.idnum);
         const rank = teamIndex !== -1 ? teamIndex + 1 : 1;
         const N = allTeams.length;
@@ -230,7 +231,7 @@ export default function LeagueSelect() {
       const sortedByRating = [...allTeams]
         .map(t => ({ idnum: t.idnum, rating: (t.attack + t.midfield + t.defense) / 3 }))
         .sort((a, b) => b.rating - a.rating);
-      
+
       const teamIndex = sortedByRating.findIndex(t => t.idnum === team.idnum);
       const rank = teamIndex !== -1 ? teamIndex + 1 : 1;
       const N = allTeams.length;
@@ -313,9 +314,9 @@ export default function LeagueSelect() {
   const selectedData = isSACountry
     ? ((leagueDataMapSA[season] && leagueDataMapSA[season][country]) ? leagueDataMapSA[season][country] : leagueDataMapSA["2010"]["argentina"])
     : (division === 2 && hasD2
-        ? leagueDataMapD2[season][country]
-        : ((leagueDataMap[season] && leagueDataMap[season][country]) ? leagueDataMap[season][country] : leagueDataMap["1993"]["england"])
-      );
+      ? leagueDataMapD2[season][country]
+      : ((leagueDataMap[season] && leagueDataMap[season][country]) ? leagueDataMap[season][country] : leagueDataMap["1993"]["england"])
+    );
 
 
   const roster = selectedData.map(team => ({
@@ -370,8 +371,8 @@ export default function LeagueSelect() {
     const isValid2026 = season === "2026" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
 
     // SA seasons validation (1990-2026)
-    const saSeasons = new Set(["1990","1991","1992","1993","1994","1995","1996","1997","1998","1999","2000","2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025","2026"]);
-    const colombiaSeasons = new Set(["1990","1991","1992","1993","1994","1995","1996","1997","1998","1999","2000","2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025","2026"]);
+    const saSeasons = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
+    const colombiaSeasons = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
     const isValidSA = (saSeasons.has(season) && (country === "argentina" || country === "brazil")) || (colombiaSeasons.has(season) && country === "colombia");
 
     if (isValid1985 || isValid1987 || isValid1988 || isValid1989 || isValid1990 || isValid1991 || isValid1992 || isValid1993 || isValid1994 || isValid1995 || isValid1996 || isValid1997 || isValid1998 || isValid1999 || isValid2000 || isValid2001 || isValid2002 || isValid2003 || isValid2004 || isValid2005 || isValid2006 || isValid2007 || isValid2008 || isValid2009 || isValid2010 || isValid2011 || isValid2012 || isValid2013 || isValid2014 || isValid2015 || isValid2016 || isValid2017 || isValid2018 || isValid2019 || isValid2020 || isValid2021 || isValid2022 || isValid2023 || isValid2024 || isValid2025 || isValid2026 || isValidSA) {
@@ -457,6 +458,9 @@ export default function LeagueSelect() {
     if (selectedTeamId === null) return;
     setIsStarting(true);
 
+    // Preload the selected season roster into memory in the background
+    loadSeasonRosters(season);
+
     // Clear all previous rosters and lineups from localStorage to start fresh
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
@@ -470,7 +474,7 @@ export default function LeagueSelect() {
       const prompt = `You are a football finance historian. What was the approximate transfer budget in USD (in millions, e.g. 5.5 for $5.5M) for the club "${activeTeamObj.name}" in the "${season}" season? 
 Provide a single JSON object with the key "budget". The value must be a number (float or int) representing USD in millions. E.g. {"budget": 12.5}.
 Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $2.0M), while Manchester United has a large budget ($30M - $40M). Adjust for the era's financial scaling (e.g. 1980s budgets are much smaller).`;
-      
+
       const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
@@ -602,7 +606,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
             groups.forEach(g => {
               const gTeams = clTeams.filter(t => t.group === g);
               if (gTeams.length === 5) {
-                const [t0,t1,t2,t3,t4] = gTeams.map(t => t.idnum);
+                const [t0, t1, t2, t3, t4] = gTeams.map(t => t.idnum);
                 clFixtures[0].push({ homeId: t1, awayId: t4, played: false, homeScore: 0, awayScore: 0, group: g });
                 clFixtures[0].push({ homeId: t2, awayId: t3, played: false, homeScore: 0, awayScore: 0, group: g });
                 clFixtures[1].push({ homeId: t0, awayId: t4, played: false, homeScore: 0, awayScore: 0, group: g });
@@ -614,7 +618,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                 clFixtures[4].push({ homeId: t0, awayId: t1, played: false, homeScore: 0, awayScore: 0, group: g });
                 clFixtures[4].push({ homeId: t4, awayId: t3, played: false, homeScore: 0, awayScore: 0, group: g });
               } else {
-                const [t0,t1,t2,t3] = gTeams.map(t => t.idnum);
+                const [t0, t1, t2, t3] = gTeams.map(t => t.idnum);
                 clFixtures[0].push({ homeId: t0, awayId: t1, played: false, homeScore: 0, awayScore: 0, group: g });
                 clFixtures[0].push({ homeId: t2, awayId: t3, played: false, homeScore: 0, awayScore: 0, group: g });
                 clFixtures[1].push({ homeId: t3, awayId: t0, played: false, homeScore: 0, awayScore: 0, group: g });
@@ -661,7 +665,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
             const secondLegKey = toCamelCase(firstStage) + "Leg2";
             const leg1Fixtures = [];
             for (let i = 0; i < teams.length; i += 2) {
-              leg1Fixtures.push({ homeId: teams[i].idnum, awayId: teams[i+1].idnum, played: false, homeScore: 0, awayScore: 0 });
+              leg1Fixtures.push({ homeId: teams[i].idnum, awayId: teams[i + 1].idnum, played: false, homeScore: 0, awayScore: 0 });
             }
             const leg2Fixtures = leg1Fixtures.map(m => ({ homeId: m.awayId, awayId: m.homeId, played: false, homeScore: 0, awayScore: 0 }));
             const knockoutState = { roundOf32Leg1: null, roundOf32Leg2: null, roundOf16Leg1: null, roundOf16Leg2: null, quarterFinalsLeg1: null, quarterFinalsLeg2: null, semiFinalsLeg1: null, semiFinalsLeg2: null, final: null };
@@ -687,7 +691,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
 
       if (europeanCup && activeQualifiers) {
         const rules = europeanCup === "cl" ? clRules[season] : (europeanCup === "uefa" ? uefaRules[season] : ueclRules[season]);
-        
+
         // Initialize Calendar
         const totalDomesticRounds = (roster.length - 1) * 2;
         const dynamicSchedules = generateDynamicSchedules(totalDomesticRounds, rules);
@@ -741,7 +745,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
               playerClTeam = clTeams[indexToReplace];
             }
           }
-          
+
           const clFixtures = [];
           const groups = [...new Set(clTeams.map(t => t.group))].sort();
           const firstGroupTeams = clTeams.filter(t => t.group === groups[0]);
@@ -816,147 +820,147 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
             }
           };
         } else if (rules.format === "league_then_knockout") {
-        // CL/EL/UECL 36-team single league setup
-        const clTeams = JSON.parse(JSON.stringify(rules.teamsData));
-        let playerClTeam = clTeams.find(t => t.name === teamName);
-        if (!playerClTeam && activeQualifiers) {
-          const domesticNames = roster.map(t => t.name);
-          let indexToReplace = clTeams.findIndex(t => domesticNames.includes(t.name) && t.name !== teamName);
-          if (indexToReplace === -1) {
-            const cupQualifiers = activeQualifiers[europeanCup] || {};
-            const mainPlayableClTeams = [
-              ...(cupQualifiers.england || []),
-              ...(cupQualifiers.spain || []),
-              ...(cupQualifiers.germany || []),
-              ...(cupQualifiers.italy || []),
-              ...(cupQualifiers.france || []),
-              ...(cupQualifiers.russia || []),
-              ...(cupQualifiers.portugal || []),
-              ...(cupQualifiers.netherlands || [])
-            ];
-            indexToReplace = clTeams.findIndex(t => !mainPlayableClTeams.includes(t.name));
+          // CL/EL/UECL 36-team single league setup
+          const clTeams = JSON.parse(JSON.stringify(rules.teamsData));
+          let playerClTeam = clTeams.find(t => t.name === teamName);
+          if (!playerClTeam && activeQualifiers) {
+            const domesticNames = roster.map(t => t.name);
+            let indexToReplace = clTeams.findIndex(t => domesticNames.includes(t.name) && t.name !== teamName);
             if (indexToReplace === -1) {
-              indexToReplace = clTeams.length - 1;
+              const cupQualifiers = activeQualifiers[europeanCup] || {};
+              const mainPlayableClTeams = [
+                ...(cupQualifiers.england || []),
+                ...(cupQualifiers.spain || []),
+                ...(cupQualifiers.germany || []),
+                ...(cupQualifiers.italy || []),
+                ...(cupQualifiers.france || []),
+                ...(cupQualifiers.russia || []),
+                ...(cupQualifiers.portugal || []),
+                ...(cupQualifiers.netherlands || [])
+              ];
+              indexToReplace = clTeams.findIndex(t => !mainPlayableClTeams.includes(t.name));
+              if (indexToReplace === -1) {
+                indexToReplace = clTeams.length - 1;
+              }
+            }
+            if (indexToReplace !== -1) {
+              clTeams[indexToReplace].name = teamName;
+              clTeams[indexToReplace].primaryColor = activeTeamObj.primaryColor;
+              clTeams[indexToReplace].secondaryColor = activeTeamObj.secondaryColor;
+              clTeams[indexToReplace].kit = activeTeamObj.kit;
+              playerClTeam = clTeams[indexToReplace];
             }
           }
-          if (indexToReplace !== -1) {
-            clTeams[indexToReplace].name = teamName;
-            clTeams[indexToReplace].primaryColor = activeTeamObj.primaryColor;
-            clTeams[indexToReplace].secondaryColor = activeTeamObj.secondaryColor;
-            clTeams[indexToReplace].kit = activeTeamObj.kit;
-            playerClTeam = clTeams[indexToReplace];
-          }
-        }
 
-        const clFixtures = [];
-        const numTeams = clTeams.length; // 36
-        const rounds = 8;
-        
-        const list = [...clTeams];
-        for (let r = 0; r < rounds; r++) {
-          const roundPairs = [];
-          for (let i = 0; i < numTeams / 2; i++) {
-            const home = list[i];
-            const away = list[numTeams - 1 - i];
-            
-            // Alternate home/away to balance
-            if (r % 2 === 0) {
-              roundPairs.push({ homeId: home.idnum, awayId: away.idnum, played: false, homeScore: 0, awayScore: 0 });
-            } else {
-              roundPairs.push({ homeId: away.idnum, awayId: home.idnum, played: false, homeScore: 0, awayScore: 0 });
+          const clFixtures = [];
+          const numTeams = clTeams.length; // 36
+          const rounds = 8;
+
+          const list = [...clTeams];
+          for (let r = 0; r < rounds; r++) {
+            const roundPairs = [];
+            for (let i = 0; i < numTeams / 2; i++) {
+              const home = list[i];
+              const away = list[numTeams - 1 - i];
+
+              // Alternate home/away to balance
+              if (r % 2 === 0) {
+                roundPairs.push({ homeId: home.idnum, awayId: away.idnum, played: false, homeScore: 0, awayScore: 0 });
+              } else {
+                roundPairs.push({ homeId: away.idnum, awayId: home.idnum, played: false, homeScore: 0, awayScore: 0 });
+              }
+            }
+            clFixtures.push(roundPairs);
+            list.splice(1, 0, list.pop());
+          }
+
+          europeanCupState = {
+            teams: clTeams,
+            fixtures: clFixtures,
+            europeanPlayerTeamId: playerClTeam ? playerClTeam.idnum : null,
+            knockoutState: {
+              playoffsLeg1: null, playoffsLeg2: null,
+              roundOf16Leg1: null, roundOf16Leg2: null,
+              quarterFinalsLeg1: null, quarterFinalsLeg2: null,
+              semiFinalsLeg1: null, semiFinalsLeg2: null,
+              final: null
+            }
+          };
+        } else if (rules.format === "pure_knockout") {
+          // Pure Knockout format setup (e.g. 1990 CL, 1990 UEFA, 1994 UEFA)
+          const teams = JSON.parse(JSON.stringify(rules.teamsData));
+          let playerTeam = teams.find(t => t.name === teamName);
+          if (!playerTeam && activeQualifiers) {
+            const domesticNames = roster.map(t => t.name);
+            let indexToReplace = teams.findIndex(t => domesticNames.includes(t.name) && t.name !== teamName);
+            if (indexToReplace === -1) {
+              const activeQualifiersUefa = activeQualifiers.uefa || {};
+              const activeQualifiersCl = activeQualifiers.cl || {};
+              const mainPlayableTeams = [
+                ...(activeQualifiersUefa.england || activeQualifiersCl.england || []),
+                ...(activeQualifiersUefa.spain || activeQualifiersCl.spain || []),
+                ...(activeQualifiersUefa.germany || activeQualifiersCl.germany || []),
+                ...(activeQualifiersUefa.italy || activeQualifiersCl.italy || []),
+                ...(activeQualifiersUefa.france || activeQualifiersCl.france || []),
+                ...(activeQualifiersUefa.russia || activeQualifiersCl.russia || []),
+                ...(activeQualifiersUefa.portugal || activeQualifiersCl.portugal || []),
+                ...(activeQualifiersUefa.netherlands || activeQualifiersCl.netherlands || [])
+              ];
+              indexToReplace = teams.findIndex(t => !mainPlayableTeams.includes(t.name));
+              if (indexToReplace === -1) {
+                indexToReplace = teams.length - 1;
+              }
+            }
+            if (indexToReplace !== -1) {
+              teams[indexToReplace].name = teamName;
+              teams[indexToReplace].primaryColor = activeTeamObj.primaryColor;
+              teams[indexToReplace].secondaryColor = activeTeamObj.secondaryColor;
+              teams[indexToReplace].kit = activeTeamObj.kit;
+              playerTeam = teams[indexToReplace];
             }
           }
-          clFixtures.push(roundPairs);
-          list.splice(1, 0, list.pop());
-        }
 
-        europeanCupState = {
-          teams: clTeams,
-          fixtures: clFixtures,
-          europeanPlayerTeamId: playerClTeam ? playerClTeam.idnum : null,
-          knockoutState: {
-            playoffsLeg1: null, playoffsLeg2: null,
+          const toCamelCase = (str) => str.replace(/_([a-z0-9])/g, (g) => g[1].toUpperCase());
+          const firstStage = rules.stages[0]; // e.g. "round_of_32" or "quarter_finals"
+          const firstLegKey = toCamelCase(firstStage) + "Leg1";
+          const secondLegKey = toCamelCase(firstStage) + "Leg2";
+
+          const leg1Fixtures = [];
+          for (let i = 0; i < teams.length; i += 2) {
+            leg1Fixtures.push({
+              homeId: teams[i].idnum,
+              awayId: teams[i + 1].idnum,
+              played: false,
+              homeScore: 0,
+              awayScore: 0
+            });
+          }
+          const leg2Fixtures = leg1Fixtures.map(m => ({
+            homeId: m.awayId,
+            awayId: m.homeId,
+            played: false,
+            homeScore: 0,
+            awayScore: 0
+          }));
+
+          const knockoutState = {
+            roundOf32Leg1: null, roundOf32Leg2: null,
             roundOf16Leg1: null, roundOf16Leg2: null,
             quarterFinalsLeg1: null, quarterFinalsLeg2: null,
             semiFinalsLeg1: null, semiFinalsLeg2: null,
             final: null
-          }
-        };
-      } else if (rules.format === "pure_knockout") {
-        // Pure Knockout format setup (e.g. 1990 CL, 1990 UEFA, 1994 UEFA)
-        const teams = JSON.parse(JSON.stringify(rules.teamsData));
-        let playerTeam = teams.find(t => t.name === teamName);
-        if (!playerTeam && activeQualifiers) {
-          const domesticNames = roster.map(t => t.name);
-          let indexToReplace = teams.findIndex(t => domesticNames.includes(t.name) && t.name !== teamName);
-          if (indexToReplace === -1) {
-            const activeQualifiersUefa = activeQualifiers.uefa || {};
-            const activeQualifiersCl = activeQualifiers.cl || {};
-            const mainPlayableTeams = [
-              ...(activeQualifiersUefa.england || activeQualifiersCl.england || []),
-              ...(activeQualifiersUefa.spain || activeQualifiersCl.spain || []),
-              ...(activeQualifiersUefa.germany || activeQualifiersCl.germany || []),
-              ...(activeQualifiersUefa.italy || activeQualifiersCl.italy || []),
-              ...(activeQualifiersUefa.france || activeQualifiersCl.france || []),
-              ...(activeQualifiersUefa.russia || activeQualifiersCl.russia || []),
-              ...(activeQualifiersUefa.portugal || activeQualifiersCl.portugal || []),
-              ...(activeQualifiersUefa.netherlands || activeQualifiersCl.netherlands || [])
-            ];
-            indexToReplace = teams.findIndex(t => !mainPlayableTeams.includes(t.name));
-            if (indexToReplace === -1) {
-              indexToReplace = teams.length - 1;
-            }
-          }
-          if (indexToReplace !== -1) {
-            teams[indexToReplace].name = teamName;
-            teams[indexToReplace].primaryColor = activeTeamObj.primaryColor;
-            teams[indexToReplace].secondaryColor = activeTeamObj.secondaryColor;
-            teams[indexToReplace].kit = activeTeamObj.kit;
-            playerTeam = teams[indexToReplace];
-          }
+          };
+          knockoutState[firstLegKey] = leg1Fixtures;
+          knockoutState[secondLegKey] = leg2Fixtures;
+
+          europeanCupState = {
+            teams: teams,
+            europeanPlayerTeamId: playerTeam ? playerTeam.idnum : null,
+            knockoutState
+          };
         }
-
-        const toCamelCase = (str) => str.replace(/_([a-z0-9])/g, (g) => g[1].toUpperCase());
-        const firstStage = rules.stages[0]; // e.g. "round_of_32" or "quarter_finals"
-        const firstLegKey = toCamelCase(firstStage) + "Leg1";
-        const secondLegKey = toCamelCase(firstStage) + "Leg2";
-
-        const leg1Fixtures = [];
-        for (let i = 0; i < teams.length; i += 2) {
-          leg1Fixtures.push({
-            homeId: teams[i].idnum,
-            awayId: teams[i+1].idnum,
-            played: false,
-            homeScore: 0,
-            awayScore: 0
-          });
-        }
-        const leg2Fixtures = leg1Fixtures.map(m => ({
-          homeId: m.awayId,
-          awayId: m.homeId,
-          played: false,
-          homeScore: 0,
-          awayScore: 0
-        }));
-
-        const knockoutState = {
-          roundOf32Leg1: null, roundOf32Leg2: null,
-          roundOf16Leg1: null, roundOf16Leg2: null,
-          quarterFinalsLeg1: null, quarterFinalsLeg2: null,
-          semiFinalsLeg1: null, semiFinalsLeg2: null,
-          final: null
-        };
-        knockoutState[firstLegKey] = leg1Fixtures;
-        knockoutState[secondLegKey] = leg2Fixtures;
-
-        europeanCupState = {
-          teams: teams,
-          europeanPlayerTeamId: playerTeam ? playerTeam.idnum : null,
-          knockoutState
-        };
-      }
-    } // end if (europeanCup && activeQualifiers)
-  } // end else (European Cup)
+      } // end if (europeanCup && activeQualifiers)
+    } // end else (European Cup)
 
     const totalDomesticRounds = (roster.length - 1) * 2;
     if (!calendar) {
@@ -1028,8 +1032,8 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
   const russiaSeasons = new Set(["1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
   const portugalNetherlandsSeasons = new Set(["1987", "1988", "1989", "1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
 
-  const saSeasonsList = new Set(["1990","1991","1992","1993","1994","1995","1996","1997","1998","1999","2000","2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025","2026"]);
-  const colombiaSeasonsList = new Set(["1990","1991","1992","1993","1994","1995","1996","1997","1998","1999","2000","2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025","2026"]);
+  const saSeasonsList = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
+  const colombiaSeasonsList = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
 
   const hasData = (yr) => {
     if (country === "colombia") {
@@ -1053,7 +1057,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
 
   return (
     <div className="Match team-select-container">
-      
+
       {/* STEP 1: Season & Country Dropdowns Selectors */}
       {step === 1 && (
         <div className="animated-slide-in" style={{ width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
@@ -1149,7 +1153,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
               onChange={handleImportSave}
             />
           </div>
-          
+
           <div style={{ marginTop: '10px' }}>
             <button className="back-home-btn" onClick={() => navigate("/")}>➔ RETURN TO CABINET</button>
           </div>
@@ -1166,11 +1170,11 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
 
           {hasD2 && (
             <div style={{ display: 'flex', gap: '10px', width: '100%', maxWidth: '450px' }}>
-              <button 
+              <button
                 className={`play-match-btn ${division === 1 ? 'glowing-btn' : ''}`}
-                style={{ 
-                  flex: 1, 
-                  padding: '8px 16px', 
+                style={{
+                  flex: 1,
+                  padding: '8px 16px',
                   fontSize: '12px',
                   background: division === 1 ? 'rgba(0, 255, 100, 0.1)' : 'rgba(0,0,0,0.5)',
                   border: division === 1 ? '1.5px solid #00ff64' : '1px solid rgba(255,255,255,0.1)',
@@ -1181,11 +1185,11 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
               >
                 DIVISION 1
               </button>
-              <button 
+              <button
                 className={`play-match-btn ${division === 2 ? 'glowing-btn' : ''}`}
-                style={{ 
-                  flex: 1, 
-                  padding: '8px 16px', 
+                style={{
+                  flex: 1,
+                  padding: '8px 16px',
                   fontSize: '12px',
                   background: division === 2 ? 'rgba(0, 255, 100, 0.1)' : 'rgba(0,0,0,0.5)',
                   border: division === 2 ? '1.5px solid #00ff64' : '1px solid rgba(255,255,255,0.1)',
@@ -1200,19 +1204,19 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
           )}
 
           <div className="selection-deck" style={{ flexWrap: 'wrap', gap: '25px', maxWidth: '1100px' }}>
-            
+
             {/* Grid of 22 Teams scrollbox */}
-            <div className="teams-grid-scroll-box" style={{ 
-              flexGrow: 1, 
-              height: '450px', 
-              overflowY: 'auto', 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', 
+            <div className="teams-grid-scroll-box" style={{
+              flexGrow: 1,
+              height: '450px',
+              overflowY: 'auto',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
               gap: '12px',
               paddingRight: '10px'
             }}>
               {roster.map((team) => (
-                <div 
+                <div
                   key={team.idnum}
                   className={`team-select-mini-card ${selectedTeamId === team.idnum ? 'selected-mini-card' : ''}`}
                   onClick={() => setSelectedTeamId(team.idnum)}
@@ -1264,9 +1268,9 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                   {/* Manager Name Input */}
                   <div style={{ width: '90%', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '10px', color: '#00ff64', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'left' }}>Manager Name</label>
-                    <input 
-                      type="text" 
-                      value={managerName} 
+                    <input
+                      type="text"
+                      value={managerName}
                       onChange={(e) => setManagerName(e.target.value)}
                       style={{
                         background: 'rgba(0,0,0,0.5)',
@@ -1284,10 +1288,10 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                   </div>
 
                   {/* Board Expectation */}
-                  <div style={{ 
-                    width: '90%', 
-                    padding: '8px 12px', 
-                    background: 'rgba(0,255,100,0.03)', 
+                  <div style={{
+                    width: '90%',
+                    padding: '8px 12px',
+                    background: 'rgba(0,255,100,0.03)',
                     border: '1px solid rgba(0,255,100,0.15)',
                     borderRadius: '8px',
                     display: 'flex',
@@ -1300,9 +1304,9 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                     <span style={{ fontSize: '10px', color: '#aaa' }}>Goal: {getExpectation(activeTeamObj, roster)?.desc}</span>
                   </div>
 
-                  <button 
-                    className="play-match-btn glowing-btn" 
-                    style={{ fontSize: '13px', padding: '10px 20px', width: '90%', marginTop: '5px', opacity: isStarting ? 0.6 : 1, cursor: isStarting ? 'not-allowed' : 'pointer' }} 
+                  <button
+                    className="play-match-btn glowing-btn"
+                    style={{ fontSize: '13px', padding: '10px 20px', width: '90%', marginTop: '5px', opacity: isStarting ? 0.6 : 1, cursor: isStarting ? 'not-allowed' : 'pointer' }}
                     onClick={handleStartCareer}
                     disabled={isStarting}
                   >
@@ -1334,13 +1338,13 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
 
           <div className="team-select-card" style={{ width: '100%', padding: '30px', border: '1.5px solid #ff4500', boxShadow: '0 0 20px rgba(255, 69, 0, 0.15)', textAlign: 'center' }}>
             <div style={{ fontSize: '45px', marginBottom: '15px' }}>🚧</div>
-            
+
             <p style={{ color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 10px 0' }}>
               Season {season} - {cap(country)} League is under construction!
             </p>
-            
+
             <p style={{ color: '#a3b3a7', fontSize: '13px', lineHeight: '1.5', margin: '0 0 25px 0' }}>
-              Historic roster databases and kit colors for this league are currently being compiled and will be added in a future update! 
+              Historic roster databases and kit colors for this league are currently being compiled and will be added in a future update!
               <br /><br />
               In the meantime, enter the legendary **England 1993/94 Premier League** campaign to play right now!
             </p>

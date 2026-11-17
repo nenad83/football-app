@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { getSubstituteLimit } from '../utils/matchRules';
+import { getPrebuiltRoster } from '../data/rosters/rosterRegistry';
+import {
+  calculateTeamTacticalStats,
+  getRoleMetadata,
+  getNextRoleForSlot
+} from '../utils/tacticalRoleEngine';
 
-// Formation definitions with stat modifiers and pitch positions
+// Formation definitions with pitch positions (department bonuses now come from player positions & tactical roles)
 export const FORMATIONS = {
   '4-4-2': {
     label: '4-4-2',
@@ -17,7 +23,7 @@ export const FORMATIONS = {
   '4-3-3': {
     label: '4-3-3',
     desc: 'Attacking width with 3 forwards',
-    modifiers: { attack: 1, midfield: -1, defense: 0 },
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
       gk: [{ x: 50, y: 92 }],
       def: [{ x: 15, y: 75 }, { x: 38, y: 78 }, { x: 62, y: 78 }, { x: 85, y: 75 }],
@@ -28,7 +34,7 @@ export const FORMATIONS = {
   '4-5-1': {
     label: '4-5-1',
     desc: 'Midfield dominance with lone striker',
-    modifiers: { attack: -1, midfield: 1, defense: 0 },
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
       gk: [{ x: 50, y: 92 }],
       def: [{ x: 15, y: 75 }, { x: 38, y: 78 }, { x: 62, y: 78 }, { x: 85, y: 75 }],
@@ -39,7 +45,7 @@ export const FORMATIONS = {
   '5-3-2': {
     label: '5-3-2',
     desc: 'Defensive solidity with wing-backs',
-    modifiers: { attack: 0, midfield: -1, defense: 1 },
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
       gk: [{ x: 50, y: 92 }],
       def: [{ x: 10, y: 72 }, { x: 30, y: 78 }, { x: 50, y: 80 }, { x: 70, y: 78 }, { x: 90, y: 72 }],
@@ -50,7 +56,7 @@ export const FORMATIONS = {
   '5-4-1': {
     label: '5-4-1',
     desc: 'Ultra-defensive with packed backline',
-    modifiers: { attack: -1, midfield: 0, defense: 1 },
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
       gk: [{ x: 50, y: 92 }],
       def: [{ x: 10, y: 72 }, { x: 30, y: 78 }, { x: 50, y: 80 }, { x: 70, y: 78 }, { x: 90, y: 72 }],
@@ -61,7 +67,7 @@ export const FORMATIONS = {
   '3-5-2': {
     label: '3-5-2',
     desc: 'Midfield overload with two strikers',
-    modifiers: { attack: 0, midfield: 1, defense: -1 },
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
       gk: [{ x: 50, y: 92 }],
       def: [{ x: 25, y: 78 }, { x: 50, y: 80 }, { x: 75, y: 78 }],
@@ -72,7 +78,7 @@ export const FORMATIONS = {
   '3-4-3': {
     label: '3-4-3',
     desc: 'All-out attack with three in back',
-    modifiers: { attack: 1, midfield: 0, defense: -1 },
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
       gk: [{ x: 50, y: 92 }],
       def: [{ x: 25, y: 78 }, { x: 50, y: 80 }, { x: 75, y: 78 }],
@@ -83,7 +89,7 @@ export const FORMATIONS = {
   '4-2-3-1': {
     label: '4-2-3-1',
     desc: 'Modern tactical with double pivot',
-    modifiers: { attack: -1, midfield: 1, defense: 0 },
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
       gk: [{ x: 50, y: 92 }],
       def: [{ x: 15, y: 75 }, { x: 38, y: 78 }, { x: 62, y: 78 }, { x: 85, y: 75 }],
@@ -94,7 +100,7 @@ export const FORMATIONS = {
   '4-1-4-1': {
     label: '4-1-4-1',
     desc: 'Midfield control with single defensive pivot',
-    modifiers: { attack: -1, midfield: 1, defense: 0 },
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
       gk: [{ x: 50, y: 92 }],
       def: [{ x: 15, y: 75 }, { x: 38, y: 78 }, { x: 62, y: 78 }, { x: 85, y: 75 }],
@@ -105,7 +111,7 @@ export const FORMATIONS = {
   '4-3-2-1': {
     label: '4-3-2-1',
     desc: 'Christmas Tree layout with dense midfield',
-    modifiers: { attack: -1, midfield: 1, defense: 0 },
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
       gk: [{ x: 50, y: 92 }],
       def: [{ x: 15, y: 75 }, { x: 38, y: 78 }, { x: 62, y: 78 }, { x: 85, y: 75 }],
@@ -116,7 +122,7 @@ export const FORMATIONS = {
   '4-1-2-1-2': {
     label: '4-1-2-1-2',
     desc: 'Diamond midfield with wide protection gaps',
-    modifiers: { attack: 0, midfield: 1, defense: -1 },
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
       gk: [{ x: 50, y: 92 }],
       def: [{ x: 15, y: 75 }, { x: 38, y: 78 }, { x: 62, y: 78 }, { x: 85, y: 75 }],
@@ -138,7 +144,7 @@ export const FORMATIONS = {
   '3-3-1-3': {
     label: '3-3-1-3',
     desc: 'Bielsa vertical high pressing system',
-    modifiers: { attack: 2, midfield: -1, defense: -1 },
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
       gk: [{ x: 50, y: 92 }],
       def: [{ x: 25, y: 78 }, { x: 50, y: 80 }, { x: 75, y: 78 }],
@@ -322,34 +328,6 @@ export const FormationPitch = ({ formation, isSelected, size = 'normal' }) => {
         ))
       )}
     </svg>
-  );
-};
-
-// Stat modifier badge component
-const ModifierBadge = ({ stat, value }) => {
-  if (value === 0) return null;
-
-  const isPositive = value > 0;
-  const color = isPositive ? '#00ff64' : '#ff3333';
-  const label = stat.charAt(0).toUpperCase() + stat.slice(1);
-
-  return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: '2px',
-      padding: '2px 6px',
-      borderRadius: '4px',
-      background: isPositive ? 'rgba(0, 255, 100, 0.1)' : 'rgba(255, 51, 51, 0.1)',
-      border: `1px solid ${isPositive ? 'rgba(0, 255, 100, 0.25)' : 'rgba(255, 51, 51, 0.25)'}`,
-      color: color,
-      fontSize: '9px',
-      fontWeight: 'bold',
-      fontFamily: 'Orbitron, sans-serif',
-      letterSpacing: '0.5px'
-    }}>
-      {isPositive ? '▲' : '▼'} {label}: {isPositive ? '+' : ''}{value}
-    </span>
   );
 };
 
@@ -984,57 +962,51 @@ export const getFormationSlots = (formationKey) => {
   return slots;
 };
 
-// Dynamically recalculate the player's team ratings (Attack, Midfield, Defense) based on starting lineup & active formation modifiers
-export const updateTeamStatsInStorage = (lineup, formationKey) => {
+// Generates an optimal starting lineup based on player ratings and roles
+export const generateDefaultLineup = (squad, formationKey = '4-4-2') => {
+  if (!Array.isArray(squad) || squad.length === 0) return {};
+  const slots = getFormationSlots(formationKey);
+  const newLineup = {};
+  const availableGK = squad.filter(p => getGeneralPosition(p.position) === "GK" && !(p.injuryMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
+  const availableDF = squad.filter(p => getGeneralPosition(p.position) === "DF" && !(p.injuryMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
+  const availableMF = squad.filter(p => getGeneralPosition(p.position) === "MF" && !(p.injuryMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
+  const availableFW = squad.filter(p => getGeneralPosition(p.position) === "FW" && !(p.injuryMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
+
+  let gkIdx = 0, dfIdx = 0, mfIdx = 0, fwIdx = 0;
+
+  slots.forEach(slot => {
+    if (slot.role === "gk") {
+      if (availableGK[gkIdx]) newLineup[slot.id] = availableGK[gkIdx++];
+    } else if (slot.role === "def") {
+      if (availableDF[dfIdx]) newLineup[slot.id] = availableDF[dfIdx++];
+    } else if (slot.role === "mid") {
+      if (availableMF[mfIdx]) newLineup[slot.id] = availableMF[mfIdx++];
+    } else if (slot.role === "att") {
+      if (availableFW[fwIdx]) newLineup[slot.id] = availableFW[fwIdx++];
+    }
+  });
+
+  return newLineup;
+};
+
+// Dynamically recalculate the player's team ratings (Attack, Midfield, Defense) based on starting lineup & player tactical roles
+export const updateTeamStatsInStorage = (lineup, formationKey, playerRoles = null) => {
   if (!formationKey) return;
   const f = FORMATIONS[formationKey];
   if (!f) return;
 
-  const slots = getFormationSlots(formationKey);
-  const roles = ['defense', 'midfield', 'attack'];
-  const roleMapping = {
-    defense: 'def',
-    midfield: 'mid',
-    attack: 'att'
-  };
-
-  const calculatedStats = {};
-
-  roles.forEach(role => {
-    const roleSlotKey = roleMapping[role]; // e.g. 'def', 'mid', 'att'
-    const slotsForRole = slots.filter(s => s.role === roleSlotKey);
-    if (slotsForRole.length === 0) {
-      calculatedStats[role] = 1;
-      return;
+  let activeRoles = playerRoles;
+  if (!activeRoles) {
+    try {
+      const info = getActiveTeamInfo();
+      const savedRoles = localStorage.getItem(`retro_roles_${info.name}_${info.season}`);
+      activeRoles = savedRoles ? JSON.parse(savedRoles) : {};
+    } catch (e) {
+      activeRoles = {};
     }
+  }
 
-    let sum = 0;
-    slotsForRole.forEach(slot => {
-      const assigned = lineup[slot.id];
-      // Rating is 1-5. If not assigned, default to 1
-      let r = assigned ? assigned.rating : 1;
-      if (assigned) {
-        let reduction = 0;
-        if (assigned.condition !== undefined && assigned.condition < 80) {
-          reduction += 1;
-        }
-
-        // Calculate position penalty
-        const idealPos = getIdealSlotPosition(slot.role, slot.x, slot.y);
-        const penalty = getPositionPenalty(assigned.positions || [assigned.position], idealPos);
-        reduction += penalty;
-
-        r = Math.max(1, r - reduction);
-      }
-      sum += r;
-    });
-
-    const average = sum / slotsForRole.length;
-    const modifier = f.modifiers[role] || 0;
-    const modifiedVal = average + modifier;
-    const rounded = Math.round(modifiedVal);
-    calculatedStats[role] = Math.max(1, Math.min(5, rounded));
-  });
+  const calculatedStats = calculateTeamTacticalStats(lineup, formationKey, activeRoles, 'balanced');
 
   // Now, update in localStorage
   // 1. League Career state
@@ -1219,6 +1191,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
   const [animatingOut, setAnimatingOut] = useState(false);
   const [squad, setSquad] = useState([]);
   const [lineup, setLineup] = useState({});
+  const [playerRoles, setPlayerRoles] = useState({});
   const [loading, setLoading] = useState(false);
   const [draggedPlayer, setDraggedPlayer] = useState(null);
   const [draggedOrigin, setDraggedOrigin] = useState(null); // slot id if dragged from pitch
@@ -1228,7 +1201,14 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const teamInfo = React.useMemo(() => getActiveTeamInfo(mode), [isOpen, mode]);
+  const limit = React.useMemo(() => getSubstituteLimit(teamInfo.cupId, teamInfo.season, teamInfo.country), [teamInfo]);
+  const [rosterViewFilter, setRosterViewFilter] = useState(() => (limit >= 99 ? 'all' : 'reserves')); // 'reserves' | 'all'
+
   const slots = React.useMemo(() => getFormationSlots(selectedFormation), [selectedFormation]);
+
+  const startingNames = React.useMemo(() => new Set(Object.values(lineup).filter(Boolean).map(p => p.name)), [lineup]);
+  const reservePlayers = React.useMemo(() => squad.filter(p => !startingNames.has(p.name) && !selectedBenchNames.includes(p.name)), [squad, startingNames, selectedBenchNames]);
+  const displayedSquadPlayers = rosterViewFilter === 'reserves' ? reservePlayers : squad;
 
   // Load squad and lineup
   const loadSquadAndLineup = async (info) => {
@@ -1247,89 +1227,96 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
       }
     }
 
-    const hasRealAI = activeRoster && activeRoster.length >= 11 && activeRoster.some(p => p.isAI);
+    const hasRealAI = activeRoster && activeRoster.length >= 11 && activeRoster.some(p => p.isAI || p.isHistorical);
     const hasDetailed = activeRoster && activeRoster.some(p => p.position !== "DF" && p.position !== "MF" && p.position !== "FW");
     const hasLegacyRatings = activeRoster && activeRoster.some(p => p.rating > 5);
 
-    // If the cache is empty, corrupted, does not contain Gemini AI players, lacks detailed positions, or has legacy ratings, load from Gemini
+    // If the cache is empty, corrupted, lacks detailed positions, or has legacy ratings, load from database or Gemini
     if (!activeRoster || activeRoster.length < 11 || !hasRealAI || !hasDetailed || hasLegacyRatings) {
-      // Try to load roster from the previous season to preserve players
-      const prevSeason = getPreviousSeasonString(info.season);
-      const prevRosterKey = prevSeason ? `retro_roster_${info.name}_${prevSeason}` : null;
-      const prevLineupKey = prevSeason ? `retro_lineup_${info.name}_${prevSeason}` : null;
-      const cachedPrevRoster = prevRosterKey ? localStorage.getItem(prevRosterKey) : null;
-      const cachedPrevLineup = prevLineupKey ? localStorage.getItem(prevLineupKey) : null;
-
-      if (cachedPrevRoster) {
-        try {
-          const prevRoster = JSON.parse(cachedPrevRoster);
-          if (Array.isArray(prevRoster) && prevRoster.length >= 11) {
-            try {
-              // Ask Gemini to review the stats of the existing squad players for the new season
-              const updated = await updateGeminiSquadStats(
-                prevRoster,
-                info.name,
-                info.season,
-                info.country,
-                { attack: info.attack, midfield: info.midfield, defense: info.defense }
-              );
-              if (updated && updated.length > 0) {
-                activeRoster = updated;
-              }
-            } catch (err) {
-              console.error("Failed to update squad stats via AI, using fallback", err);
-              activeRoster = updateSquadStatsFallback(
-                prevRoster,
-                { attack: info.attack, midfield: info.midfield, defense: info.defense }
-              );
-            }
-            localStorage.setItem(rosterKey, JSON.stringify(activeRoster));
-
-            // Map and migrate the lineup using updated players
-            if (cachedPrevLineup) {
-              try {
-                const parsedPrev = JSON.parse(cachedPrevLineup);
-                const activeLineup = {};
-                Object.entries(parsedPrev).forEach(([slotId, prevPlayer]) => {
-                  if (prevPlayer) {
-                    const updatedPlayer = activeRoster.find(p => p.name === prevPlayer.name);
-                    if (updatedPlayer) {
-                      activeLineup[slotId] = updatedPlayer;
-                    }
-                  }
-                });
-                localStorage.setItem(lineupKey, JSON.stringify(activeLineup));
-              } catch (e) {
-                console.error("Error migrating previous lineup", e);
-              }
-            }
-          }
-        } catch (e) {
-          console.error("Error loading/parsing previous roster", e);
-        }
-      }
-
-      // If we still don't have a valid activeRoster, do a fresh Gemini fetch or procedural fallbacks
-      if (!activeRoster || activeRoster.length < 11) {
-        try {
-          const fetched = await fetchGeminiSquad(
-            info.name,
-            info.season,
-            info.country,
-            { attack: info.attack, midfield: info.midfield, defense: info.defense }
-          );
-          if (fetched && fetched.length > 0) {
-            activeRoster = fetched;
-          }
-        } catch (err) {
-          console.error("Failed to load Gemini squad, fallback to procedural", err);
-          activeRoster = generateProceduralSquad(
-            info.name,
-            info.country,
-            { attack: info.attack, midfield: info.midfield, defense: info.defense }
-          );
-        }
+      // 1. Try to load authentic prebuilt squad from local database
+      const prebuilt = await getPrebuiltRoster(info.name, info.season);
+      if (prebuilt && prebuilt.length >= 11) {
+        activeRoster = prebuilt;
         localStorage.setItem(rosterKey, JSON.stringify(activeRoster));
+      } else {
+        // 2. Try to load roster from the previous season to preserve players
+        const prevSeason = getPreviousSeasonString(info.season);
+        const prevRosterKey = prevSeason ? `retro_roster_${info.name}_${prevSeason}` : null;
+        const prevLineupKey = prevSeason ? `retro_lineup_${info.name}_${prevSeason}` : null;
+        const cachedPrevRoster = prevRosterKey ? localStorage.getItem(prevRosterKey) : null;
+        const cachedPrevLineup = prevLineupKey ? localStorage.getItem(prevLineupKey) : null;
+
+        if (cachedPrevRoster) {
+          try {
+            const prevRoster = JSON.parse(cachedPrevRoster);
+            if (Array.isArray(prevRoster) && prevRoster.length >= 11) {
+              try {
+                // Ask Gemini to review the stats of the existing squad players for the new season
+                const updated = await updateGeminiSquadStats(
+                  prevRoster,
+                  info.name,
+                  info.season,
+                  info.country,
+                  { attack: info.attack, midfield: info.midfield, defense: info.defense }
+                );
+                if (updated && updated.length > 0) {
+                  activeRoster = updated;
+                }
+              } catch (err) {
+                console.error("Failed to update squad stats via AI, using fallback", err);
+                activeRoster = updateSquadStatsFallback(
+                  prevRoster,
+                  { attack: info.attack, midfield: info.midfield, defense: info.defense }
+                );
+              }
+              localStorage.setItem(rosterKey, JSON.stringify(activeRoster));
+
+              // Map and migrate the lineup using updated players
+              if (cachedPrevLineup) {
+                try {
+                  const parsedPrev = JSON.parse(cachedPrevLineup);
+                  const activeLineup = {};
+                  Object.entries(parsedPrev).forEach(([slotId, prevPlayer]) => {
+                    if (prevPlayer) {
+                      const updatedPlayer = activeRoster.find(p => p.name === prevPlayer.name);
+                      if (updatedPlayer) {
+                        activeLineup[slotId] = updatedPlayer;
+                      }
+                    }
+                  });
+                  localStorage.setItem(lineupKey, JSON.stringify(activeLineup));
+                } catch (e) {
+                  console.error("Error migrating previous lineup", e);
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Error loading/parsing previous roster", e);
+          }
+        }
+
+        // If we still don't have a valid activeRoster, do a fresh Gemini fetch or procedural fallbacks
+        if (!activeRoster || activeRoster.length < 11) {
+          try {
+            const fetched = await fetchGeminiSquad(
+              info.name,
+              info.season,
+              info.country,
+              { attack: info.attack, midfield: info.midfield, defense: info.defense }
+            );
+            if (fetched && fetched.length > 0) {
+              activeRoster = fetched;
+            }
+          } catch (err) {
+            console.error("Failed to load Gemini squad, fallback to procedural", err);
+            activeRoster = generateProceduralSquad(
+              info.name,
+              info.country,
+              { attack: info.attack, midfield: info.midfield, defense: info.defense }
+            );
+          }
+          localStorage.setItem(rosterKey, JSON.stringify(activeRoster));
+        }
       }
     }
 
@@ -1395,8 +1382,28 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
         console.error("Error parsing cached lineup", e);
       }
     }
+
+    // Auto-fill starting lineup if not yet set
+    if (Object.keys(activeLineup).length === 0 && activeRoster.length >= 11) {
+      activeLineup = generateDefaultLineup(activeRoster, selectedFormation);
+      localStorage.setItem(lineupKey, JSON.stringify(activeLineup));
+    }
+
+    // Load saved player tactical roles (normal, support_mid, support_def, support_att)
+    const rolesKey = `retro_roles_${info.name}_${info.season}`;
+    let activeRoles = {};
+    const cachedRoles = localStorage.getItem(rolesKey);
+    if (cachedRoles) {
+      try {
+        activeRoles = JSON.parse(cachedRoles) || {};
+      } catch (e) {
+        activeRoles = {};
+      }
+    }
+
     setLineup(activeLineup);
-    updateTeamStatsInStorage(activeLineup, getSavedFormation());
+    setPlayerRoles(activeRoles);
+    updateTeamStatsInStorage(activeLineup, getSavedFormation(), activeRoles);
 
     // Load selected bench names
     const benchKey = `retro_bench_${info.name}_${info.season}`;
@@ -1417,6 +1424,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
     if (limit >= 99) {
       activeBench = activeRoster.filter(p => !startingNames.has(p.name)).map(p => p.name);
       localStorage.setItem(benchKey, JSON.stringify(activeBench));
+      setRosterViewFilter('all');
     } else if (activeBench.length < limit) {
       const nonStartingPlayers = activeRoster.filter(p => !startingNames.has(p.name));
       const needed = limit - activeBench.length;
@@ -1463,13 +1471,35 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
       }
     });
 
+    const newRoles = { ...playerRoles };
+    Object.keys(newRoles).forEach(k => {
+      if (!newSlotsIds.has(k)) {
+        delete newRoles[k];
+      }
+    });
+    setPlayerRoles(newRoles);
+    const rolesKey = `retro_roles_${teamInfo.name}_${teamInfo.season}`;
+    localStorage.setItem(rolesKey, JSON.stringify(newRoles));
+
     if (changed) {
       setLineup(newLineup);
       const lineupKey = `retro_lineup_${teamInfo.name}_${teamInfo.season}`;
       localStorage.setItem(lineupKey, JSON.stringify(newLineup));
     }
     setSelectedRosterPlayer(null);
-    updateTeamStatsInStorage(newLineup, formationKey);
+    updateTeamStatsInStorage(newLineup, formationKey, newRoles);
+  };
+
+  const handleToggleSlotRole = (e, slot, assignedPlayer) => {
+    e.stopPropagation();
+    if (!assignedPlayer || slot.role === 'gk') return;
+    const currentRole = playerRoles[slot.id] || 'normal';
+    const nextRole = getNextRoleForSlot(slot, assignedPlayer, currentRole);
+    const nextRoles = { ...playerRoles, [slot.id]: nextRole };
+    setPlayerRoles(nextRoles);
+    const rolesKey = `retro_roles_${teamInfo.name}_${teamInfo.season}`;
+    localStorage.setItem(rolesKey, JSON.stringify(nextRoles));
+    updateTeamStatsInStorage(lineup, selectedFormation, nextRoles);
   };
 
   const handleClose = () => {
@@ -1502,12 +1532,12 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
     setLineup(newLineup);
     const lineupKey = `retro_lineup_${teamInfo.name}_${teamInfo.season}`;
     localStorage.setItem(lineupKey, JSON.stringify(newLineup));
-    updateTeamStatsInStorage(newLineup, selectedFormation);
+    updateTeamStatsInStorage(newLineup, selectedFormation, playerRoles);
 
     // Automatically remove any starting player from selectedBenchNames or sync all non-starters if unlimited
     const startingNames = new Set(Object.values(newLineup).filter(Boolean).map(p => p.name));
     const limit = getSubstituteLimit(teamInfo.cupId, teamInfo.season, teamInfo.country);
-    
+
     let nextBench;
     if (limit >= 99) {
       nextBench = squad.filter(p => !startingNames.has(p.name)).map(p => p.name);
@@ -1536,7 +1566,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
         setSelectedRosterPlayer(null);
         return;
       }
-      if (selectedBenchNames.length >= limit) {
+      if (limit < 99 && selectedBenchNames.length >= limit) {
         alert(`You can only select up to ${limit} substitutes for the match bench!`);
         return;
       }
@@ -1568,7 +1598,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
     }
 
     const limit = getSubstituteLimit(teamInfo.cupId, teamInfo.season, teamInfo.country);
-    if (selectedBenchNames.length >= limit) {
+    if (limit < 99 && selectedBenchNames.length >= limit) {
       alert(`You can only select up to ${limit} substitutes for the match bench!`);
       setDraggedPlayer(null);
       setDraggedOrigin(null);
@@ -1592,6 +1622,21 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
 
     setDraggedPlayer(null);
     setDraggedOrigin(null);
+  };
+
+  const handleAddPlayerToBench = (e, player) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (!player || selectedBenchNames.includes(player.name)) return;
+    const limit = getSubstituteLimit(teamInfo.cupId, teamInfo.season, teamInfo.country);
+    if (limit < 99 && selectedBenchNames.length >= limit) {
+      alert(`You can only select up to ${limit} substitutes for the match bench!`);
+      return;
+    }
+    const benchKey = `retro_bench_${teamInfo.name}_${teamInfo.season}`;
+    const nextBench = [...selectedBenchNames, player.name];
+    setSelectedBenchNames(nextBench);
+    localStorage.setItem(benchKey, JSON.stringify(nextBench));
+    setSelectedRosterPlayer(null);
   };
 
   const handleDragLeave = () => {
@@ -1637,26 +1682,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
   };
 
   const handleAutoFill = () => {
-    const newLineup = {};
-    const availableGK = squad.filter(p => getGeneralPosition(p.position) === "GK" && !(p.injuryMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
-    const availableDF = squad.filter(p => getGeneralPosition(p.position) === "DF" && !(p.injuryMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
-    const availableMF = squad.filter(p => getGeneralPosition(p.position) === "MF" && !(p.injuryMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
-    const availableFW = squad.filter(p => getGeneralPosition(p.position) === "FW" && !(p.injuryMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
-
-    let gkIdx = 0, dfIdx = 0, mfIdx = 0, fwIdx = 0;
-
-    slots.forEach(slot => {
-      if (slot.role === "gk") {
-        if (availableGK[gkIdx]) newLineup[slot.id] = availableGK[gkIdx++];
-      } else if (slot.role === "def") {
-        if (availableDF[dfIdx]) newLineup[slot.id] = availableDF[dfIdx++];
-      } else if (slot.role === "mid") {
-        if (availableMF[mfIdx]) newLineup[slot.id] = availableMF[mfIdx++];
-      } else if (slot.role === "att") {
-        if (availableFW[fwIdx]) newLineup[slot.id] = availableFW[fwIdx++];
-      }
-    });
-
+    const newLineup = generateDefaultLineup(squad, selectedFormation);
     updateLineupAndSave(newLineup);
     setSelectedRosterPlayer(null);
   };
@@ -1718,7 +1744,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
   return (
     <div style={inline ? {
       width: '100%',
-      maxWidth: '1000px',
+      maxWidth: '1200px',
       margin: '0 auto',
       display: 'flex',
       justifyContent: 'center'
@@ -1775,22 +1801,22 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
             gap: 10px !important;
           }
           .pitch-slot-container {
-            min-width: 42px !important;
+            min-width: 48px !important;
             padding: 1px 4px !important;
           }
           .pitch-slot-container span {
-            font-size: 7px !important;
+            font-size: 7.5px !important;
           }
           .pitch-slot-name {
-            font-size: 8px !important;
-            max-width: 48px !important;
+            font-size: 9px !important;
+            max-width: 58px !important;
           }
           .pitch-slot-empty {
-            width: 26px !important;
-            height: 26px !important;
+            width: 32px !important;
+            height: 32px !important;
           }
           .pitch-slot-empty span {
-            font-size: 7px !important;
+            font-size: 8px !important;
           }
           .roster-header {
             font-size: 9px !important;
@@ -1830,7 +1856,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
             display: none !important;
           }
         }
-        @media (max-width: 650px) and (min-height: 521px) {
+        @media (max-width: 1080px) and (min-height: 521px) {
           .tactics-container {
             flex-direction: column !important;
             height: auto !important;
@@ -1838,25 +1864,38 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
             overflow-y: auto !important;
             gap: 15px !important;
           }
-          .tactics-container > div {
+          .tactics-pitch-column {
             flex: none !important;
             width: 100% !important;
+            min-width: 0 !important;
+            height: 440px !important;
+          }
+          .tactics-bench-column {
+            flex: none !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            height: 280px !important;
+          }
+          .tactics-reserves-column {
+            flex: none !important;
+            width: 100% !important;
+            min-width: 0 !important;
             height: 340px !important;
           }
         }
       `}</style>
       <div className="glass-card animated-slide-in tactics-modal-card" style={{
-        width: '95%',
-        maxWidth: activeTab === 'tactics' ? '850px' : '750px',
+        width: '100%',
+        maxWidth: '1200px',
         background: 'linear-gradient(135deg, rgba(22, 22, 28, 0.98), rgba(12, 12, 16, 0.99))',
         border: '2px solid rgba(0, 255, 100, 0.15)',
         borderRadius: '16px',
-        padding: '25px',
+        padding: '20px 22px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '15px',
+        gap: '12px',
         boxShadow: '0 25px 50px rgba(0,0,0,0.7), 0 0 30px rgba(0, 255, 100, 0.06)',
-        maxHeight: '90vh',
+        maxHeight: '92vh',
         transition: 'max-width 0.3s ease'
       }}>
         {/* Header */}
@@ -1973,29 +2012,19 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
 
                 {/* Stat modifiers */}
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
-                  {currentFormation.modifiers.attack === 0 &&
-                    currentFormation.modifiers.midfield === 0 &&
-                    currentFormation.modifiers.defense === 0 ? (
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      background: 'rgba(255, 215, 0, 0.08)',
-                      border: '1px solid rgba(255, 215, 0, 0.2)',
-                      color: '#ffd700',
-                      fontSize: '9px',
-                      fontWeight: 'bold',
-                      fontFamily: 'Orbitron',
-                      letterSpacing: '0.5px'
-                    }}>
-                      ⚖️ BALANCED — NO MODIFIERS
-                    </span>
-                  ) : (
-                    <>
-                      <ModifierBadge stat="attack" value={currentFormation.modifiers.attack} />
-                      <ModifierBadge stat="midfield" value={currentFormation.modifiers.midfield} />
-                      <ModifierBadge stat="defense" value={currentFormation.modifiers.defense} />
-                    </>
-                  )}
+                  <span style={{
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    background: 'rgba(255, 215, 0, 0.08)',
+                    border: '1px solid rgba(255, 215, 0, 0.2)',
+                    color: '#ffd700',
+                    fontSize: '9px',
+                    fontWeight: 'bold',
+                    fontFamily: 'Orbitron',
+                    letterSpacing: '0.5px'
+                  }}>
+                    ⚙️ RATINGS FROM PLAYER POSITIONS & ROLES (DEF÷4 • MID÷4 • ATT÷2)
+                  </span>
                 </div>
 
                 <div style={{
@@ -2173,564 +2202,1008 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
             </div>
           </>
         ) : (
-          /* TACTICS TAB CONTENT */
-          <div className="tactics-container" style={{
-            display: 'flex',
-            gap: '20px',
-            height: '420px',
-            overflow: 'hidden'
-          }}>
-            {/* Left Column: Interactive Pitch */}
-            <div style={{
-              flex: 1.2,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px'
-            }}>
-              {/* Quick Settings Bar */}
-              <div style={{
+          /* TACTICS TAB CONTENT: 3-COLUMN MODERN LAYOUT (PITCH | SUBS | RESERVES) */
+          (() => {
+            const limit = getSubstituteLimit(teamInfo.cupId, teamInfo.season, teamInfo.country);
+            return (
+              <div className="tactics-container" style={{
                 display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '4px 10px',
-                background: 'rgba(0,0,0,0.3)',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.04)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '10px', color: '#888', fontFamily: 'Orbitron' }}>FORMATION:</span>
-                  <select
-                    value={selectedFormation}
-                    onChange={(e) => handleSelectFormation(e.target.value)}
-                    style={{
-                      background: 'rgba(0,0,0,0.5)',
-                      border: '1px solid rgba(0, 255, 100, 0.3)',
-                      borderRadius: '6px',
-                      color: '#00ff64',
-                      fontFamily: 'Orbitron',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      padding: '3px 8px',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {formationKeys.map(k => (
-                      <option key={k} value={k} style={{ background: '#16161c', color: '#fff' }}>{k}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    onClick={handleAutoFill}
-                    style={{
-                      background: 'rgba(0, 255, 100, 0.1)',
-                      border: '1px solid rgba(0, 255, 100, 0.4)',
-                      borderRadius: '4px',
-                      color: '#00ff64',
-                      fontSize: '9px',
-                      fontWeight: 'bold',
-                      fontFamily: 'Orbitron',
-                      padding: '4px 8px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                    title="Automatically fill empty slots with highest rated players"
-                  >
-                    ⚡ AUTO-FILL
-                  </button>
-                  <button
-                    onClick={handleClearAll}
-                    style={{
-                      background: 'rgba(255, 69, 0, 0.05)',
-                      border: '1px solid rgba(255, 69, 0, 0.3)',
-                      borderRadius: '4px',
-                      color: '#ff4500',
-                      fontSize: '9px',
-                      fontWeight: 'bold',
-                      fontFamily: 'Orbitron',
-                      padding: '4px 8px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    ✕ CLEAR
-                  </button>
-                </div>
-              </div>
-
-              {/* CSS Interactive Field */}
-              <div style={{
-                flexGrow: 1,
-                position: 'relative',
-                background: '#0a4a1a',
-                backgroundImage: 'radial-gradient(rgba(0, 255, 100, 0.15) 1.5px, transparent 1.5px), radial-gradient(rgba(0, 255, 100, 0.15) 1.5px, #0a4a1a 1.5px)',
-                backgroundSize: '30px 30px',
-                backgroundPosition: '0 0, 15px 15px',
-                borderRadius: '12px',
-                border: '1.5px solid rgba(255,255,255,0.1)',
-                boxShadow: 'inset 0 0 20px rgba(0,0,0,0.6)',
+                gap: '12px',
+                height: '490px',
                 overflow: 'hidden'
               }}>
-                {/* Field lines representation */}
-                <div style={{ position: 'absolute', top: '4%', bottom: '4%', left: '4%', right: '4%', border: '1px solid rgba(255,255,255,0.1)', pointerEvents: 'none' }} />
-                <div style={{ position: 'absolute', top: '50%', left: '4%', right: '4%', height: '1px', background: 'rgba(255,255,255,0.1)', pointerEvents: 'none' }} />
-                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '60px', height: '60px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '50%', pointerEvents: 'none' }} />
+                {/* Column 1: Interactive Pitch */}
+                <div className="tactics-pitch-column" style={{
+                  flex: 1.15,
+                  minWidth: '450px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  height: '100%'
+                }}>
+                  {/* Quick Settings Bar */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '4px 10px',
+                    background: 'rgba(0,0,0,0.3)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.04)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '10px', color: '#888', fontFamily: 'Orbitron' }}>FORMATION:</span>
+                      <select
+                        value={selectedFormation}
+                        onChange={(e) => handleSelectFormation(e.target.value)}
+                        style={{
+                          background: 'rgba(0,0,0,0.5)',
+                          border: '1px solid rgba(0, 255, 100, 0.3)',
+                          borderRadius: '6px',
+                          color: '#00ff64',
+                          fontFamily: 'Orbitron',
+                          fontSize: '11px',
+                          fontWeight: 'bold',
+                          padding: '3px 8px',
+                          outline: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {formationKeys.map(k => (
+                          <option key={k} value={k} style={{ background: '#16161c', color: '#fff' }}>{k}</option>
+                        ))}
+                      </select>
+                    </div>
 
-                {/* Penalty Areas */}
-                <div style={{ position: 'absolute', top: '4%', left: '25%', right: '25%', height: '12%', border: '1px solid rgba(255,255,255,0.08)', borderTop: 'none', pointerEvents: 'none' }} />
-                <div style={{ position: 'absolute', bottom: '4%', left: '25%', right: '25%', height: '12%', border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none', pointerEvents: 'none' }} />
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={handleAutoFill}
+                        style={{
+                          background: 'rgba(0, 255, 100, 0.1)',
+                          border: '1px solid rgba(0, 255, 100, 0.4)',
+                          borderRadius: '4px',
+                          color: '#00ff64',
+                          fontSize: '9px',
+                          fontWeight: 'bold',
+                          fontFamily: 'Orbitron',
+                          padding: '4px 8px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        title="Automatically fill empty slots with highest rated players"
+                      >
+                        ⚡ AUTO-FILL
+                      </button>
+                      <button
+                        onClick={handleClearAll}
+                        style={{
+                          background: 'rgba(255, 69, 0, 0.05)',
+                          border: '1px solid rgba(255, 69, 0, 0.3)',
+                          borderRadius: '4px',
+                          color: '#ff4500',
+                          fontSize: '9px',
+                          fontWeight: 'bold',
+                          fontFamily: 'Orbitron',
+                          padding: '4px 8px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        ✕ CLEAR
+                      </button>
+                    </div>
+                  </div>
 
-                {/* Pitch Slots */}
-                {slots.map(slot => {
-                  const assignedPlayer = lineup[slot.id];
-
-                  let displayRating = 1;
-                  let penalty = 0;
-                  let penaltyTitle = "";
-                  if (assignedPlayer) {
-                    const idealPos = getIdealSlotPosition(slot.role, slot.x, slot.y);
-                    penalty = getPositionPenalty(assignedPlayer.positions || [assignedPlayer.position], idealPos);
-                    const reduction = (assignedPlayer.condition < 80 ? 1 : 0) + penalty;
-                    displayRating = Math.max(1, assignedPlayer.rating - reduction);
-
-                    if (penalty > 0) {
-                      penaltyTitle = `Skill reduced by ${penalty} for playing out of position (Ideal: ${idealPos}, Plays: ${(assignedPlayer.positions || [assignedPlayer.position]).join(', ')})`;
-                    }
-                    if (assignedPlayer.condition < 80) {
-                      penaltyTitle += (penaltyTitle ? " & " : "") + "Rating reduced by 1 due to low condition (<80%)";
-                    }
-                  }
-
-                  return (
-                    <div
-                      key={slot.id}
-                      onDragOver={(e) => handleDragOver(e, slot.id)}
-                      onDragLeave={handleDragLeave}
-                      onDrop={(e) => handleDrop(e, slot.id)}
-                      style={{
-                        position: 'absolute',
-                        left: `${slot.x}%`,
-                        top: `${slot.y}%`,
-                        transform: 'translate(-50%, -50%)',
+                  {/* Live Tactical Department Ratings Bar */}
+                  {(() => {
+                    const liveStats = calculateTeamTacticalStats(lineup, selectedFormation, playerRoles, 'balanced');
+                    return (
+                      <div style={{
                         display: 'flex',
-                        flexDirection: 'column',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
-                        gap: '4px',
-                        zIndex: 10
-                      }}
-                    >
-                      {assignedPlayer ? (
+                        padding: '4px 10px',
+                        background: 'rgba(0, 255, 100, 0.04)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(0, 255, 100, 0.15)',
+                        fontSize: '9.5px',
+                        fontFamily: 'Orbitron'
+                      }}>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                          <span style={{ color: '#00e5ff', fontWeight: 'bold' }} title={`Defense Sum: ${liveStats.defSum} ÷ 4 = ${(liveStats.defSum / 4).toFixed(2)}`}>
+                            🛡️ DEF: {liveStats.defense} <span style={{ fontSize: '7.5px', opacity: 0.7 }}>({liveStats.defSum}÷4)</span>
+                          </span>
+                          <span style={{ color: '#00ff64', fontWeight: 'bold' }} title={`Midfield Sum: ${liveStats.midSum} ÷ 4 = ${(liveStats.midSum / 4).toFixed(2)}`}>
+                            ⚙️ MID: {liveStats.midfield} <span style={{ fontSize: '7.5px', opacity: 0.7 }}>({liveStats.midSum}÷4)</span>
+                          </span>
+                          <span style={{ color: '#ff4500', fontWeight: 'bold' }} title={`Attack Sum: ${liveStats.attSum} ÷ 2 = ${(liveStats.attSum / 2).toFixed(2)}`}>
+                            ⚔️ ATT: {liveStats.attack} <span style={{ fontSize: '7.5px', opacity: 0.7 }}>({liveStats.attSum}÷2)</span>
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '7.5px', color: '#ffd700', opacity: 0.85 }}>
+                          CLICK ROLE BADGE TO CHANGE DUTY
+                        </span>
+                      </div>
+                    );
+                  })()}
+
+                  {/* CSS Interactive Field with Enlarged, High-Legibility Boxes */}
+                  <div style={{
+                    flexGrow: 1,
+                    position: 'relative',
+                    background: '#0a4a1a',
+                    backgroundImage: 'radial-gradient(rgba(0, 255, 100, 0.15) 1.5px, transparent 1.5px), radial-gradient(rgba(0, 255, 100, 0.15) 1.5px, #0a4a1a 1.5px)',
+                    backgroundSize: '30px 30px',
+                    backgroundPosition: '0 0, 15px 15px',
+                    borderRadius: '12px',
+                    border: '1.5px solid rgba(255,255,255,0.1)',
+                    boxShadow: 'inset 0 0 20px rgba(0,0,0,0.6)',
+                    overflow: 'hidden'
+                  }}>
+                    {/* Field lines representation */}
+                    <div style={{ position: 'absolute', top: '4%', bottom: '4%', left: '4%', right: '4%', border: '1px solid rgba(255,255,255,0.1)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', top: '50%', left: '4%', right: '4%', height: '1px', background: 'rgba(255,255,255,0.1)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '60px', height: '60px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '50%', pointerEvents: 'none' }} />
+
+                    {/* Penalty Areas */}
+                    <div style={{ position: 'absolute', top: '4%', left: '25%', right: '25%', height: '12%', border: '1px solid rgba(255,255,255,0.08)', borderTop: 'none', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', bottom: '4%', left: '25%', right: '25%', height: '12%', border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none', pointerEvents: 'none' }} />
+
+                    {/* Pitch Slots */}
+                    {slots.map(slot => {
+                      const assignedPlayer = lineup[slot.id];
+                      const idealPos = getIdealSlotPosition(slot.role, slot.x, slot.y);
+                      const slotWithPos = { ...slot, idealPos };
+                      const roleMeta = assignedPlayer ? getRoleMetadata(slotWithPos, assignedPlayer, playerRoles[slot.id] || 'normal') : null;
+
+                      let displayRating = 1;
+                      let penalty = 0;
+                      let penaltyTitle = "";
+                      if (assignedPlayer) {
+                        penalty = getPositionPenalty(assignedPlayer.positions || [assignedPlayer.position], idealPos);
+                        const reduction = (assignedPlayer.condition < 80 ? 1 : 0) + penalty;
+                        displayRating = Math.max(1, assignedPlayer.rating - reduction);
+
+                        if (penalty > 0) {
+                          penaltyTitle = `Skill reduced by ${penalty} for playing out of position (Ideal: ${idealPos}, Plays: ${(assignedPlayer.positions || [assignedPlayer.position]).join(', ')})`;
+                        }
+                        if (assignedPlayer.condition < 80) {
+                          penaltyTitle += (penaltyTitle ? " & " : "") + "Rating reduced by 1 due to low condition (<80%)";
+                        }
+                      }
+
+                      return (
                         <div
-                          draggable={true}
-                          onDragStart={(e) => handleDragStart(e, assignedPlayer, slot.id)}
-                          onClick={() => handlePitchSlotClick(slot.id)}
-                          className="pitch-slot-container"
+                          key={slot.id}
+                          onDragOver={(e) => handleDragOver(e, slot.id)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => handleDrop(e, slot.id)}
                           style={{
+                            position: 'absolute',
+                            left: `${slot.x}%`,
+                            top: `${slot.y}%`,
+                            transform: 'translate(-50%, -50%)',
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
-                            background: 'rgba(12, 12, 16, 0.95)',
-                            border: `1.5px solid ${getPositionColor(assignedPlayer.position)}`,
-                            borderRadius: '8px',
-                            padding: '3px 8px',
-                            minWidth: '54px',
-                            cursor: 'grab',
-                            boxShadow: `0 4px 10px rgba(0,0,0,0.5), 0 0 8px ${getPositionColor(assignedPlayer.position)}33`,
-                            animation: 'scaleIn 0.2s ease',
-                            transition: 'transform 0.15s ease'
+                            gap: '2px',
+                            zIndex: 10
                           }}
-                          title="Click to remove from starting lineup"
                         >
-                          <span style={{
-                            fontSize: '7.5px',
-                            fontWeight: 'bold',
-                            fontFamily: 'Orbitron',
-                            color: getPositionColor(assignedPlayer.position)
-                          }}>
-                            {assignedPlayer.position}
-                          </span>
-                          <span className="pitch-slot-name" style={{
-                            fontSize: '9px',
-                            fontWeight: 'bold',
-                            color: '#fff',
-                            maxWidth: '70px',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap'
-                          }}>
-                            {getLastName(assignedPlayer.name)}
-                          </span>
-                          <span style={{
-                            fontSize: '7.5px',
-                            fontWeight: 'bold',
-                            color: (assignedPlayer.condition < 80 || penalty > 0) ? '#ffa500' : '#00ff64',
-                            fontFamily: 'Orbitron'
-                          }} title={penaltyTitle}>
-                            ★{displayRating}
-                          </span>
+                          {assignedPlayer ? (
+                            <div
+                              draggable={true}
+                              onDragStart={(e) => handleDragStart(e, assignedPlayer, slot.id)}
+                              onClick={() => handlePitchSlotClick(slot.id)}
+                              className="pitch-slot-container"
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                background: 'rgba(12, 12, 16, 0.95)',
+                                border: `1.5px solid ${roleMeta && roleMeta.id !== 'normal' ? roleMeta.color : getPositionColor(assignedPlayer.position)}`,
+                                borderRadius: '8px',
+                                padding: '3px 7px',
+                                minWidth: '80px',
+                                cursor: 'grab',
+                                boxShadow: `0 4px 12px rgba(0,0,0,0.6), 0 0 10px ${(roleMeta && roleMeta.id !== 'normal' ? roleMeta.color : getPositionColor(assignedPlayer.position))}33`,
+                                animation: 'scaleIn 0.2s ease',
+                                transition: 'transform 0.15s ease'
+                              }}
+                              title="Click card to remove from lineup, or click role badge below to change tactical duty"
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%' }}>
+                                <span style={{
+                                  fontSize: '8px',
+                                  fontWeight: 'bold',
+                                  fontFamily: 'Orbitron',
+                                  color: getPositionColor(assignedPlayer.position)
+                                }}>
+                                  {assignedPlayer.position}
+                                </span>
+                                <span style={{
+                                  fontSize: '8px',
+                                  fontWeight: 'bold',
+                                  color: (assignedPlayer.condition < 80 || penalty > 0) ? '#ffa500' : '#00ff64',
+                                  fontFamily: 'Orbitron'
+                                }} title={penaltyTitle}>
+                                  ★{displayRating}
+                                </span>
+                                <span style={{
+                                  fontSize: '7.5px',
+                                  fontWeight: 'bold',
+                                  fontFamily: 'Orbitron',
+                                  color: assignedPlayer.injuryMatchesLeft > 0 ? '#ff3333' : (assignedPlayer.condition < 60 ? '#ff3333' : (assignedPlayer.condition < 80 ? '#ffa500' : '#00ff64')),
+                                  background: 'rgba(0,0,0,0.4)',
+                                  padding: '0.5px 3px',
+                                  borderRadius: '3px',
+                                  border: `1px solid ${assignedPlayer.injuryMatchesLeft > 0 ? '#ff333344' : (assignedPlayer.condition < 80 ? '#ffa50044' : '#00ff6433')}`,
+                                  flexShrink: 0
+                                }} title={assignedPlayer.injuryMatchesLeft > 0 ? `Injured: ${assignedPlayer.injury || 'Unknown'}` : `Condition: ${assignedPlayer.condition !== undefined ? assignedPlayer.condition : 100}%`}>
+                                  {assignedPlayer.injuryMatchesLeft > 0 ? `🤕${assignedPlayer.injuryMatchesLeft}m` : `⚡${assignedPlayer.condition !== undefined ? assignedPlayer.condition : 100}%`}
+                                </span>
+                              </div>
+                              <span className="pitch-slot-name" style={{
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                color: '#fff',
+                                maxWidth: '88px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                marginTop: '1px',
+                                marginBottom: '1px',
+                                textShadow: '0 1px 3px rgba(0,0,0,0.8)'
+                              }}>
+                                {getLastName(assignedPlayer.name)}
+                              </span>
+                              {slot.role !== 'gk' && roleMeta && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleToggleSlotRole(e, slotWithPos, assignedPlayer)}
+                                  style={{
+                                    marginTop: '1px',
+                                    padding: '1.5px 6px',
+                                    borderRadius: '4px',
+                                    border: `1px solid ${roleMeta.color}88`,
+                                    background: roleMeta.id === 'normal' ? 'rgba(255,255,255,0.06)' : `${roleMeta.color}25`,
+                                    color: roleMeta.color,
+                                    fontSize: '7.5px',
+                                    fontWeight: 'bold',
+                                    fontFamily: 'Orbitron',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                    lineHeight: 1.2
+                                  }}
+                                  title={`${roleMeta.label}: ${roleMeta.desc} (Click to toggle)`}
+                                >
+                                  {roleMeta.shortLabel} ↻
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div
+                              onClick={() => handlePitchSlotClick(slot.id)}
+                              className={`pitch-slot-empty ${selectedRosterPlayer ? 'pitch-slot-empty-target' : ''}`}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '46px',
+                                height: '46px',
+                                borderRadius: '50%',
+                                border: dragOverSlotId === slot.id ? '2px dashed #00ff64' : '1.5px dashed rgba(255,255,255,0.25)',
+                                background: dragOverSlotId === slot.id ? 'rgba(0, 255, 100, 0.12)' : 'rgba(0, 0, 0, 0.4)',
+                                color: dragOverSlotId === slot.id ? '#00ff64' : '#888',
+                                transition: 'all 0.2s ease',
+                                boxShadow: dragOverSlotId === slot.id ? '0 0 10px rgba(0,255,100,0.3)' : 'none'
+                              }}>
+                              <span style={{ fontSize: '9px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                                {slot.role.toUpperCase()}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div
-                          onClick={() => handlePitchSlotClick(slot.id)}
-                          className={`pitch-slot-empty ${selectedRosterPlayer ? 'pitch-slot-empty-target' : ''}`}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '42px',
-                            height: '42px',
-                            borderRadius: '50%',
-                            border: dragOverSlotId === slot.id ? '2px dashed #00ff64' : '1.5px dashed rgba(255,255,255,0.25)',
-                            background: dragOverSlotId === slot.id ? 'rgba(0, 255, 100, 0.12)' : 'rgba(0, 0, 0, 0.4)',
-                            color: dragOverSlotId === slot.id ? '#00ff64' : '#888',
-                            transition: 'all 0.2s ease',
-                            boxShadow: dragOverSlotId === slot.id ? '0 0 10px rgba(0,255,100,0.3)' : 'none'
-                          }}>
-                          <span style={{ fontSize: '8px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
-                            {slot.role.toUpperCase()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Right Column: Roster Squad List */}
-            <div style={{
-              flex: 0.8,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-              background: 'rgba(0,0,0,0.3)',
-              borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.06)',
-              padding: '10px 12px',
-              overflow: 'hidden'
-            }}>
-              <div className="roster-header" style={{
-                fontFamily: 'Orbitron',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                color: '#ffd700',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-                paddingBottom: '6px',
-                textAlign: 'left',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <span>SQUAD ({squad.length})</span>
-                <span style={{ fontSize: '8px', color: '#888' }}>DRAG TO FIELD / BENCH</span>
-              </div>
-
-              {loading ? (
-                <div style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '11px' }}>
-                  Loading squad...
+                      );
+                    })}
+                  </div>
                 </div>
-              ) : (
-                <div style={{
-                  flexGrow: 1,
-                  overflowY: 'auto',
+
+                {/* Column 2: Substitutes (Bench Slots next to Field) */}
+                <div className="tactics-bench-column" style={{
+                  flex: 1,
+                  minWidth: '340px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '6px',
-                  paddingRight: '4px'
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  padding: '10px 12px',
+                  height: '100%',
+                  overflow: 'hidden'
                 }}>
-                  {/* Bench Slots */}
-                  {(() => {
-                    const limit = getSubstituteLimit(teamInfo.cupId, teamInfo.season, teamInfo.country);
-                    if (limit >= 99) {
-                      return (
+                  <div className="bench-header" style={{
+                    fontFamily: 'Orbitron',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    color: '#00e5ff',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    paddingBottom: '6px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span>SUBS ({selectedBenchNames.length}/{limit >= 99 ? 'ALL' : limit})</span>
+                    <span style={{ fontSize: '7.5px', color: '#888' }}>CLICK × TO REMOVE</span>
+                  </div>
+
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (draggedPlayer && !isAssigned(draggedPlayer) && !selectedBenchNames.includes(draggedPlayer.name)) {
+                        setDragOverSlotId('bench-zone');
+                      }
+                    }}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleBenchDrop}
+                    style={{
+                      flexGrow: 1,
+                      overflowY: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      paddingRight: '2px'
+                    }}
+                  >
+                    {limit >= 99 && (
+                      <div style={{
+                        padding: '6px 8px',
+                        background: 'rgba(0, 229, 255, 0.06)',
+                        border: '1px solid rgba(0, 229, 255, 0.2)',
+                        borderRadius: '6px',
+                        color: '#00e5ff',
+                        fontSize: '8px',
+                        fontFamily: 'Orbitron',
+                        textAlign: 'center',
+                        lineHeight: '1.3',
+                        letterSpacing: '0.5px',
+                        flexShrink: 0
+                      }}>
+                        ALL SQUAD RESERVES ELIGIBLE AS SUBS ({selectedBenchNames.length})
+                      </div>
+                    )}
+
+                    {limit >= 99 ? (
+                      selectedBenchNames.length === 0 ? (
                         <div style={{
-                          padding: '6px 8px',
-                          background: 'rgba(0, 229, 255, 0.05)',
-                          border: '1px solid rgba(0, 229, 255, 0.15)',
-                          borderRadius: '6px',
-                          color: '#00e5ff',
-                          fontSize: '9px',
-                          fontFamily: 'Orbitron',
                           textAlign: 'center',
-                          marginBottom: '8px',
-                          flexShrink: 0
+                          color: '#666',
+                          fontSize: '10.5px',
+                          padding: '30px 10px',
+                          fontStyle: 'italic'
                         }}>
-                          ALL RESERVES ARE ELIGIBLE SUBSTITUTES
+                          No substitutes on bench. All players are in starting XI or removed.
                         </div>
-                      );
-                    }
-                    return (
-                      <div
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          if (draggedPlayer && !isAssigned(draggedPlayer) && !selectedBenchNames.includes(draggedPlayer.name)) {
-                            setDragOverSlotId('bench-zone');
-                          }
-                        }}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleBenchDrop}
-                        style={{
-                          marginBottom: '10px',
-                          background: dragOverSlotId === 'bench-zone' ? 'rgba(0, 255, 100, 0.08)' : 'rgba(0,0,0,0.2)',
-                          border: dragOverSlotId === 'bench-zone' ? '1px dashed #00ff64' : '1px solid rgba(255,255,255,0.06)',
-                          borderRadius: '8px',
-                          padding: '8px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '6px',
-                          transition: 'all 0.2s ease',
-                          flexShrink: 0
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{
-                            fontSize: '9px',
-                            color: '#aaa',
-                            fontWeight: 'bold',
-                            fontFamily: 'Orbitron',
-                            display: 'block',
-                            textAlign: 'left'
-                          }}>
-                            BENCH SUBSTITUTES ({selectedBenchNames.length} / {limit})
-                          </span>
-                          <span style={{ fontSize: '7px', color: '#666' }}>CLICK TO REMOVE</span>
-                        </div>
-                        
-                        <div style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(2, 1fr)',
-                          gap: '6px'
-                        }}>
-                          {Array.from({ length: limit }).map((_, index) => {
-                            const playerName = selectedBenchNames[index];
-                            const player = playerName ? squad.find(p => p.name === playerName) : null;
-                            
-                            return (
-                              <div
-                                key={index}
-                                draggable={!!player}
-                                onDragStart={(e) => {
-                                  if (player) {
-                                    handleDragStart(e, player);
-                                  }
-                                }}
-                                onClick={() => handleBenchSlotClick(player)}
-                                style={{
-                                  height: '28px',
-                                  border: player 
-                                    ? '1px solid rgba(0, 229, 255, 0.3)' 
-                                    : (selectedRosterPlayer && !isAssigned(selectedRosterPlayer) ? '1px dashed rgba(0, 255, 100, 0.4)' : '1px dashed rgba(255,255,255,0.1)'),
-                                  background: player 
-                                    ? 'rgba(0, 229, 255, 0.03)' 
-                                    : (selectedRosterPlayer && !isAssigned(selectedRosterPlayer) ? 'rgba(0, 255, 100, 0.02)' : 'rgba(0,0,0,0.3)'),
-                                  borderRadius: '6px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  padding: '0 6px',
-                                  gap: '4px',
-                                  cursor: 'pointer',
+                      ) : (
+                        selectedBenchNames.map((playerName, index) => {
+                          const player = squad.find(p => p.name === playerName);
+                          if (!player) return null;
+                          const isSelected = selectedRosterPlayer && selectedRosterPlayer.name === player.name;
+
+                          return (
+                            <div
+                              key={player.name || index}
+                              draggable={true}
+                              onDragStart={(e) => handleDragStart(e, player)}
+                              onClick={() => handleRosterPlayerClick(player)}
+                              className={`roster-item ${isSelected ? 'selected-roster-player' : ''}`}
+                              style={{
+                                height: '40px',
+                                border: isSelected
+                                  ? '1.5px solid #00ff64'
+                                  : '1px solid rgba(0, 229, 255, 0.35)',
+                                background: isSelected
+                                  ? 'rgba(0, 255, 100, 0.12)'
+                                  : 'rgba(0, 229, 255, 0.04)',
+                                borderRadius: '7px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                padding: '0 8px',
+                                gap: '6px',
+                                cursor: 'pointer',
+                                overflow: 'hidden',
+                                userSelect: 'none',
+                                transition: 'all 0.15s ease',
+                                flexShrink: 0
+                              }}
+                              title="Click to select for field slot, or drag to pitch (Click × to remove from bench)"
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1, minWidth: 0, marginRight: '6px' }}>
+                                <span style={{
+                                  fontSize: '7.5px',
+                                  fontWeight: 'bold',
+                                  fontFamily: 'Orbitron',
+                                  color: '#00e5ff',
+                                  background: 'rgba(0, 229, 255, 0.15)',
+                                  padding: '1.5px 3.5px',
+                                  borderRadius: '3px',
+                                  flexShrink: 0
+                                }}>
+                                  S{index + 1}
+                                </span>
+                                <span className="roster-player-position" style={{
+                                  fontSize: '8px',
+                                  fontWeight: 'bold',
+                                  fontFamily: 'Orbitron',
+                                  color: getPositionColor(player.position),
+                                  background: 'rgba(0,0,0,0.3)',
+                                  padding: '2px 5px',
+                                  borderRadius: '4px',
+                                  border: `1px solid ${getPositionColor(player.position)}33`,
+                                  flexShrink: 0
+                                }} title={`Plays positions: ${(player.positions || [player.position]).join(', ')}`}>
+                                  {player.position}{player.positions && player.positions.length > 1 ? '+' : ''}
+                                </span>
+                                <span className="roster-player-name" style={{
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  color: '#fff',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
                                   overflow: 'hidden',
-                                  userSelect: 'none',
-                                  transition: 'all 0.15s ease'
-                                }}
-                                title={player ? "Click to remove from bench" : "Drag player here or click after selecting squad player"}
-                              >
-                                {player ? (
-                                  <>
-                                    <span style={{
-                                      fontSize: '7px',
-                                      fontWeight: 'bold',
-                                      fontFamily: 'Orbitron',
-                                      color: getPositionColor(player.position),
-                                      background: 'rgba(0,0,0,0.3)',
-                                      padding: '1px 3px',
-                                      borderRadius: '3px',
-                                      flexShrink: 0
-                                    }}>
-                                      {player.position}
-                                    </span>
-                                    <span style={{
-                                      fontSize: '10px',
-                                      fontWeight: '600',
-                                      color: '#fff',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap',
-                                      overflow: 'hidden',
-                                      flex: 1,
-                                      textAlign: 'left'
-                                    }}>
-                                      {player.name}
-                                    </span>
-                                    <span style={{ fontSize: '9px', color: '#ff3333', fontWeight: 'bold', marginLeft: 'auto', flexShrink: 0 }}>×</span>
-                                  </>
+                                  flex: 1,
+                                  minWidth: 0,
+                                  textAlign: 'left'
+                                }} title={player.name}>
+                                  {player.name}
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+                                <span style={{ fontSize: '8.5px', color: '#888' }}>Age {player.age || 25}</span>
+
+                                {/* Condition / Injury */}
+                                {player.injuryMatchesLeft > 0 ? (
+                                  <span style={{
+                                    fontSize: '7.5px',
+                                    fontWeight: 'bold',
+                                    fontFamily: 'Orbitron',
+                                    color: '#ff3333',
+                                    background: 'rgba(255, 51, 51, 0.1)',
+                                    padding: '1px 3px',
+                                    borderRadius: '3px',
+                                    border: '1px solid rgba(255, 51, 51, 0.25)'
+                                  }} title={`Injured: ${player.injury || 'Unknown Injury'}`}>
+                                    🤕 {player.injuryMatchesLeft}m
+                                  </span>
                                 ) : (
-                                  <span style={{ 
-                                    fontSize: '9px', 
-                                    color: selectedRosterPlayer && !isAssigned(selectedRosterPlayer) ? '#00ff64' : '#555', 
-                                    fontStyle: 'italic', 
-                                    width: '100%', 
-                                    textAlign: 'center' 
-                                  }}>
-                                    {selectedRosterPlayer && !isAssigned(selectedRosterPlayer) ? "Place Here" : "Empty Slot"}
+                                  <span style={{
+                                    fontSize: '8px',
+                                    fontWeight: 'bold',
+                                    fontFamily: 'Orbitron',
+                                    color: player.condition < 60 ? '#ff3333' : (player.condition < 80 ? '#ffa500' : '#00ff64'),
+                                    background: player.condition < 60 ? 'rgba(255, 51, 51, 0.05)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.05)' : 'rgba(0, 255, 100, 0.05)'),
+                                    padding: '1px 3px',
+                                    borderRadius: '3px',
+                                    border: `1px solid ${player.condition < 60 ? 'rgba(255, 51, 51, 0.2)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.2)' : 'rgba(0, 255, 100, 0.15)')}`
+                                  }} title={`Condition: ${player.condition !== undefined ? player.condition : 100}%`}>
+                                    ⚡{player.condition !== undefined ? player.condition : 100}%
                                   </span>
                                 )}
+
+                                {/* Star Rating */}
+                                <span style={{
+                                  fontSize: '9.5px',
+                                  fontWeight: 'bold',
+                                  fontFamily: 'Orbitron',
+                                  color: player.condition < 80 && player.injuryMatchesLeft === 0 ? '#ffa500' : '#00ff64',
+                                  background: player.condition < 80 && player.injuryMatchesLeft === 0 ? 'rgba(255, 165, 0, 0.05)' : 'rgba(0, 255, 100, 0.05)',
+                                  padding: '1px 3px',
+                                  borderRadius: '3px',
+                                  border: player.condition < 80 && player.injuryMatchesLeft === 0 ? '1px solid rgba(255, 165, 0, 0.25)' : '1px solid rgba(0, 255, 100, 0.15)'
+                                }}>
+                                  ★{player.condition < 80 && player.injuryMatchesLeft === 0 ? Math.max(1, player.rating - 1) : player.rating}
+                                </span>
+
+                                {/* Remove Button */}
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleBenchSlotClick(player);
+                                  }}
+                                  style={{
+                                    fontSize: '13px',
+                                    color: '#ff4444',
+                                    fontWeight: 'bold',
+                                    padding: '0 2px',
+                                    cursor: 'pointer',
+                                    flexShrink: 0,
+                                    lineHeight: 1
+                                  }}
+                                  title="Remove from bench"
+                                >
+                                  ×
+                                </span>
                               </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })()}
+                            </div>
+                          );
+                        })
+                      )
+                    ) : (
+                      Array.from({ length: limit }).map((_, index) => {
+                        const playerName = selectedBenchNames[index];
+                        const player = playerName ? squad.find(p => p.name === playerName) : null;
+                        const isSelected = player && selectedRosterPlayer && selectedRosterPlayer.name === player.name;
 
-                  {/* Section Divider for Squad List */}
-                  {(() => {
-                    const limit = getSubstituteLimit(teamInfo.cupId, teamInfo.season, teamInfo.country);
-                    if (limit < 99) {
-                      return (
-                        <div style={{
-                          fontSize: '9px',
-                          color: '#ffd700',
-                          fontWeight: 'bold',
-                          fontFamily: 'Orbitron',
-                          borderBottom: '1px solid rgba(255,255,255,0.06)',
-                          padding: '8px 0 4px 0',
-                          textAlign: 'left',
-                          marginTop: '4px',
-                          marginBottom: '6px',
-                          flexShrink: 0
-                        }}>
-                          SQUAD PLAYERS ({squad.length})
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
+                        return (
+                          <div
+                            key={index}
+                            draggable={!!player}
+                            onDragStart={(e) => {
+                              if (player) handleDragStart(e, player);
+                            }}
+                            onClick={() => {
+                              if (player) {
+                                handleRosterPlayerClick(player);
+                              } else {
+                                handleBenchSlotClick(null);
+                              }
+                            }}
+                            className={`roster-item ${isSelected ? 'selected-roster-player' : ''}`}
+                            style={{
+                              height: '40px',
+                              border: player
+                                ? (isSelected ? '1.5px solid #00ff64' : '1px solid rgba(0, 229, 255, 0.35)')
+                                : (selectedRosterPlayer && !isAssigned(selectedRosterPlayer) ? '1.5px dashed #00ff64' : '1px dashed rgba(255,255,255,0.12)'),
+                              background: player
+                                ? (isSelected ? 'rgba(0, 255, 100, 0.12)' : 'rgba(0, 229, 255, 0.04)')
+                                : (selectedRosterPlayer && !isAssigned(selectedRosterPlayer) ? 'rgba(0, 255, 100, 0.04)' : 'rgba(0,0,0,0.25)'),
+                              borderRadius: '7px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '0 8px',
+                              gap: '6px',
+                              cursor: 'pointer',
+                              overflow: 'hidden',
+                              userSelect: 'none',
+                              transition: 'all 0.15s ease',
+                              flexShrink: 0
+                            }}
+                            title={player ? "Click to select for field slot, or drag to pitch (Click × to remove from bench)" : "Click to place selected player or drag here"}
+                          >
+                            {player ? (
+                              <>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1, minWidth: 0, marginRight: '6px' }}>
+                                  <span style={{
+                                    fontSize: '7.5px',
+                                    fontWeight: 'bold',
+                                    fontFamily: 'Orbitron',
+                                    color: '#00e5ff',
+                                    background: 'rgba(0, 229, 255, 0.15)',
+                                    padding: '1.5px 3.5px',
+                                    borderRadius: '3px',
+                                    flexShrink: 0
+                                  }}>
+                                    S{index + 1}
+                                  </span>
+                                  <span className="roster-player-position" style={{
+                                    fontSize: '8px',
+                                    fontWeight: 'bold',
+                                    fontFamily: 'Orbitron',
+                                    color: getPositionColor(player.position),
+                                    background: 'rgba(0,0,0,0.3)',
+                                    padding: '2px 5px',
+                                    borderRadius: '4px',
+                                    border: `1px solid ${getPositionColor(player.position)}33`,
+                                    flexShrink: 0
+                                  }} title={`Plays positions: ${(player.positions || [player.position]).join(', ')}`}>
+                                    {player.position}{player.positions && player.positions.length > 1 ? '+' : ''}
+                                  </span>
+                                  <span className="roster-player-name" style={{
+                                    fontSize: '11px',
+                                    fontWeight: '600',
+                                    color: '#fff',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    flex: 1,
+                                    minWidth: 0,
+                                    textAlign: 'left'
+                                  }} title={player.name}>
+                                    {player.name}
+                                  </span>
+                                </div>
 
-                  {squad.map((player, idx) => {
-                    const assigned = isAssigned(player);
-                    const isSelected = selectedRosterPlayer && selectedRosterPlayer.name === player.name;
-                    return (
-                      <div
-                        key={idx}
-                        draggable={!assigned}
-                        onDragStart={(e) => handleDragStart(e, player)}
-                        onClick={() => handleRosterPlayerClick(player)}
-                        className={`roster-item ${isSelected ? 'selected-roster-player' : ''}`}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '6px 10px',
-                          borderRadius: '8px',
-                          background: assigned ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.03)',
-                          border: assigned ? '1px solid rgba(255,255,255,0.02)' : '1px solid rgba(255,255,255,0.06)',
-                          cursor: assigned ? 'default' : (selectedRosterPlayer ? 'pointer' : 'grab'),
-                          opacity: assigned ? 0.45 : 1,
-                          transition: 'all 0.2s ease',
-                          userSelect: 'none'
-                        }}
-                        title={assigned ? "Assigned starting lineup" : "Drag or tap to select"}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1, minWidth: 0, marginRight: '12px' }}>
-                          {/* Position Badge */}
-                          <span className="roster-player-position" style={{
-                            fontSize: '8px',
-                            fontWeight: 'bold',
-                            fontFamily: 'Orbitron',
-                            color: getPositionColor(player.position),
-                            background: 'rgba(0,0,0,0.3)',
-                            padding: '2px 5px',
-                            borderRadius: '4px',
-                            border: `1px solid ${getPositionColor(player.position)}33`,
-                            flexShrink: 0
-                          }} title={`Plays positions: ${(player.positions || [player.position]).join(', ')}`}>
-                            {player.position}{player.positions && player.positions.length > 1 ? '+' : ''}
-                          </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+                                  <span style={{ fontSize: '8.5px', color: '#888' }}>Age {player.age || 25}</span>
 
-                          {/* Player Name */}
-                          <span className="roster-player-name" style={{
-                            fontSize: '11.5px',
-                            fontWeight: '600',
-                            color: '#fff',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            flex: 1,
-                            minWidth: 0
-                          }}>
-                            {player.name}
-                          </span>
-                        </div>
+                                  {/* Condition / Injury */}
+                                  {player.injuryMatchesLeft > 0 ? (
+                                    <span style={{
+                                      fontSize: '7.5px',
+                                      fontWeight: 'bold',
+                                      fontFamily: 'Orbitron',
+                                      color: '#ff3333',
+                                      background: 'rgba(255, 51, 51, 0.1)',
+                                      padding: '1px 3px',
+                                      borderRadius: '3px',
+                                      border: '1px solid rgba(255, 51, 51, 0.25)'
+                                    }} title={`Injured: ${player.injury || 'Unknown Injury'}`}>
+                                      🤕 {player.injuryMatchesLeft}m
+                                    </span>
+                                  ) : (
+                                    <span style={{
+                                      fontSize: '8px',
+                                      fontWeight: 'bold',
+                                      fontFamily: 'Orbitron',
+                                      color: player.condition < 60 ? '#ff3333' : (player.condition < 80 ? '#ffa500' : '#00ff64'),
+                                      background: player.condition < 60 ? 'rgba(255, 51, 51, 0.05)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.05)' : 'rgba(0, 255, 100, 0.05)'),
+                                      padding: '1px 3px',
+                                      borderRadius: '3px',
+                                      border: `1px solid ${player.condition < 60 ? 'rgba(255, 51, 51, 0.2)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.2)' : 'rgba(0, 255, 100, 0.15)')}`
+                                    }} title={`Condition: ${player.condition !== undefined ? player.condition : 100}%`}>
+                                      ⚡{player.condition !== undefined ? player.condition : 100}%
+                                    </span>
+                                  )}
 
-                        {/* Player Stats */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                          {selectedBenchNames.includes(player.name) && (
-                            <span style={{
-                              fontSize: '8px',
-                              fontWeight: 'bold',
-                              fontFamily: 'Orbitron',
-                              color: '#00e5ff',
-                              background: 'rgba(0, 229, 255, 0.15)',
-                              padding: '1px 4px',
-                              borderRadius: '4px',
-                              border: '1px solid rgba(0, 229, 255, 0.3)'
-                            }}>
-                              SUB
-                            </span>
-                          )}
-                          <span style={{ fontSize: '9px', color: '#888' }}>Age {player.age}</span>
+                                  {/* Star Rating */}
+                                  <span style={{
+                                    fontSize: '9.5px',
+                                    fontWeight: 'bold',
+                                    fontFamily: 'Orbitron',
+                                    color: player.condition < 80 && player.injuryMatchesLeft === 0 ? '#ffa500' : '#00ff64',
+                                    background: player.condition < 80 && player.injuryMatchesLeft === 0 ? 'rgba(255, 165, 0, 0.05)' : 'rgba(0, 255, 100, 0.05)',
+                                    padding: '1px 3px',
+                                    borderRadius: '3px',
+                                    border: player.condition < 80 && player.injuryMatchesLeft === 0 ? '1px solid rgba(255, 165, 0, 0.25)' : '1px solid rgba(0, 255, 100, 0.15)'
+                                  }}>
+                                    ★{player.condition < 80 && player.injuryMatchesLeft === 0 ? Math.max(1, player.rating - 1) : player.rating}
+                                  </span>
 
-                          {/* Condition/Injury Badge */}
-                          {player.injuryMatchesLeft > 0 ? (
-                            <span style={{
-                              fontSize: '8.5px',
-                              fontWeight: 'bold',
-                              fontFamily: 'Orbitron',
-                              color: '#ff3333',
-                              background: 'rgba(255, 51, 51, 0.1)',
-                              padding: '1px 5px',
-                              borderRadius: '4px',
-                              border: '1px solid rgba(255, 51, 51, 0.25)'
-                            }} title={`Injured: ${player.injury || 'Unknown Injury'}`}>
-                              🤕 INJ ({player.injuryMatchesLeft})
-                            </span>
-                          ) : (
-                            <span style={{
-                              fontSize: '8.5px',
-                              fontWeight: 'bold',
-                              fontFamily: 'Orbitron',
-                              color: player.condition < 60 ? '#ff3333' : (player.condition < 80 ? '#ffa500' : '#00ff64'),
-                              background: player.condition < 60 ? 'rgba(255, 51, 51, 0.05)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.05)' : 'rgba(0, 255, 100, 0.05)'),
-                              padding: '1px 5px',
-                              borderRadius: '4px',
-                              border: `1px solid ${player.condition < 60 ? 'rgba(255, 51, 51, 0.2)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.2)' : 'rgba(0, 255, 100, 0.15)')}`
-                            }} title={`Condition: ${player.condition !== undefined ? player.condition : 100}%`}>
-                              ⚡ {player.condition !== undefined ? player.condition : 100}%
-                            </span>
-                          )}
-
-                          <span style={{
-                            fontSize: '11px',
-                            fontWeight: 'bold',
-                            fontFamily: 'Orbitron',
-                            color: player.condition < 80 && player.injuryMatchesLeft === 0 ? '#ffa500' : '#00ff64',
-                            background: player.condition < 80 && player.injuryMatchesLeft === 0 ? 'rgba(255, 165, 0, 0.05)' : 'rgba(0, 255, 100, 0.05)',
-                            padding: '1px 5px',
-                            borderRadius: '4px',
-                            border: player.condition < 80 && player.injuryMatchesLeft === 0 ? '1px solid rgba(255, 165, 0, 0.25)' : '1px solid rgba(0, 255, 100, 0.15)'
-                          }} title={player.condition < 80 && player.injuryMatchesLeft === 0 ? "Rating reduced by 1 due to low condition (<80%)" : ""}>
-                            ★{player.condition < 80 && player.injuryMatchesLeft === 0 ? Math.max(1, player.rating - 1) : player.rating}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                                  {/* Remove Button */}
+                                  <span
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleBenchSlotClick(player);
+                                    }}
+                                    style={{
+                                      fontSize: '13px',
+                                      color: '#ff4444',
+                                      fontWeight: 'bold',
+                                      padding: '0 2px',
+                                      cursor: 'pointer',
+                                      flexShrink: 0,
+                                      lineHeight: 1
+                                    }}
+                                    title="Remove from bench"
+                                  >
+                                    ×
+                                  </span>
+                                </div>
+                              </>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                                <span style={{
+                                  fontSize: '7.5px',
+                                  fontWeight: 'bold',
+                                  fontFamily: 'Orbitron',
+                                  color: '#666',
+                                  background: 'rgba(255, 255, 255, 0.05)',
+                                  padding: '1.5px 4px',
+                                  borderRadius: '3px',
+                                  flexShrink: 0
+                                }}>
+                                  S{index + 1}
+                                </span>
+                                <span style={{
+                                  fontSize: '9px',
+                                  color: selectedRosterPlayer && !isAssigned(selectedRosterPlayer) ? '#00ff64' : '#666',
+                                  fontFamily: 'Orbitron',
+                                  fontStyle: 'italic',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {selectedRosterPlayer && !isAssigned(selectedRosterPlayer) ? `+ Place as Sub ${index + 1}` : `+ Empty Sub ${index + 1}`}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
+
+                {/* Column 3: Reserves (Squad Players) */}
+                <div className="tactics-reserves-column" style={{
+                  flex: 1,
+                  minWidth: '340px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  padding: '10px 12px',
+                  height: '100%',
+                  overflow: 'hidden'
+                }}>
+                  {/* Reserves Header with Filter Toggle */}
+                  <div className="roster-header" style={{
+                    fontFamily: 'Orbitron',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    color: '#ffd700',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    paddingBottom: '6px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setRosterViewFilter('reserves')}
+                        style={{
+                          background: rosterViewFilter === 'reserves' ? 'rgba(255, 215, 0, 0.15)' : 'transparent',
+                          border: rosterViewFilter === 'reserves' ? '1px solid #ffd700' : '1px solid rgba(255,255,255,0.1)',
+                          color: rosterViewFilter === 'reserves' ? '#ffd700' : '#888',
+                          fontSize: '9px',
+                          fontFamily: 'Orbitron',
+                          fontWeight: 'bold',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        RESERVES ({reservePlayers.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRosterViewFilter('all')}
+                        style={{
+                          background: rosterViewFilter === 'all' ? 'rgba(255, 215, 0, 0.15)' : 'transparent',
+                          border: rosterViewFilter === 'all' ? '1px solid #ffd700' : '1px solid rgba(255,255,255,0.1)',
+                          color: rosterViewFilter === 'all' ? '#ffd700' : '#888',
+                          fontSize: '9px',
+                          fontFamily: 'Orbitron',
+                          fontWeight: 'bold',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        ALL ({squad.length})
+                      </button>
+                    </div>
+                    <span style={{ fontSize: '7.5px', color: '#888' }}>DRAG TO FIELD / BENCH</span>
+                  </div>
+
+                  {loading ? (
+                    <div style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '11px' }}>
+                      Loading squad...
+                    </div>
+                  ) : (
+                    <div style={{
+                      flexGrow: 1,
+                      overflowY: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '5px',
+                      paddingRight: '4px'
+                    }}>
+                      {displayedSquadPlayers.length === 0 ? (
+                        <div style={{
+                          textAlign: 'center',
+                          color: '#888',
+                          fontSize: '11px',
+                          padding: '24px 12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <div style={{ color: '#00e5ff', fontFamily: 'Orbitron', fontSize: '11px', fontWeight: 'bold' }}>
+                            ALL SQUAD PLAYERS ARE ON THE BENCH
+                          </div>
+                          <div style={{ color: '#aaa', fontSize: '10px', lineHeight: '1.4' }}>
+                            In modern competitions, all non-starting players are eligible substitutes (see SUBS column).
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setRosterViewFilter('all')}
+                            style={{
+                              marginTop: '6px',
+                              background: 'rgba(255, 215, 0, 0.1)',
+                              border: '1px solid #ffd700',
+                              color: '#ffd700',
+                              fontSize: '9.5px',
+                              fontFamily: 'Orbitron',
+                              fontWeight: 'bold',
+                              padding: '5px 12px',
+                              borderRadius: '4px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            VIEW FULL SQUAD ({squad.length})
+                          </button>
+                        </div>
+                      ) : (
+                        displayedSquadPlayers.map((player, idx) => {
+                          const assigned = isAssigned(player);
+                          const isOnBench = selectedBenchNames.includes(player.name);
+                          const isSelected = selectedRosterPlayer && selectedRosterPlayer.name === player.name;
+                          const benchHasSpace = limit >= 99 || selectedBenchNames.length < limit;
+
+                          return (
+                            <div
+                              key={player.name || idx}
+                              draggable={!assigned}
+                              onDragStart={(e) => handleDragStart(e, player)}
+                              onClick={() => handleRosterPlayerClick(player)}
+                              className={`roster-item ${isSelected ? 'selected-roster-player' : ''}`}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '6px 10px',
+                                borderRadius: '7px',
+                                background: isSelected
+                                  ? 'rgba(0, 255, 100, 0.12)'
+                                  : (assigned ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.03)'),
+                                border: isSelected
+                                  ? '1.5px solid #00ff64'
+                                  : (assigned ? '1px solid rgba(255,255,255,0.02)' : '1px solid rgba(255,255,255,0.06)'),
+                                cursor: assigned ? 'default' : (selectedRosterPlayer ? 'pointer' : 'grab'),
+                                opacity: assigned ? 0.45 : 1,
+                                transition: 'all 0.15s ease',
+                                userSelect: 'none'
+                              }}
+                              title={assigned ? "In starting lineup" : (isOnBench ? "On bench" : "Drag to field/bench or click to select")}
+                            >
+                              {/* Left: Position & Full Name */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1, minWidth: 0, marginRight: '8px' }}>
+                                <span className="roster-player-position" style={{
+                                  fontSize: '8px',
+                                  fontWeight: 'bold',
+                                  fontFamily: 'Orbitron',
+                                  color: getPositionColor(player.position),
+                                  background: 'rgba(0,0,0,0.3)',
+                                  padding: '2px 5px',
+                                  borderRadius: '4px',
+                                  border: `1px solid ${getPositionColor(player.position)}33`,
+                                  flexShrink: 0
+                                }} title={`Plays positions: ${(player.positions || [player.position]).join(', ')}`}>
+                                  {player.position}{player.positions && player.positions.length > 1 ? '+' : ''}
+                                </span>
+
+                                <span className="roster-player-name" style={{
+                                  fontSize: '11.5px',
+                                  fontWeight: '600',
+                                  color: '#fff',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  flex: 1,
+                                  minWidth: 0,
+                                  textAlign: 'left'
+                                }} title={player.name}>
+                                  {player.name}
+                                </span>
+                              </div>
+
+                              {/* Right: Badges, Age, Condition, Stars & Quick Action */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                {assigned && (
+                                  <span style={{
+                                    fontSize: '7.5px',
+                                    fontWeight: 'bold',
+                                    fontFamily: 'Orbitron',
+                                    color: '#ffd700',
+                                    background: 'rgba(255, 215, 0, 0.12)',
+                                    padding: '1px 4px',
+                                    borderRadius: '3px',
+                                    border: '1px solid rgba(255, 215, 0, 0.3)'
+                                  }}>
+                                    XI
+                                  </span>
+                                )}
+                                {isOnBench && (
+                                  <span style={{
+                                    fontSize: '7.5px',
+                                    fontWeight: 'bold',
+                                    fontFamily: 'Orbitron',
+                                    color: '#00e5ff',
+                                    background: 'rgba(0, 229, 255, 0.12)',
+                                    padding: '1px 4px',
+                                    borderRadius: '3px',
+                                    border: '1px solid rgba(0, 229, 255, 0.3)'
+                                  }}>
+                                    BENCH
+                                  </span>
+                                )}
+                                <span style={{ fontSize: '9px', color: '#888' }}>Age {player.age}</span>
+
+                                {/* Condition / Injury */}
+                                {player.injuryMatchesLeft > 0 ? (
+                                  <span style={{
+                                    fontSize: '8px',
+                                    fontWeight: 'bold',
+                                    fontFamily: 'Orbitron',
+                                    color: '#ff3333',
+                                    background: 'rgba(255, 51, 51, 0.1)',
+                                    padding: '1px 4px',
+                                    borderRadius: '3px',
+                                    border: '1px solid rgba(255, 51, 51, 0.25)'
+                                  }} title={`Injured: ${player.injury || 'Unknown Injury'}`}>
+                                    🤕 {player.injuryMatchesLeft}m
+                                  </span>
+                                ) : (
+                                  <span style={{
+                                    fontSize: '8.5px',
+                                    fontWeight: 'bold',
+                                    fontFamily: 'Orbitron',
+                                    color: player.condition < 60 ? '#ff3333' : (player.condition < 80 ? '#ffa500' : '#00ff64'),
+                                    background: player.condition < 60 ? 'rgba(255, 51, 51, 0.05)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.05)' : 'rgba(0, 255, 100, 0.05)'),
+                                    padding: '1px 4px',
+                                    borderRadius: '3px',
+                                    border: `1px solid ${player.condition < 60 ? 'rgba(255, 51, 51, 0.2)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.2)' : 'rgba(0, 255, 100, 0.15)')}`
+                                  }} title={`Condition: ${player.condition !== undefined ? player.condition : 100}%`}>
+                                    ⚡{player.condition !== undefined ? player.condition : 100}%
+                                  </span>
+                                )}
+
+                                {/* Star Rating */}
+                                <span style={{
+                                  fontSize: '10.5px',
+                                  fontWeight: 'bold',
+                                  fontFamily: 'Orbitron',
+                                  color: player.condition < 80 && player.injuryMatchesLeft === 0 ? '#ffa500' : '#00ff64',
+                                  background: player.condition < 80 && player.injuryMatchesLeft === 0 ? 'rgba(255, 165, 0, 0.05)' : 'rgba(0, 255, 100, 0.05)',
+                                  padding: '1px 4px',
+                                  borderRadius: '3px',
+                                  border: player.condition < 80 && player.injuryMatchesLeft === 0 ? '1px solid rgba(255, 165, 0, 0.25)' : '1px solid rgba(0, 255, 100, 0.15)'
+                                }}>
+                                  ★{player.condition < 80 && player.injuryMatchesLeft === 0 ? Math.max(1, player.rating - 1) : player.rating}
+                                </span>
+
+                                {/* Quick Add to Bench button if not assigned, not on bench, and bench has space */}
+                                {!assigned && !isOnBench && benchHasSpace && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleAddPlayerToBench(e, player)}
+                                    style={{
+                                      background: 'rgba(0, 229, 255, 0.1)',
+                                      border: '1px solid rgba(0, 229, 255, 0.4)',
+                                      borderRadius: '4px',
+                                      color: '#00e5ff',
+                                      fontSize: '8px',
+                                      fontWeight: 'bold',
+                                      fontFamily: 'Orbitron',
+                                      padding: '2px 5px',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    title="Add to bench"
+                                  >
+                                    +SUB
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()
         )}
 
         {/* Footer close button */}

@@ -721,80 +721,183 @@
   box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
 }
 
-/* Chronicle feed console */
-.live-chronicle-console {
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 18px;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+/* ==============================================================================
+ * CM 01/02 RETRO LIVE COMMENTARY & INCIDENT CONSOLE
+ * ============================================================================== */
+
+.cm-live-commentary-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin-top: 6px;
 }
 
-.live-chronicle-console h3 {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  color: #888;
-  margin: 0 0 12px 0;
+/* Iconic CM 01/02 Flashing Single-Line Live Commentary Bar */
+.cm-live-commentary-bar {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 10px 20px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  border-radius: 6px;
+  border: 3px solid #00a2a2;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  background: #092131;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  line-height: 1.4;
+}
+
+.cm-goal-flash {
+  animation: cmGoalFlashAnim 0.28s steps(2, start) infinite;
+  font-size: 16.5px;
   text-transform: uppercase;
+  font-weight: 900;
 }
 
+@keyframes cmGoalFlashAnim {
+  0% {
+    background-color: #cc0000;
+    color: #ffffff;
+    border-color: #ffd700;
+  }
+  50% {
+    background-color: #ffdd44;
+    color: #050f16;
+    border-color: #ffffff;
+  }
+  100% {
+    background-color: #cc0000;
+    color: #ffffff;
+    border-color: #ffd700;
+  }
+}
+
+/* CM 01/02 Incident & Chronicle Stream Console */
+.cm-commentary-console,
+.live-chronicle-console {
+  background: #050f16;
+  border: 1px solid #144463;
+  border-radius: 8px;
+  padding: 14px 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+}
+
+.cm-console-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #40e0d0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 162, 162, 0.3);
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+}
+
+.cm-header-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cm-retro-icon {
+  font-size: 13px;
+}
+
+.cm-header-ref {
+  color: #ffdd44;
+  font-family: 'Orbitron', monospace;
+  font-size: 10.5px;
+  letter-spacing: 1px;
+}
+
+.cm-commentary-stream,
 .chronicle-scrolling-box {
-  max-height: 180px;
+  max-height: 200px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-right: 8px;
+  gap: 7px;
+  padding-right: 6px;
 }
 
+.cm-comm-item,
 .chronicle-event-row {
-  font-size: 13.5px;
-  line-height: 1.5;
+  background: rgba(13, 40, 58, 0.6);
+  border-left: 4px solid #144463;
+  padding: 7px 12px;
+  border-radius: 0 6px 6px 0;
+  font-size: 13px;
+  line-height: 1.45;
   display: flex;
   gap: 10px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.01);
-  transition: all 0.3s ease;
+  color: #e0f0f5;
+  transition: all 0.25s ease;
 }
 
+.cm-comm-min,
 .chronicle-time {
   font-family: 'Orbitron', sans-serif;
-  color: #a3b3a7;
-  font-weight: bold;
-}
-
-.latest-row {
-  background: rgba(0, 255, 100, 0.03);
-  border-left: 3px solid #00ff64;
-  font-weight: 600;
-  animation: pulse-border 1.5s infinite alternate;
-}
-
-/* Chronicle Types */
-.chronicle-type-normal {
-  color: #d1d5db;
-}
-
-.chronicle-type-chance {
-  color: #ff8c00;
-  font-weight: bold;
-}
-
-.chronicle-type-goal {
-  color: #ffd700;
+  color: #ffdd44;
   font-weight: 800;
-  font-size: 14.5px;
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+  min-width: 34px;
 }
 
+.cm-comm-text,
+.chronicle-text {
+  flex: 1;
+}
+
+.cm-comm-item.latest-item,
+.chronicle-event-row.latest-row {
+  background: rgba(0, 162, 162, 0.18);
+  font-weight: 600;
+  box-shadow: inset 0 0 10px rgba(0, 255, 100, 0.05);
+}
+
+/* Event Types */
+.cm-comm-item.goal,
+.chronicle-type-goal {
+  border-left-color: #ffd700 !important;
+  background: rgba(255, 215, 0, 0.14) !important;
+  font-weight: 700;
+  color: #ffffff !important;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+
+.cm-comm-item.chance,
+.chronicle-type-chance {
+  border-left-color: #ff8c00;
+  color: #fff4e0;
+  font-weight: 600;
+}
+
+.cm-comm-item.save,
 .chronicle-type-save {
-  color: #00bfff;
+  border-left-color: #00bfff;
+  color: #e6f7ff;
 }
 
+.cm-comm-item.miss,
 .chronicle-type-miss {
-  color: #ff4500;
+  border-left-color: #ff5555;
+  color: #ffe6e6;
+}
+
+.cm-comm-item.card {
+  border-left-color: #ff3333;
+  background: rgba(255, 51, 51, 0.12);
 }
 
 /* Micro-animations */

@@ -17,10 +17,11 @@ export default function NewsFeed({
   const filteredItems = newsItems.filter(item => {
     const matchesCategory =
       activeCategory === 'all' ||
-      (activeCategory === 'match' && (item.category === 'match' || item.category === 'league')) ||
-      (activeCategory === 'medical' && item.category === 'medical') ||
-      (activeCategory === 'board' && (item.category === 'board' || item.category === 'transfer')) ||
-      (activeCategory === 'preview' && item.category === 'preview');
+      (activeCategory === 'match' && (item.category === 'match' || item.category === 'league' || item.category === 'drama' || item.category === 'cup')) ||
+      (activeCategory === 'transfer' && item.category === 'transfer') ||
+      (activeCategory === 'preview' && (item.category === 'preview' || item.category === 'derby')) ||
+      (activeCategory === 'board' && (item.category === 'board' || item.category === 'pressure' || item.category === 'award' || item.category === 'yearlyAward')) ||
+      (activeCategory === 'medical' && item.category === 'medical');
 
     const matchesSearch =
       !searchQuery ||
@@ -100,10 +101,11 @@ export default function NewsFeed({
       <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
         {[
           { id: 'all', label: '🌐 ALL NEWS' },
-          { id: 'match', label: '⚽ MATCHES & RESULTS' },
-          { id: 'medical', label: '🏥 MEDICAL & SQUAD' },
-          { id: 'board', label: '💼 BOARD & TRANSFERS' },
-          { id: 'preview', label: '🧠 TACTICS & PREVIEWS' }
+          { id: 'match', label: '⚽ MATCHES & DRAMA' },
+          { id: 'transfer', label: '💰 TRANSFERS' },
+          { id: 'preview', label: '🧠 TACTICS & DERBIES' },
+          { id: 'board', label: '💼 BOARD & MEDIA' },
+          { id: 'medical', label: '🏥 MEDICAL & SQUAD' }
         ].map(cat => {
           const isActive = activeCategory === cat.id;
           return (
@@ -286,6 +288,210 @@ export default function NewsFeed({
                 </div>
               )}
 
+              {/* Monthly or Yearly Award Widget if available */}
+              {activeNews.awardWidget && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.12), rgba(0, 0, 0, 0.6))',
+                  border: '1.5px solid #ffd700',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  boxShadow: '0 0 15px rgba(255, 215, 0, 0.15)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'Orbitron', fontSize: '13px', fontWeight: 'bold', color: '#ffd700', letterSpacing: '1px' }}>
+                      🏆 {activeNews.awardWidget.title}
+                    </span>
+                    <span style={{ fontSize: '10.5px', background: 'rgba(255,215,0,0.2)', color: '#ffd700', padding: '3px 8px', borderRadius: '4px', fontFamily: 'Orbitron', fontWeight: 'bold' }}>
+                      OFFICIAL AWARD
+                    </span>
+                  </div>
+
+                  <div style={{
+                    background: 'rgba(0,0,0,0.4)',
+                    border: '1px solid rgba(255,215,0,0.3)',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '28px' }}>🥇</span>
+                      <div>
+                        <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#fff', display: 'block' }}>
+                          {activeNews.awardWidget.winner}
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#00ff64', fontWeight: 'bold' }}>
+                          {activeNews.awardWidget.team}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', fontFamily: 'Orbitron' }}>
+                      <span style={{ fontSize: '10px', color: '#aaa', display: 'block' }}>RECORD</span>
+                      <span style={{ fontSize: '13px', color: '#ffd700', fontWeight: 'bold' }}>
+                        {activeNews.awardWidget.record}
+                      </span>
+                    </div>
+                  </div>
+
+                  {activeNews.awardWidget.runnersUp && activeNews.awardWidget.runnersUp.length > 0 && (
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {activeNews.awardWidget.runnersUp.map((ru, idx) => (
+                        <div key={idx} style={{
+                          flex: 1,
+                          minWidth: '140px',
+                          background: 'rgba(255,255,255,0.03)',
+                          border: '1px solid rgba(255,255,255,0.06)',
+                          borderRadius: '6px',
+                          padding: '6px 10px',
+                          fontSize: '11px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <span>{idx === 0 ? '🥈' : '🥉'}</span>
+                          <div>
+                            <span style={{ fontWeight: 'bold', color: '#eee', display: 'block' }}>
+                              {ru.managerName || ru.name}
+                            </span>
+                            <span style={{ color: '#888', fontSize: '9.5px' }}>
+                              {ru.teamName || ru.team} {ru.points !== undefined ? `(${ru.points} pts)` : ''}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Derby / Rivalry Clash Widget if available */}
+              {activeNews.derbyWidget && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(255, 51, 68, 0.12), rgba(0, 0, 0, 0.5))',
+                  border: '1px solid #ff3344',
+                  borderRadius: '10px',
+                  padding: '14px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'Orbitron', fontSize: '13px', fontWeight: 'bold', color: '#ff3344', letterSpacing: '1px' }}>
+                      ⚔️ {activeNews.derbyWidget.name.toUpperCase()}
+                    </span>
+                    <span style={{ fontSize: '10px', background: 'rgba(255,51,68,0.2)', color: '#ff3344', padding: '2px 8px', borderRadius: '4px', fontFamily: 'Orbitron', fontWeight: 'bold' }}>
+                      ARCH-RIVALRY
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '8px 0', borderTop: '1px solid rgba(255,51,68,0.2)', borderBottom: '1px solid rgba(255,51,68,0.2)' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#00ff64' }}>{activeNews.derbyWidget.userTeam}</span>
+                    <span style={{ fontSize: '16px', color: '#ff3344', fontWeight: 'bold', fontFamily: 'Orbitron' }}>VS</span>
+                    <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#ff3344' }}>{activeNews.derbyWidget.opponentName}</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#ccc', fontStyle: 'italic' }}>
+                    {activeNews.derbyWidget.desc}
+                  </p>
+                </div>
+              )}
+
+              {/* Title Race & Relegation Drama Widget if available */}
+              {activeNews.dramaWidget && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(156, 39, 176, 0.15), rgba(0,0,0,0.5))',
+                  border: '1px solid #9c27b0',
+                  borderRadius: '10px',
+                  padding: '12px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'Orbitron', fontSize: '11px', fontWeight: 'bold', color: '#ba68c8', letterSpacing: '1px' }}>
+                      {activeNews.dramaWidget.type === 'champions' ? '👑 TITLE CLINCHED' : (activeNews.dramaWidget.type === 'title_decider' ? '🏆 TITLE DECIDER' : '⚠️ RELEGATION SCRAP')}
+                    </span>
+                    <span style={{ fontSize: '10px', color: '#ddd', fontFamily: 'Orbitron' }}>
+                      {activeNews.dramaWidget.roundsRemaining} match{activeNews.dramaWidget.roundsRemaining === 1 ? '' : 'es'} left
+                    </span>
+                  </div>
+                  {activeNews.dramaWidget.type === 'champions' ? (
+                    <div style={{ fontSize: '13px', color: '#fff', fontWeight: 'bold' }}>
+                      👑 {activeNews.dramaWidget.championName} ({activeNews.dramaWidget.points} pts) lead {activeNews.dramaWidget.runnerUpName} ({activeNews.dramaWidget.runnerUpPoints} pts)
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '13px', color: '#fff', fontWeight: 'bold' }}>
+                      {activeNews.dramaWidget.teamA} (Pos #{activeNews.dramaWidget.rankA}) vs {activeNews.dramaWidget.teamB} (Pos #{activeNews.dramaWidget.rankB})
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Manager Pressure / Form Streak Widget if available */}
+              {activeNews.pressureWidget && (
+                <div style={{
+                  background: activeNews.pressureWidget.type === 'crisis'
+                    ? 'linear-gradient(135deg, rgba(230, 0, 92, 0.15), rgba(0,0,0,0.5))'
+                    : 'linear-gradient(135deg, rgba(0, 255, 100, 0.1), rgba(0,0,0,0.5))',
+                  border: `1px solid ${activeNews.pressureWidget.type === 'crisis' ? '#e6005c' : '#00ff64'}`,
+                  borderRadius: '10px',
+                  padding: '12px 18px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <span style={{ fontFamily: 'Orbitron', fontSize: '11px', fontWeight: 'bold', color: activeNews.pressureWidget.type === 'crisis' ? '#ff3366' : '#00ff64', display: 'block' }}>
+                      {activeNews.pressureWidget.type === 'crisis' ? '🚨 CRISIS RADAR' : (activeNews.pressureWidget.type === 'winning_streak' ? '🔥 WINNING STREAK' : '🛡️ UNBEATEN RUN')}
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#ccc' }}>
+                      {activeNews.pressureWidget.teamName} · Mgr. {activeNews.pressureWidget.managerName}
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: 'Orbitron', fontSize: '18px', fontWeight: 'bold', color: activeNews.pressureWidget.type === 'crisis' ? '#ff3366' : '#00ff64' }}>
+                    {activeNews.pressureWidget.type === 'crisis' ? `${activeNews.pressureWidget.losses} DEFEATS` : (activeNews.pressureWidget.type === 'winning_streak' ? `${activeNews.pressureWidget.wins} WINS` : `${activeNews.pressureWidget.unbeaten} UNBEATEN`)}
+                  </div>
+                </div>
+              )}
+
+              {/* Transfer Deal Widget if available */}
+              {activeNews.transferWidget && (
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(0, 0, 0, 0.5))',
+                  border: '1px solid rgba(255, 215, 0, 0.35)',
+                  borderRadius: '10px',
+                  padding: '14px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'Orbitron', fontSize: '12px', fontWeight: 'bold', color: '#ffd700' }}>
+                      {activeNews.transferWidget.type === 'signing' ? '✅ COMPLETED SIGNING' : '🤝 SQUAD DEPARTURE'}
+                    </span>
+                    <span style={{ fontSize: '11px', background: 'rgba(255,215,0,0.15)', color: '#ffd700', padding: '3px 8px', borderRadius: '4px', fontFamily: 'Orbitron', fontWeight: 'bold' }}>
+                      {activeNews.transferWidget.fee}
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', fontSize: '12px' }}>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '5px' }}>
+                      <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>PLAYER</span>
+                      <strong style={{ color: '#fff' }}>{activeNews.transferWidget.playerName}</strong> ({activeNews.transferWidget.playerPosition})
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '5px' }}>
+                      <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>FROM</span>
+                      <strong style={{ color: '#ccc' }}>{activeNews.transferWidget.fromClub}</strong>
+                    </div>
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '5px' }}>
+                      <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>TO</span>
+                      <strong style={{ color: '#00ff64' }}>{activeNews.transferWidget.toClub}</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Medical Injured List Widget if available */}
               {activeNews.medicalWidget && activeNews.medicalWidget.length > 0 && (
                 <div style={{ background: 'rgba(255, 51, 102, 0.05)', border: '1px solid rgba(255, 51, 102, 0.25)', borderRadius: '8px', padding: '12px' }}>
@@ -305,23 +511,134 @@ export default function NewsFeed({
 
               {/* Opponent Preview Stats Widget if available */}
               {activeNews.previewWidget && (
-                <div style={{ background: 'rgba(0, 229, 255, 0.05)', border: '1px solid rgba(0, 229, 255, 0.2)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <h4 style={{ margin: 0, fontSize: '11px', color: '#00e5ff', fontFamily: 'Orbitron' }}>
-                    🔍 OPPONENT RATINGS: {activeNews.previewWidget.opponentName}
+                <div style={{ background: 'rgba(0, 229, 255, 0.05)', border: '1px solid rgba(0, 229, 255, 0.2)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <h4 style={{ margin: 0, fontSize: '11px', color: '#00e5ff', fontFamily: 'Orbitron', letterSpacing: '1px' }}>
+                    🔍 OPPONENT SCOUTING: {activeNews.previewWidget.opponentName}
                   </h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center', fontSize: '12px' }}>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px', borderRadius: '4px' }}>
-                      <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>ATTACK</span>
-                      <strong style={{ color: '#ff4500', fontFamily: 'Orbitron' }}>{activeNews.previewWidget.attack}</strong>
+                    <div style={{ background: 'rgba(0,0,0,0.35)', padding: '8px', borderRadius: '6px' }}>
+                      <span style={{ color: '#888', fontSize: '9px', display: 'block', textTransform: 'uppercase', marginBottom: '2px' }}>ATTACK</span>
+                      <strong style={{
+                        color: activeNews.previewWidget.attackLabel === 'Very Strong' ? '#00ff64' : (activeNews.previewWidget.attackLabel === 'Strong' ? '#76ff03' : (activeNews.previewWidget.attackLabel === 'Solid' ? '#ffd700' : '#ff3366')),
+                        fontFamily: 'Orbitron', fontSize: '12px'
+                      }}>
+                        {activeNews.previewWidget.attackLabel || activeNews.previewWidget.attack}
+                      </strong>
                     </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px', borderRadius: '4px' }}>
-                      <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>MIDFIELD</span>
-                      <strong style={{ color: '#00e5ff', fontFamily: 'Orbitron' }}>{activeNews.previewWidget.midfield}</strong>
+                    <div style={{ background: 'rgba(0,0,0,0.35)', padding: '8px', borderRadius: '6px' }}>
+                      <span style={{ color: '#888', fontSize: '9px', display: 'block', textTransform: 'uppercase', marginBottom: '2px' }}>MIDFIELD</span>
+                      <strong style={{
+                        color: activeNews.previewWidget.midfieldLabel === 'Very Strong' ? '#00ff64' : (activeNews.previewWidget.midfieldLabel === 'Strong' ? '#76ff03' : (activeNews.previewWidget.midfieldLabel === 'Solid' ? '#ffd700' : '#ff3366')),
+                        fontFamily: 'Orbitron', fontSize: '12px'
+                      }}>
+                        {activeNews.previewWidget.midfieldLabel || activeNews.previewWidget.midfield}
+                      </strong>
                     </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px', borderRadius: '4px' }}>
-                      <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>DEFENSE</span>
-                      <strong style={{ color: '#00ff64', fontFamily: 'Orbitron' }}>{activeNews.previewWidget.defense}</strong>
+                    <div style={{ background: 'rgba(0,0,0,0.35)', padding: '8px', borderRadius: '6px' }}>
+                      <span style={{ color: '#888', fontSize: '9px', display: 'block', textTransform: 'uppercase', marginBottom: '2px' }}>DEFENSE</span>
+                      <strong style={{
+                        color: activeNews.previewWidget.defenseLabel === 'Very Strong' ? '#00ff64' : (activeNews.previewWidget.defenseLabel === 'Strong' ? '#76ff03' : (activeNews.previewWidget.defenseLabel === 'Solid' ? '#ffd700' : '#ff3366')),
+                        fontFamily: 'Orbitron', fontSize: '12px'
+                      }}>
+                        {activeNews.previewWidget.defenseLabel || activeNews.previewWidget.defense}
+                      </strong>
                     </div>
+                  </div>
+
+                  {/* Key Opponent Players List */}
+                  {activeNews.previewWidget.keyPlayers && activeNews.previewWidget.keyPlayers.length > 0 && (
+                    <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <span style={{ fontSize: '10px', color: '#ffd700', fontFamily: 'Orbitron', fontWeight: 'bold', display: 'block', marginBottom: '6px', textAlign: 'left' }}>
+                        ⭐ KEY OPPONENT PLAYERS:
+                      </span>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {activeNews.previewWidget.keyPlayers.map((kp, idx) => (
+                          <div key={idx} style={{
+                            background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,215,0,0.25)',
+                            borderRadius: '5px', padding: '4px 8px', fontSize: '11px', color: '#fff',
+                            display: 'flex', alignItems: 'center', gap: '6px'
+                          }}>
+                            <span style={{ fontWeight: 'bold' }}>{kp.name}</span>
+                            <span style={{ fontSize: '9px', background: 'rgba(255,255,255,0.1)', padding: '1px 4px', borderRadius: '3px', color: '#ffd700' }}>
+                              {kp.position}
+                            </span>
+                            <span style={{ fontSize: '10px', color: '#00ff64' }}>
+                              {"⭐".repeat(kp.rating || 3)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* League Roundup Full Results Grid Widget if available */}
+              {activeNews.resultsWidget && activeNews.resultsWidget.length > 0 && (
+                <div style={{
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  border: '1px solid rgba(255, 145, 0, 0.25)',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
+                    <span style={{ fontSize: '11px', fontFamily: 'Orbitron', color: '#ff9100', fontWeight: 'bold' }}>
+                      📋 MATCHDAY {activeNews.round} RESULTS
+                    </span>
+                    <span style={{ fontSize: '10px', color: '#888' }}>
+                      {activeNews.resultsWidget.length} matches played
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '6px' }}>
+                    {activeNews.resultsWidget.map((res, rIdx) => (
+                      <div key={rIdx} style={{
+                        background: res.isUserMatch ? 'rgba(0, 255, 100, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                        border: res.isUserMatch ? '1px solid rgba(0, 255, 100, 0.3)' : '1px solid rgba(255, 255, 255, 0.04)',
+                        borderRadius: '5px',
+                        padding: '6px 10px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '11px'
+                      }}>
+                        <span style={{
+                          fontWeight: res.isUserMatch ? 'bold' : 'normal',
+                          color: res.isUserMatch ? '#00ff64' : '#ddd',
+                          maxWidth: '85px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {res.homeName}
+                        </span>
+                        <span style={{
+                          fontFamily: 'Orbitron',
+                          fontWeight: 'bold',
+                          color: '#00e5ff',
+                          background: 'rgba(0,0,0,0.4)',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '11px'
+                        }}>
+                          {res.homeScore} - {res.awayScore}
+                        </span>
+                        <span style={{
+                          fontWeight: res.isUserMatch ? 'bold' : 'normal',
+                          color: res.isUserMatch ? '#00ff64' : '#ddd',
+                          maxWidth: '85px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          textAlign: 'right'
+                        }}>
+                          {res.awayName}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

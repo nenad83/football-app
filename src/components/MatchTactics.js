@@ -1,72 +1,76 @@
 import React from 'react';
-import { getFormationModifier } from './FormationTactics';
+import {
+  getFormationSlots,
+  getIdealSlotPosition
+} from './FormationTactics';
+import {
+  normalizeMentality,
+  calculateTeamTacticalStats,
+  getRoleMetadata,
+  getNextRoleForSlot,
+  summarizeActiveRoles,
+  computeCPUTacticalPlan,
+  getPlayerEffectiveSkill
+} from '../utils/tacticalRoleEngine';
 
-// Pure function to get tactical stat modifiers and pressing fatigue penalties
-export const getModifiedStat = (baseValue, statType, tactic, counter, pressing, oppPressing, pressingDuration, formation, stamina) => {
+/**
+ * Calculates a team's effective department stat (attack, midfield, defense)
+ * using the tactical role & mentality engine (or fallback base stat if no squad lineup exists).
+ *
+ * Rules:
+ * - Defense = Math.floor(defSum / 4)
+ * - Midfield = Math.floor(midSum / 4)
+ * - Attack = Math.floor(attSum / 2)
+ * - Mentality:
+ *   • 'defense': +1 skill to defenders & support_def, -1 skill to attackers & support_att
+ *   • 'attack':  +1 skill to attackers & support_att, -1 skill to defenders & support_def
+ *   • 'balanced': no bonuses
+ */
+export const getModifiedStat = (
+  baseValue,
+  statType,
+  tactic,
+  counter,
+  pressing,
+  oppPressing,
+  pressingDuration,
+  formation,
+  _stamina = null,
+  lineup = null,
+  playerRoles = {}
+) => {
+  const normMentality = normalizeMentality(tactic);
+
+  // If the team has an active squad lineup on the pitch, compute dynamically from player positions, roles & mentality
+  if (lineup && Object.keys(lineup).filter(k => lineup[k]).length >= 7) {
+    const calc = calculateTeamTacticalStats(lineup, formation || '4-4-2', playerRoles || {}, normMentality);
+    const rawStat = calc[statType] !== undefined ? calc[statType] : baseValue;
+    return Math.max(1, rawStat);
+  }
+
+  // Fallback for teams without a squad lineup
   let mod = 0;
-
-  // Formation modifiers (e.g., 4-3-3: +1 ATT, -1 MID)
-  if (formation) {
-    mod += getFormationModifier(formation, statType);
+  if (normMentality === 'defense') {
+    if (statType === 'defense') mod += 1;
+    if (statType === 'attack') mod -= 1;
+  } else if (normMentality === 'attack') {
+    if (statType === 'attack') mod += 1;
+    if (statType === 'defense') mod -= 1;
   }
 
-  // Base mentality modifiers
-  if (tactic === "ultra_defense") {
-    if (statType === "attack") mod -= 3;
-    if (statType === "defense") mod += 4;
-  } else if (tactic === "defense") {
-    if (statType === "attack") mod -= 2;
-    if (statType === "defense") mod += 2;
-  } else if (tactic === "attack") {
-    if (statType === "attack") mod += 2;
-    if (statType === "defense") mod -= 2;
-  } else if (tactic === "ultra_attack") {
-    if (statType === "attack") mod += 4;
-    if (statType === "midfield") mod -= 1;
-    if (statType === "defense") mod -= 3;
-  }
-
-  // Counter-attack modifier (+2 Att, -2 Mid)
-  if (counter) {
-    if (statType === "attack") {
-      mod += oppPressing ? 3 : 2;
-    }
-    if (statType === "midfield") mod -= 2;
-  }
-
-  // Pressing modifier (+1 Mid, -2 Def)
-  if (pressing) {
-    if (statType === "midfield") mod += 1;
-    if (statType === "defense") mod -= 2;
-  }
-
-  // Pressing fatigue penalty (Energy)
-  let fatiguePenalty = 0;
-  if (pressingDuration >= 25) {
-    fatiguePenalty = -2;
-  } else if (pressingDuration >= 15) {
-    fatiguePenalty = -1;
-  }
-
-  // Stamina fatigue penalties
-  let staminaMod = 0;
-  if (stamina !== undefined) {
-    if (stamina <= 0) {
-      staminaMod = -3;
-    } else if (stamina < 10) {
-      staminaMod = -2;
-    } else if (stamina < 20) {
-      staminaMod = -1;
-    }
-  }
-
-  return Math.max(1, baseValue + mod + fatiguePenalty + staminaMod);
+  return Math.max(1, baseValue + mod);
 };
 
-// Pure function for AI tactical decision-making overrides
+/**
+ * AI Opponent Tactical & Player-Role Decision Engine Wrapper
+ */
 export const adjustCPUTactic = ({
   team,
   opp,
+  lineup = null,
+  formation = '4-4-2',
+  oppLineup = null,
+  oppFormation = '4-4-2',
   scoreSelf,
   scoreOpp,
   isLeg2,
@@ -74,367 +78,309 @@ export const adjustCPUTactic = ({
   leg1AwayScore,
   currentMatchTime,
   isHomeSide,
-  opponentTactic,
-  opponentCounter,
-  opponentPressing,
-  pressingDuration,
+  currentMentality = 'balanced',
+  currentRoles = {},
   setTactic,
-  setCounter,
-  setPressing,
-  stamina
+  setRoles
 }) => {
-  if (!team || !opp) return;
+  if (!team || !opp) return null;
 
-  const teamStrength = team.attack + team.midfield + team.defense;
-  const oppStrength = opp.attack + opp.midfield + opp.defense;
-  const diff = teamStrength - oppStrength;
-  const goalDiff = scoreSelf - scoreOpp;
+  const plan = computeCPUTacticalPlan({
+    lineup,
+    formationKey: formation,
+    selfTeam: team,
+    oppTeam: opp,
+    oppLineup,
+    oppFormation,
+    scoreSelf,
+    scoreOpp,
+    isLeg2,
+    leg1HomeScore,
+    leg1AwayScore,
+    currentMatchTime,
+    isHomeSide,
+    currentMentality,
+    currentRoles
+  });
 
-  // Calculate Leg 1 score difference if this is Leg 2 of a European tie
-  let leg1Diff = 0;
-  if (isLeg2) {
-    if (isHomeSide) {
-      leg1Diff = leg1AwayScore - leg1HomeScore;
-    } else {
-      leg1Diff = leg1HomeScore - leg1AwayScore;
-    }
+  if (setTactic) {
+    setTactic(plan.mentality);
   }
-  const aggGoalDiff = goalDiff + leg1Diff;
-  const effectiveGoalDiff = isLeg2 ? aggGoalDiff : goalDiff;
-
-  let tactic = "balanced";
-  let counter = false;
-  let pressing = false;
-
-  // Underdog Stance
-  if (diff <= -5) {
-    if (effectiveGoalDiff < 0) {
-      if (currentMatchTime >= 70) {
-        tactic = "balanced";
-        counter = false;
-      } else {
-        tactic = "defense";
-        counter = true;
-      }
-    } else {
-      tactic = "ultra_defense";
-      counter = false;
-    }
-  } else if (diff <= -3) {
-    if (effectiveGoalDiff < 0) {
-      tactic = "defense";
-      counter = true;
-    } else {
-      tactic = "defense";
-      counter = false;
-    }
-  } else if (diff >= 3 && currentMatchTime === 0) {
-    tactic = "attack";
-    counter = false;
-  } else if (diff >= 5 && scoreSelf === 0 && scoreOpp === 0 && currentMatchTime >= 60) {
-    tactic = "ultra_attack";
-    counter = false;
-  } else {
-    // Standard match situations
-    if (effectiveGoalDiff < 0) {
-      const absDiff = Math.abs(effectiveGoalDiff);
-      if (absDiff >= 2 || currentMatchTime >= 70) {
-        tactic = diff >= -1 ? "ultra_attack" : "attack";
-      } else {
-        tactic = "attack";
-      }
-      counter = false;
-    } else if (effectiveGoalDiff > 0) {
-      if (currentMatchTime >= 70) {
-        tactic = diff <= 1 ? "ultra_defense" : "defense";
-        counter = true;
-      } else if (currentMatchTime >= 50) {
-        tactic = "defense";
-        counter = true;
-      } else {
-        tactic = "balanced";
-        counter = false;
-      }
-    } else {
-      if (diff >= 3) {
-        tactic = currentMatchTime >= 65 ? "ultra_attack" : "attack";
-        counter = false;
-      } else if (diff >= 1) {
-        tactic = isHomeSide ? "attack" : "balanced";
-        counter = false;
-      } else if (diff <= -1) {
-        tactic = isHomeSide ? "balanced" : "defense";
-        counter = true;
-      } else {
-        tactic = "balanced";
-        counter = !isHomeSide;
-      }
-    }
+  if (setRoles && plan.roles) {
+    setRoles(plan.roles);
   }
 
-  // Pressing rules
-  if (effectiveGoalDiff < 0 && (diff > -5 || currentMatchTime >= 70)) {
-    pressing = true;
-  }
-  if (diff >= 3) {
-    pressing = true;
-  }
-  if (effectiveGoalDiff === 0 && diff === 0 && isHomeSide && diff > -5) {
-    pressing = true;
-  }
-
-  // Reactive rules
-  if (opponentTactic === "ultra_attack") {
-    counter = true;
-  }
-  if (opponentTactic === "defense" && !opponentCounter && effectiveGoalDiff >= 0 && currentMatchTime < 70 && diff > -5) {
-    pressing = true;
-  }
-  if (opponentPressing) {
-    counter = true;
-  }
-
-  // TACTICAL OVERRIDES
-  if (diff > -3) {
-    if (effectiveGoalDiff >= 4) {
-      tactic = "defense";
-      pressing = false;
-    }
-
-    if (goalDiff <= -3) {
-      if (tactic === "balanced") {
-        tactic = "defense";
-      } else if (tactic === "defense") {
-        tactic = "ultra_defense";
-      } else if (tactic === "attack" || tactic === "ultra_attack") {
-        tactic = "defense";
-      }
-      pressing = false;
-    }
-
-    if (currentMatchTime >= 75 && effectiveGoalDiff === 1) {
-      tactic = "ultra_defense";
-      counter = true;
-      pressing = false;
-    }
-
-    if (currentMatchTime >= 75 && effectiveGoalDiff < 0) {
-      tactic = "ultra_attack";
-      pressing = true;
-      counter = false;
-    }
-  }
-
-  if (pressingDuration >= 10) {
-    pressing = false;
-  }
-
-  // If exhausted, stop pressing to preserve energy
-  if (stamina !== undefined && stamina < 30) {
-    pressing = false;
-  }
-
-  // Enforce tactical constraints for AI
-  if (tactic === "balanced") {
-    counter = false;
-    pressing = false;
-  } else if (tactic === "defense" || tactic === "ultra_defense") {
-    pressing = false;
-  } else if (tactic === "attack" || tactic === "ultra_attack") {
-    counter = false;
-  }
-
-  setTactic(tactic);
-  setCounter(counter);
-  setPressing(pressing);
+  return plan;
 };
 
-// Reusable UI Tactics Panel Component
+/**
+ * Reusable UI Tactics & Player Roles Panel Component
+ */
 export const TacticsPanel = ({
   disabled,
-  counter,
-  setCounter,
-  pressing,
-  setPressing,
   tactic,
   setTactic,
-  mentalityCooldown = 0
+  mentalityCooldown = 0,
+  lineup = {},
+  formation = '4-4-2',
+  playerRoles = {},
+  onToggleRole = null
 }) => {
-  const isMentalityDisabled = disabled || mentalityCooldown > 0;
+  const normTactic = normalizeMentality(tactic);
+  const isMentalityDisabled = disabled;
 
   const handleMentalityChange = (newTactic) => {
     if (isMentalityDisabled) return;
     setTactic(newTactic);
-
-    if (newTactic === "balanced") {
-      setCounter(false);
-      setPressing(false);
-    } else if (newTactic === "defense" || newTactic === "ultra_defense") {
-      setPressing(false);
-    } else if (newTactic === "attack" || newTactic === "ultra_attack") {
-      setCounter(false);
-    }
   };
 
-  const isCounterDisabled = disabled || (tactic !== "defense" && tactic !== "ultra_defense");
-  const isPressingDisabled = disabled || (tactic !== "attack" && tactic !== "ultra_attack");
+  // Build ordered outfield slot list for role controls / display
+  const rawSlots = getFormationSlots(formation || '4-4-2');
+  const outfieldSlots = rawSlots
+    .filter(s => s.role !== 'gk' && lineup && lineup[s.id])
+    .map(s => {
+      const player = lineup[s.id];
+      const idealPos = getIdealSlotPosition(s.role, s.x, s.y);
+      const slotWithPos = { ...s, idealPos };
+      const roleId = (playerRoles && playerRoles[s.id]) || 'normal';
+      const roleMeta = getRoleMetadata(slotWithPos, player, roleId);
+      const effSkill = getPlayerEffectiveSkill(player, slotWithPos);
+      const lastName = player.name ? player.name.trim().split(/\s+/).pop() : idealPos;
+      return {
+        slot: slotWithPos,
+        player,
+        idealPos,
+        roleId: roleMeta.id,
+        roleMeta,
+        effSkill,
+        lastName
+      };
+    });
+
+  const activeCpuRoles = disabled ? summarizeActiveRoles(lineup, formation, playerRoles) : [];
 
   return (
-    <div className="tactical-panel" style={{ marginTop: '15px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px', width: '100%' }}>
-      <span className="roll-label" style={{ fontSize: '10px', marginBottom: '8px', display: 'block' }}>
-        TEAM TACTICS {mentalityCooldown > 0 && <span style={{ color: '#ffd700', marginLeft: '5px', textShadow: '0 0 5px rgba(255, 215, 0, 0.3)' }}>(Locked: {mentalityCooldown}m)</span>}
+    <div
+      className="tactical-panel"
+      style={{
+        marginTop: '12px',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        paddingTop: '10px',
+        width: '100%'
+      }}
+    >
+      <span className="roll-label" style={{ fontSize: '9.5px', marginBottom: '6px', display: 'block' }}>
+        MENTALITY
       </span>
 
-      {/* Toggles Row */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginBottom: '8px' }}>
+      {/* 3 Mentality Buttons: Defensive, Normal, Attacking */}
+      <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', width: '100%', marginBottom: '10px' }}>
         <button
-          disabled={isCounterDisabled}
-          onClick={() => setCounter(prev => !prev)}
+          type="button"
+          disabled={isMentalityDisabled}
+          onClick={() => handleMentalityChange('defense')}
           style={{
-            background: counter ? '#ffc107' : 'rgba(255,255,255,0.05)',
-            border: counter ? '1.5px solid #ffca2c' : '1px solid rgba(255,255,255,0.1)',
-            color: counter ? '#111' : '#aaa',
-            padding: '3px 8px',
-            borderRadius: '12px',
+            background: normTactic === 'defense' ? 'rgba(0, 229, 255, 0.22)' : 'rgba(255,255,255,0.05)',
+            border: normTactic === 'defense' ? '1.5px solid #00e5ff' : '1px solid rgba(255,255,255,0.1)',
+            color: normTactic === 'defense' ? '#00e5ff' : '#aaa',
+            padding: '4px 4px',
+            borderRadius: '6px',
             fontSize: '8px',
-            cursor: isCounterDisabled ? 'not-allowed' : 'pointer',
+            fontFamily: 'Orbitron',
+            cursor: isMentalityDisabled ? 'not-allowed' : 'pointer',
             fontWeight: 'bold',
+            flex: 1,
             transition: 'all 0.2s ease',
-            opacity: isCounterDisabled ? 0.4 : 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
+            opacity: isMentalityDisabled && normTactic !== 'defense' ? 0.45 : 1
           }}
-          title="Counter-Attack: +2 Attack, -2 Midfield (Requires Defensive/Ultra-Defensive mentality)"
+          title="Defensive Mentality: +1 skill to all Defenders & Defense Supporters; -1 skill to all Attackers & Attack Supporters"
         >
-          ⚡ Counter: {counter ? "ON" : "OFF"}
+          🛡️ DEF
         </button>
+
         <button
-          disabled={isPressingDisabled}
-          onClick={() => setPressing(prev => !prev)}
+          type="button"
+          disabled={isMentalityDisabled}
+          onClick={() => handleMentalityChange('balanced')}
           style={{
-            background: pressing ? '#ff3b30' : 'rgba(255,255,255,0.05)',
-            border: pressing ? '1.5px solid #ff453a' : '1px solid rgba(255,255,255,0.1)',
-            color: pressing ? '#fff' : '#aaa',
-            padding: '3px 8px',
-            borderRadius: '12px',
+            background: normTactic === 'balanced' ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255,255,255,0.05)',
+            border: normTactic === 'balanced' ? '1.5px solid #ffd700' : '1px solid rgba(255,255,255,0.1)',
+            color: normTactic === 'balanced' ? '#ffd700' : '#aaa',
+            padding: '4px 4px',
+            borderRadius: '6px',
             fontSize: '8px',
-            cursor: isPressingDisabled ? 'not-allowed' : 'pointer',
+            fontFamily: 'Orbitron',
+            cursor: isMentalityDisabled ? 'not-allowed' : 'pointer',
             fontWeight: 'bold',
+            flex: 1,
             transition: 'all 0.2s ease',
-            opacity: isPressingDisabled ? 0.4 : 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
+            opacity: isMentalityDisabled && normTactic !== 'balanced' ? 0.45 : 1
           }}
-          title="Pressing: +1 Midfield, -2 Defense (Requires Attacking/Ultra-Attacking mentality)"
+          title="Normal Mentality: Standard player skills with no mentality modifiers"
         >
-          🛑 Pressing: {pressing ? "ON" : "OFF"}
+          ⚖️ NORMAL
+        </button>
+
+        <button
+          type="button"
+          disabled={isMentalityDisabled}
+          onClick={() => handleMentalityChange('attack')}
+          style={{
+            background: normTactic === 'attack' ? 'rgba(255, 69, 0, 0.25)' : 'rgba(255,255,255,0.05)',
+            border: normTactic === 'attack' ? '1.5px solid #ff4500' : '1px solid rgba(255,255,255,0.1)',
+            color: normTactic === 'attack' ? '#ff4500' : '#aaa',
+            padding: '4px 4px',
+            borderRadius: '6px',
+            fontSize: '8px',
+            fontFamily: 'Orbitron',
+            cursor: isMentalityDisabled ? 'not-allowed' : 'pointer',
+            fontWeight: 'bold',
+            flex: 1,
+            transition: 'all 0.2s ease',
+            opacity: isMentalityDisabled && normTactic !== 'attack' ? 0.45 : 1
+          }}
+          title="Attacking Mentality: +1 skill to all Attackers & Attack Supporters; -1 skill to all Defenders & Defense Supporters"
+        >
+          ⚔️ ATT
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: '2px', justifyContent: 'center', width: '100%' }}>
-        <button
-          disabled={isMentalityDisabled}
-          onClick={() => handleMentalityChange("ultra_defense")}
-          style={{
-            background: tactic === "ultra_defense" ? '#8b0000' : 'rgba(255,255,255,0.05)',
-            border: tactic === "ultra_defense" ? '1.5px solid #ff3333' : '1px solid rgba(255,255,255,0.1)',
-            color: '#fff',
-            padding: '3px 1px',
-            borderRadius: '5px',
-            fontSize: '7px',
-            cursor: isMentalityDisabled ? 'not-allowed' : 'pointer',
-            fontWeight: 'bold',
-            flex: 1,
-            transition: 'all 0.2s ease',
-            opacity: isMentalityDisabled ? 0.4 : 1
-          }}
-          title="Park the Bus: -3 Att, +4 Def"
-        >
-          🛡️ U-DF
-        </button>
-        <button
-          disabled={isMentalityDisabled}
-          onClick={() => handleMentalityChange("defense")}
-          style={{
-            background: tactic === "defense" ? '#ff4500' : 'rgba(255,255,255,0.05)',
-            border: tactic === "defense" ? '1.5px solid #ff4500' : '1px solid rgba(255,255,255,0.1)',
-            color: tactic === "defense" ? '#fff' : '#aaa',
-            padding: '3px 1px',
-            borderRadius: '5px',
-            fontSize: '7px',
-            cursor: isMentalityDisabled ? 'not-allowed' : 'pointer',
-            fontWeight: 'bold',
-            flex: 1,
-            transition: 'all 0.2s ease',
-            opacity: isMentalityDisabled ? 0.4 : 1
-          }}
-          title="Defensive: -2 Att, +2 Def"
-        >
-          🚌 DEF
-        </button>
-        <button
-          disabled={isMentalityDisabled}
-          onClick={() => handleMentalityChange("balanced")}
-          style={{
-            background: tactic === "balanced" ? '#007bff' : 'rgba(255,255,255,0.05)',
-            border: tactic === "balanced" ? '1.5px solid #007bff' : '1px solid rgba(255,255,255,0.1)',
-            color: tactic === "balanced" ? '#fff' : '#aaa',
-            padding: '3px 1px',
-            borderRadius: '5px',
-            fontSize: '7px',
-            cursor: isMentalityDisabled ? 'not-allowed' : 'pointer',
-            fontWeight: 'bold',
-            flex: 1,
-            transition: 'all 0.2s ease',
-            opacity: isMentalityDisabled ? 0.4 : 1
-          }}
-          title="Balanced: No changes"
-        >
-          ⚖️ BAL
-        </button>
-        <button
-          disabled={isMentalityDisabled}
-          onClick={() => handleMentalityChange("attack")}
-          style={{
-            background: tactic === "attack" ? '#00ff64' : 'rgba(255,255,255,0.05)',
-            border: tactic === "attack" ? '1.5px solid #00ff64' : '1px solid rgba(255,255,255,0.1)',
-            color: tactic === "attack" ? '#111' : '#aaa',
-            padding: '3px 1px',
-            borderRadius: '5px',
-            fontSize: '7px',
-            cursor: isMentalityDisabled ? 'not-allowed' : 'pointer',
-            fontWeight: 'bold',
-            flex: 1,
-            transition: 'all 0.2s ease',
-            opacity: isMentalityDisabled ? 0.4 : 1
-          }}
-          title="Attacking: +2 Att, -2 Def"
-        >
-          🔥 ATT
-        </button>
-        <button
-          disabled={isMentalityDisabled}
-          onClick={() => handleMentalityChange("ultra_attack")}
-          style={{
-            background: tactic === "ultra_attack" ? '#b30000' : 'rgba(255,255,255,0.05)',
-            border: tactic === "ultra_attack" ? '1.5px solid #ff0055' : '1px solid rgba(255,255,255,0.1)',
-            color: '#fff',
-            padding: '3px 1px',
-            borderRadius: '5px',
-            fontSize: '7px',
-            cursor: isMentalityDisabled ? 'not-allowed' : 'pointer',
-            fontWeight: 'bold',
-            flex: 1,
-            transition: 'all 0.2s ease',
-            opacity: isMentalityDisabled ? 0.4 : 1
-          }}
-          title="All-Out Attack: +4 Att, -1 Mid, -3 Def"
-        >
-          🌋 U-AT
-        </button>
-      </div>
+      {/* Player Tactical Roles Section */}
+      {!disabled && outfieldSlots.length > 0 && (
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          paddingTop: '8px',
+          width: '100%'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '5px'
+          }}>
+            <span className="roll-label" style={{ fontSize: '8.5px', margin: 0, color: '#00ff64' }}>
+              PLAYER ROLES (CLICK TO CHANGE)
+            </span>
+          </div>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '3px',
+            maxHeight: '155px',
+            overflowY: 'auto',
+            paddingRight: '2px'
+          }}>
+            {outfieldSlots.map(({ slot, player, idealPos, roleMeta, effSkill, lastName }) => (
+              <div
+                key={slot.id}
+                onClick={() => {
+                  if (onToggleRole) {
+                    const nextRole = getNextRoleForSlot(slot, player, roleMeta.id);
+                    onToggleRole(slot.id, nextRole, player, slot);
+                  }
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '3px 6px',
+                  borderRadius: '4px',
+                  background: roleMeta.id !== 'normal' ? 'rgba(0, 255, 100, 0.08)' : 'rgba(255,255,255,0.03)',
+                  border: roleMeta.id !== 'normal' ? `1px solid ${roleMeta.color}66` : '1px solid rgba(255,255,255,0.06)',
+                  cursor: 'pointer',
+                  fontSize: '8.5px',
+                  userSelect: 'none'
+                }}
+                title={`${player.name} (${idealPos}, ★${effSkill}) — ${roleMeta.label}: ${roleMeta.desc}`}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
+                  <span style={{
+                    fontFamily: 'Orbitron',
+                    fontSize: '7.5px',
+                    fontWeight: 'bold',
+                    color: slot.role === 'def' ? '#00e5ff' : (slot.role === 'mid' ? '#00ff64' : '#ff4500'),
+                    minWidth: '22px'
+                  }}>
+                    {idealPos}
+                  </span>
+                  <span style={{
+                    color: '#fff',
+                    fontWeight: '600',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '72px'
+                  }}>
+                    {lastName}
+                  </span>
+                  <span style={{ color: '#ffd700', fontSize: '7.5px', fontFamily: 'Orbitron' }}>
+                    ★{effSkill}
+                  </span>
+                </div>
+                <span style={{
+                  fontFamily: 'Orbitron',
+                  fontSize: '7px',
+                  fontWeight: 'bold',
+                  color: roleMeta.color,
+                  background: 'rgba(0,0,0,0.35)',
+                  padding: '1px 4px',
+                  borderRadius: '3px',
+                  border: `1px solid ${roleMeta.color}55`,
+                  whiteSpace: 'nowrap'
+                }}>
+                  {roleMeta.shortLabel} ↻
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* CPU Active Roles Summary */}
+      {disabled && outfieldSlots.length > 0 && (
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          paddingTop: '7px',
+          width: '100%'
+        }}>
+          <span className="roll-label" style={{ fontSize: '8px', marginBottom: '4px', display: 'block', color: '#aaa' }}>
+            AI TACTICAL ROLES ({activeCpuRoles.length})
+          </span>
+          {activeCpuRoles.length === 0 ? (
+            <div style={{ fontSize: '8px', color: '#777', fontStyle: 'italic' }}>
+              Standard positional duties
+            </div>
+          ) : (
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '3px',
+              justifyContent: 'center',
+              maxHeight: '95px',
+              overflowY: 'auto'
+            }}>
+              {activeCpuRoles.map(item => (
+                <span
+                  key={item.slotId}
+                  style={{
+                    fontSize: '7px',
+                    fontFamily: 'Orbitron',
+                    fontWeight: 'bold',
+                    color: item.color,
+                    background: 'rgba(0,0,0,0.4)',
+                    border: `1px solid ${item.color}55`,
+                    borderRadius: '3px',
+                    padding: '2px 4px'
+                  }}
+                  title={`${item.playerName} (${item.idealPos}): ${item.label}`}
+                >
+                  {item.lastName}: {item.shortLabel}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -10,6 +10,7 @@ import TournamentSelect from './components/TournamentSelect';
 import TournamentDashboard from './components/TournamentDashboard';
 import PreMatch from './components/PreMatch';
 import Fixtures from './components/Fixtures';
+import CMRetroHub from './cmRetro/components/CMRetroHub';
 
 function App() {
   
@@ -18,6 +19,7 @@ function App() {
 
     <Routes>
       <Route exact path="/" element={<Home />} />
+      <Route path="/cm-retro/*" element={<CMRetroHub />} />
       <Route exact path="/friendly" element={<Friendly />} />
       <Route exact path="/pre-match" element={<PreMatch />} />
       <Route exact path="/match" element={<Match />} />

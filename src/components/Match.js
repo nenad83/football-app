@@ -8,7 +8,16 @@ import { clibRules } from '../data/clib/clibRules';
 import { csudRules } from '../data/csud/csudRules';
 import { getModifiedStat as computeModifiedStat, adjustCPUTactic as runCPUTacticAdjustment, TacticsPanel } from './MatchTactics';
 import { getSubstitutionLimit, getStoppageLimit } from '../utils/matchRules';
-import { getSavedFormation, getCPUFormation, updateTeamStatsInStorage, getFormationSlots, getIdealSlotPosition, getPositionPenalty } from './FormationTactics';
+import { getSavedFormation, getCPUFormation, updateTeamStatsInStorage, getFormationSlots, getIdealSlotPosition, getPositionPenalty, generateDefaultLineup } from './FormationTactics';
+import { getPrebuiltRoster } from '../data/rosters/rosterRegistry';
+import { getCPUMatchLineupAndStats } from '../utils/cpuSquadManager';
+import {
+  calculateTeamTacticalStats,
+  getRoleMetadata,
+  getNextRoleForSlot,
+  summarizeActiveRoles,
+  normalizeMentality
+} from '../utils/tacticalRoleEngine';
 import {
   getMidfieldWinCommentary,
   getMidfieldDrawCommentary,
@@ -21,6 +30,30 @@ import {
 } from './MatchCommentary';
 import { initializeKnockouts } from "../utils/tournamentRules";
 import { advanceDomesticCup } from "../utils/domesticCupGenerator";
+
+const MATCH_REFEREES = [
+  'Pierluigi Collina',
+  'Graham Poll',
+  'Mike Riley',
+  'Howard Webb',
+  'Uriah Rennie',
+  'Steve Bennett',
+  'Mark Halsey',
+  'Dermot Gallagher',
+  'David Elleray',
+  'Paul Durkin'
+];
+
+function getContrastText(hexColor, fallback = '#ffffff') {
+  if (!hexColor || typeof hexColor !== 'string' || !hexColor.startsWith('#') || hexColor.length < 7) {
+    return fallback;
+  }
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 155 ? '#06131c' : '#ffffff';
+}
 
 // Inline premium vector Team Flag component
 const TeamFlag = ({ primaryColor, secondaryColor, size = 120 }) => {
@@ -332,12 +365,35 @@ export default function Match() {
     leagueState.teams.forEach(t => { teamid[t.idnum] = t; });
     playerTeamId = leagueState.playerTeamId;
 
-    // Get P1 Active fixture
-    const currentFixture = leagueState.fixtures[leagueState.currentRound - 1].find(
-      f => f.homeId === leagueState.playerTeamId || f.awayId === leagueState.playerTeamId
-    );
-    teamonename = currentFixture.homeId;
-    teamtwoname = currentFixture.awayId;
+    const currentEvent = leagueState.calendar ? leagueState.calendar[leagueState.calendarIndex] : null;
+    if (currentEvent && (currentEvent.type === "domestic_cup" || currentEvent.isDomesticCup) && leagueState.domesticCupState) {
+      const domCup = leagueState.domesticCupState;
+      if (domCup.participatingTeams) {
+        domCup.participatingTeams.forEach(t => { teamid[t.idnum] = t; });
+      }
+      const stageMatches = domCup.knockoutState ? (domCup.knockoutState[currentEvent.stage] || []) : [];
+      const userCupMatch = stageMatches.find(m => m.homeId === leagueState.playerTeamId || m.awayId === leagueState.playerTeamId);
+      if (userCupMatch) {
+        teamonename = userCupMatch.homeId;
+        teamtwoname = userCupMatch.awayId;
+      } else {
+        const currentFixture = leagueState.fixtures[leagueState.currentRound - 1]?.find(
+          f => f.homeId === leagueState.playerTeamId || f.awayId === leagueState.playerTeamId
+        );
+        if (currentFixture) {
+          teamonename = currentFixture.homeId;
+          teamtwoname = currentFixture.awayId;
+        }
+      }
+    } else {
+      const currentFixture = leagueState.fixtures[leagueState.currentRound - 1]?.find(
+        f => f.homeId === leagueState.playerTeamId || f.awayId === leagueState.playerTeamId
+      );
+      if (currentFixture) {
+        teamonename = currentFixture.homeId;
+        teamtwoname = currentFixture.awayId;
+      }
+    }
   } else if (isEurope && leagueState) {
     teamid = {};
     leagueState.europeanCupState.teams.forEach(t => { teamid[t.idnum] = t; });
@@ -424,37 +480,35 @@ export default function Match() {
 
   const [playMode] = useState(startingTactics.playMode || "manual");
   const [isPlaying, setIsPlaying] = useState(false);
-  const [simSpeed, setSimSpeed] = useState(1000);
+  const [simSpeed, setSimSpeed] = useState(2200);
 
   // Tactical choices: balanced, attack, defense
   const [homeTactic, setHomeTactic] = useState(() => {
     if (startingTactics.homeTactic !== undefined) {
-      return startingTactics.homeTactic;
+      return normalizeMentality(startingTactics.homeTactic);
     }
     if (teamid && teamonename && teamtwoname) {
       const team = teamid[teamonename];
       const opp = teamid[teamtwoname];
       if (team && opp) {
         const diff = (team.attack + team.midfield + team.defense) - (opp.attack + opp.midfield + opp.defense);
-        if (diff <= -5) return "ultra_defense";
         if (diff <= -3) return "defense";
-        if (diff >= 3) return "attack"; // strong side starts attacking
+        if (diff >= 3) return "attack";
       }
     }
     return "balanced";
   });
   const [awayTactic, setAwayTactic] = useState(() => {
     if (startingTactics.awayTactic !== undefined) {
-      return startingTactics.awayTactic;
+      return normalizeMentality(startingTactics.awayTactic);
     }
     if (teamid && teamonename && teamtwoname) {
       const team = teamid[teamtwoname];
       const opp = teamid[teamonename];
       if (team && opp) {
         const diff = (team.attack + team.midfield + team.defense) - (opp.attack + opp.midfield + opp.defense);
-        if (diff <= -5) return "ultra_defense";
         if (diff <= -3) return "defense";
-        if (diff >= 3) return "attack"; // strong side starts attacking
+        if (diff >= 3) return "attack";
       }
     }
     return "balanced";
@@ -475,8 +529,6 @@ export default function Match() {
   const [homePressingDuration, setHomePressingDuration] = useState(0);
   const [awayPressingDuration, setAwayPressingDuration] = useState(0);
 
-  const [homeStamina, setHomeStamina] = useState(100);
-  const [awayStamina, setAwayStamina] = useState(100);
   const [homeSubs, setHomeSubs] = useState(0);
   const [awaySubs, setAwaySubs] = useState(0);
   const [homeStoppagesUsed, setHomeStoppagesUsed] = useState(0);
@@ -486,12 +538,19 @@ export default function Match() {
   const [showSubModal, setShowSubModal] = useState(false);
   const [squad, setSquad] = useState([]);
   const [lineup, setLineup] = useState({});
+  const [playerRoles, setPlayerRoles] = useState({});
+  const [savedStartingRoles, setSavedStartingRoles] = useState({});
   const [selectedRosterPlayer, setSelectedRosterPlayer] = useState(null);
   const [draggedPlayer, setDraggedPlayer] = useState(null);
   const [dragOverSlotId, setDragOverSlotId] = useState(null);
   const [playerMinutes, setPlayerMinutes] = useState({});
   const [savedStartingLineup, setSavedStartingLineup] = useState(null);
   const [selectedBenchNames, setSelectedBenchNames] = useState([]);
+  const [cpuStats, setCpuStats] = useState({});
+  const [cpuLineups, setCpuLineups] = useState({});
+  const [cpuBenches, setCpuBenches] = useState({});
+  const [cpuRoles, setCpuRoles] = useState({});
+  const [showOpponentModal, setShowOpponentModal] = useState(null);
 
   const getPlayerTeamNameAndSeason = useCallback(() => {
     let teamName = "";
@@ -518,73 +577,111 @@ export default function Match() {
   }, [isLeague, isEurope, isTournament]);
 
   useEffect(() => {
+    let isMounted = true;
     const { teamName, season } = getPlayerTeamNameAndSeason();
     if (teamName) {
       const rosterKey = `retro_roster_${teamName}_${season}`;
       const lineupKey = `retro_lineup_${teamName}_${season}`;
+      const rolesKey = `retro_roles_${teamName}_${season}`;
       const cachedRoster = localStorage.getItem(rosterKey);
       const cachedLineup = localStorage.getItem(lineupKey);
+      const cachedRoles = localStorage.getItem(rolesKey);
 
       let loadedSquad = cachedRoster ? JSON.parse(cachedRoster) : [];
       let loadedLineup = cachedLineup ? JSON.parse(cachedLineup) : {};
-
-      const currentRound = leagueState ? leagueState.currentRound : 1;
-      if (currentRound === 1 && loadedSquad.length > 0) {
-        let updated = false;
-        loadedSquad = loadedSquad.map(p => {
-          if (p.condition !== 100 || p.injuryMatchesLeft !== 0 || p.injury !== null) {
-            updated = true;
-          }
-          return {
-            ...p,
-            condition: 100,
-            injuryMatchesLeft: 0,
-            injury: null
-          };
-        });
-        if (updated) {
-          localStorage.setItem(rosterKey, JSON.stringify(loadedSquad));
-
-          // Also sync the lineup
-          Object.keys(loadedLineup).forEach(slotId => {
-            const player = loadedLineup[slotId];
-            if (player) {
-              const rosterPlayer = loadedSquad.find(p => p.name === player.name);
-              if (rosterPlayer) {
-                loadedLineup[slotId] = rosterPlayer;
-              }
-            }
-          });
-          localStorage.setItem(lineupKey, JSON.stringify(loadedLineup));
+      let loadedRoles = {};
+      if (cachedRoles) {
+        try {
+          loadedRoles = JSON.parse(cachedRoles) || {};
+        } catch (e) {
+          loadedRoles = {};
         }
       }
 
-      setSquad(loadedSquad);
-      setLineup(loadedLineup);
-      setSavedStartingLineup(JSON.parse(JSON.stringify(loadedLineup)));
+      const initializeMatchSquad = async () => {
+        if (loadedSquad.length === 0) {
+          const prebuilt = await getPrebuiltRoster(teamName, season);
+          if (prebuilt && prebuilt.length >= 11) {
+            loadedSquad = prebuilt;
+            localStorage.setItem(rosterKey, JSON.stringify(loadedSquad));
+          }
+        }
 
-      // Load selected bench names
-      const benchKey = `retro_bench_${teamName}_${season}`;
-      const cachedBench = localStorage.getItem(benchKey);
-      let loadedBench = cachedBench ? JSON.parse(cachedBench) : [];
-      setSelectedBenchNames(loadedBench);
+        if (loadedSquad.length >= 11 && Object.keys(loadedLineup).length === 0) {
+          loadedLineup = generateDefaultLineup(loadedSquad, getSavedFormation());
+          localStorage.setItem(lineupKey, JSON.stringify(loadedLineup));
+          updateTeamStatsInStorage(loadedLineup, getSavedFormation(), loadedRoles);
+        }
 
-      // Initialize minutes tracker for all squad players
-      const initialMinutes = {};
-      loadedSquad.forEach(p => {
-        const isStarting = Object.values(loadedLineup).some(lp => lp && lp.name === p.name);
-        initialMinutes[p.name] = {
-          name: p.name,
-          started: isStarting,
-          enteredAt: isStarting ? 0 : null,
-          exitedAt: null,
-          minutesPlayed: 0
-        };
-      });
-      setPlayerMinutes(initialMinutes);
+        const currentRound = leagueState ? leagueState.currentRound : 1;
+        if (currentRound === 1 && loadedSquad.length > 0) {
+          let updated = false;
+          loadedSquad = loadedSquad.map(p => {
+            if (p.condition !== 100 || p.injuryMatchesLeft !== 0 || p.injury !== null) {
+              updated = true;
+            }
+            return {
+              ...p,
+              condition: 100,
+              injuryMatchesLeft: 0,
+              injury: null
+            };
+          });
+          if (updated) {
+            localStorage.setItem(rosterKey, JSON.stringify(loadedSquad));
+
+            // Also sync the lineup
+            Object.keys(loadedLineup).forEach(slotId => {
+              const player = loadedLineup[slotId];
+              if (player) {
+                const rosterPlayer = loadedSquad.find(p => p.name === player.name);
+                if (rosterPlayer) {
+                  loadedLineup[slotId] = rosterPlayer;
+                }
+              }
+            });
+            localStorage.setItem(lineupKey, JSON.stringify(loadedLineup));
+          }
+        }
+
+        if (!isMounted) return;
+
+        setSquad(loadedSquad);
+        setLineup(loadedLineup);
+        setPlayerRoles(loadedRoles);
+        setSavedStartingLineup(JSON.parse(JSON.stringify(loadedLineup)));
+        setSavedStartingRoles(JSON.parse(JSON.stringify(loadedRoles)));
+
+        // Load selected bench names
+        const benchKey = `retro_bench_${teamName}_${season}`;
+        const cachedBench = localStorage.getItem(benchKey);
+        let loadedBench = cachedBench ? JSON.parse(cachedBench) : [];
+        if (loadedBench.length === 0 && loadedSquad.length > 0) {
+          const startingNames = new Set(Object.values(loadedLineup).filter(Boolean).map(p => p.name));
+          loadedBench = loadedSquad.filter(p => !startingNames.has(p.name)).slice(0, 7).map(p => p.name);
+          localStorage.setItem(benchKey, JSON.stringify(loadedBench));
+        }
+        setSelectedBenchNames(loadedBench);
+
+        // Initialize minutes tracker for all squad players
+        const initialMinutes = {};
+        loadedSquad.forEach(p => {
+          const isStarting = Object.values(loadedLineup).some(lp => lp && lp.name === p.name);
+          initialMinutes[p.name] = {
+            name: p.name,
+            started: isStarting,
+            enteredAt: isStarting ? 0 : null,
+            exitedAt: null,
+            minutesPlayed: 0
+          };
+        });
+        setPlayerMinutes(initialMinutes);
+      };
+
+      initializeMatchSquad();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getPlayerTeamNameAndSeason]);
+    return () => { isMounted = false; };
+  }, [isLeague, isEurope, isTournament, getPlayerTeamNameAndSeason]);
 
   const getPositionColor = (pos) => {
     if (!pos) return '#aaa';
@@ -602,6 +699,33 @@ export default function Match() {
   };
 
   const isPlayerHome = teamonename === playerTeamId;
+
+  const handleTogglePlayerRole = (slotId, nextRole, player, slot) => {
+    let resolvedSlot = slot;
+    let resolvedPlayer = player || (lineup ? lineup[slotId] : null);
+    if (!resolvedSlot) {
+      const foundSlot = getFormationSlots(getSavedFormation()).find(s => s.id === slotId);
+      if (foundSlot) {
+        resolvedSlot = {
+          ...foundSlot,
+          idealPos: getIdealSlotPosition(foundSlot.role, foundSlot.x, foundSlot.y)
+        };
+      }
+    }
+    const currentRole = playerRoles[slotId] || 'normal';
+    const resolvedNextRole = nextRole || (resolvedSlot ? getNextRoleForSlot(resolvedSlot, resolvedPlayer, currentRole) : 'normal');
+    const nextRoles = { ...playerRoles, [slotId]: resolvedNextRole };
+    setPlayerRoles(nextRoles);
+    const { teamName, season } = getPlayerTeamNameAndSeason();
+    if (teamName) {
+      localStorage.setItem(`retro_roles_${teamName}_${season}`, JSON.stringify(nextRoles));
+      updateTeamStatsInStorage(lineup, getSavedFormation(), nextRoles);
+    }
+    if (resolvedPlayer && resolvedSlot && time > 0) {
+      const meta = getRoleMetadata(resolvedSlot, resolvedPlayer, resolvedNextRole);
+      logEvent(`⚙️ Tactical duty: ${resolvedPlayer.name} (${resolvedSlot.idealPos || resolvedPlayer.position}) switched to ${meta.label}`, "normal");
+    }
+  };
 
   const executeSwap = (playerFromBench, targetSlotId, playerToBench) => {
     if (playerFromBench && playerFromBench.injuryMatchesLeft > 0) {
@@ -658,12 +782,10 @@ export default function Match() {
     if (isSub) {
       if (isPlayerHome) {
         setHomeSubs(prev => prev + 1);
-        setHomeStamina(prev => Math.min(100, prev + 10));
-        logEvent(`🔄 Sub: ${playerFromBench.name} comes on for ${playerToBench ? playerToBench.name : "empty slot"}! (+10% stamina)`, "normal");
+        logEvent(`🔄 Sub: ${playerFromBench.name} comes on for ${playerToBench ? playerToBench.name : "empty slot"}!`, "normal");
       } else {
         setAwaySubs(prev => prev + 1);
-        setAwayStamina(prev => Math.min(100, prev + 10));
-        logEvent(`🔄 Sub: ${playerFromBench.name} comes on for ${playerToBench ? playerToBench.name : "empty slot"}! (+10% stamina)`, "normal");
+        logEvent(`🔄 Sub: ${playerFromBench.name} comes on for ${playerToBench ? playerToBench.name : "empty slot"}!`, "normal");
       }
 
       setPlayerMinutes(prev => {
@@ -741,49 +863,34 @@ export default function Match() {
     setShowSubModal(false);
   };
 
-  const [homeTacticLastChanged, setHomeTacticLastChanged] = useState(-20);
-  const [awayTacticLastChanged, setAwayTacticLastChanged] = useState(-20);
-
   const handleHomeTacticChange = (newTactic) => {
     if (newTactic === homeTactic) return;
-    if (time === 0) {
-      setHomeTactic(newTactic);
-    } else if (time - homeTacticLastChanged >= 20) {
-      setHomeTactic(newTactic);
-      setHomeTacticLastChanged(time);
+    setHomeTactic(newTactic);
+    if (time > 0) {
       logEvent(`${teamid[teamonename].name} shifts mentality to ${newTactic.replace('_', ' ').toUpperCase()}!`, "normal");
     }
   };
 
   const handleAwayTacticChange = (newTactic) => {
     if (newTactic === awayTactic) return;
-    if (time === 0) {
-      setAwayTactic(newTactic);
-    } else if (time - awayTacticLastChanged >= 20) {
-      setAwayTactic(newTactic);
-      setAwayTacticLastChanged(time);
+    setAwayTactic(newTactic);
+    if (time > 0) {
       logEvent(`${teamid[teamtwoname].name} shifts mentality to ${newTactic.replace('_', ' ').toUpperCase()}!`, "normal");
     }
   };
 
   const handleCPUTacticChangeHome = (newTactic) => {
     if (newTactic === homeTactic) return;
-    if (time === 0) {
-      setHomeTactic(newTactic);
-    } else if (time - homeTacticLastChanged >= 20) {
-      setHomeTactic(newTactic);
-      setHomeTacticLastChanged(time);
+    setHomeTactic(newTactic);
+    if (time > 0) {
       logEvent(`${teamid[teamonename].name} changes mentality to ${newTactic.replace('_', ' ').toUpperCase()}!`, "normal");
     }
   };
 
   const handleCPUTacticChangeAway = (newTactic) => {
     if (newTactic === awayTactic) return;
-    if (time === 0) {
-      setAwayTactic(newTactic);
-    } else if (time - awayTacticLastChanged >= 20) {
-      setAwayTactic(newTactic);
-      setAwayTacticLastChanged(time);
+    setAwayTactic(newTactic);
+    if (time > 0) {
       logEvent(`${teamid[teamtwoname].name} changes mentality to ${newTactic.replace('_', ' ').toUpperCase()}!`, "normal");
     }
   };
@@ -832,7 +939,7 @@ export default function Match() {
     setShowGoalFlash(true);
     setTimeout(() => {
       setShowGoalFlash(false);
-    }, 2000);
+    }, 3200);
   };
 
   // Penalty shootouts states
@@ -846,16 +953,112 @@ export default function Match() {
   const [penaltyWinner, setPenaltyWinner] = useState(null);
   const [isPenaltyCPUProcessing, setIsPenaltyCPUProcessing] = useState(false);
 
-  // Event feed chronicle
+  const [referee] = useState(() => MATCH_REFEREES[Math.floor(Math.random() * MATCH_REFEREES.length)]);
+
+  // Event feed chronicle & CM 01/02 Live Banner
   const [chronicle, setChronicle] = useState([
-    { time: 0, text: `Match starting: ${teamid[teamonename].name} vs ${teamid[teamtwoname].name}`, type: 'normal' }
+    {
+      time: 0,
+      text: `Match starting: ${teamid[teamonename]?.name || 'Home'} vs ${teamid[teamtwoname]?.name || 'Away'}`,
+      type: 'normal',
+      side: 'neutral'
+    }
   ]);
+  const [liveBanner, setLiveBanner] = useState({
+    time: 0,
+    text: `⚽ Match starting: ${teamid[teamonename]?.name || 'Home'} vs ${teamid[teamtwoname]?.name || 'Away'}`,
+    type: 'normal',
+    side: 'neutral'
+  });
 
   // Visual ball position
   const [ballPosition, setBallPosition] = useState('center');
 
-  const logEvent = (text, type = 'normal') => {
-    setChronicle(prev => [{ time, text, type }, ...prev]);
+  // CM 01/02 Sound effects playback
+  const playCMSound = useCallback((soundFile) => {
+    if (!soundFile) return;
+    try {
+      const normalized = soundFile.toLowerCase();
+      const audio = new Audio(`/sounds/cm/${normalized}`);
+      audio.volume = 0.65;
+      audio.play().catch(() => { });
+    } catch (e) {
+      // browser audio policy
+    }
+  }, []);
+
+  const logEvent = useCallback((payload, type = 'normal', side = 'neutral') => {
+    let text = payload;
+    let sound = null;
+    let eventSide = side;
+
+    if (payload && typeof payload === 'object') {
+      text = payload.text || String(payload);
+      sound = payload.sound || null;
+      // Only fallback to payload.side if the caller didn't specify an explicit home/away side
+      if ((!side || side === 'neutral') && payload.side && (payload.side === 'home' || payload.side === 'away')) {
+        eventSide = payload.side;
+      }
+    }
+
+    if (sound) {
+      playCMSound(sound);
+    }
+
+    const newEvent = { time, text: String(text), type, side: eventSide };
+    setChronicle(prev => [newEvent, ...prev]);
+    setLiveBanner(newEvent);
+  }, [time, playCMSound]);
+
+  const getTeamLineup = useCallback((teamKey) => {
+    if (teamKey === null || teamKey === undefined) return null;
+    if (teamKey === playerTeamId) {
+      return (lineup && Object.keys(lineup).length > 0) ? lineup : null;
+    }
+    if (cpuLineups && cpuLineups[teamKey] && Object.keys(cpuLineups[teamKey]).length > 0) {
+      return cpuLineups[teamKey];
+    }
+    if (teamKey === teamonename && !isHomeDisabled && lineup && Object.keys(lineup).length > 0) {
+      return lineup;
+    }
+    if (teamKey === teamtwoname && !isAwayDisabled && lineup && Object.keys(lineup).length > 0) {
+      return lineup;
+    }
+    return null;
+  }, [playerTeamId, lineup, cpuLineups, teamonename, teamtwoname, isHomeDisabled, isAwayDisabled]);
+
+  const getCommentaryBarStyle = () => {
+    if (!liveBanner) {
+      return { background: '#092131', color: '#ffdd44', borderColor: '#00a2a2' };
+    }
+    if (liveBanner.type === 'goal') {
+      return {
+        background: '#cc0000',
+        color: '#ffffff',
+        borderColor: '#ffd700'
+      };
+    }
+    if (liveBanner.side === 'home' && teamid[teamonename]?.primaryColor) {
+      const bg = teamid[teamonename].primaryColor;
+      return {
+        background: bg,
+        color: getContrastText(bg),
+        borderColor: teamid[teamonename].secondaryColor || '#ffffff'
+      };
+    }
+    if (liveBanner.side === 'away' && teamid[teamtwoname]?.primaryColor) {
+      const bg = teamid[teamtwoname].primaryColor;
+      return {
+        background: bg,
+        color: getContrastText(bg),
+        borderColor: teamid[teamtwoname].secondaryColor || '#ffffff'
+      };
+    }
+    return {
+      background: '#092131',
+      color: '#e0f0f5',
+      borderColor: '#00a2a2'
+    };
   };
 
   // Persistent refs for audio elements to prevent recreation on re-renders
@@ -946,17 +1149,17 @@ export default function Match() {
   // Manage referee whistle sounds on key match transitions
   useEffect(() => {
     // 1. Kickoffs (whistle.mp3)
-    if (prevTimeRef.current === 90 && time === 95) {
+    if (prevTimeRef.current === 90 && time === 93) {
       // Extra Time kickoff
       playSoundFile(whistleAudioRef);
     }
 
     // 2. End of halves (final_whistle.mp3)
-    if (prevTimeRef.current === 40 && time === 45) {
+    if (prevTimeRef.current === 42 && time === 45) {
       playSoundFile(finalWhistleAudioRef);
-    } else if (prevTimeRef.current === 85 && time === 90) {
+    } else if (prevTimeRef.current === 87 && time === 90) {
       playSoundFile(finalWhistleAudioRef);
-    } else if (prevTimeRef.current === 115 && time === 120) {
+    } else if (prevTimeRef.current === 117 && time === 120) {
       playSoundFile(finalWhistleAudioRef);
     }
 
@@ -1017,8 +1220,34 @@ export default function Match() {
     ? playerFormation
     : getCPUFormation(teamid[teamtwoname], teamid[teamonename], year);
 
+  const getBaseStat = (teamKey, statType) => {
+    const isHome = teamKey === teamonename;
+    const formation = isHome ? homeFormation : awayFormation;
+
+    // If this is the player's team and we have a lineup, compute base stat using saved starting roles & balanced mentality
+    if (playerTeamId !== null && teamKey === playerTeamId && lineup && Object.keys(lineup).filter(k => lineup[k]).length >= 7) {
+      const startingRoles = (savedStartingRoles && Object.keys(savedStartingRoles).length > 0) ? savedStartingRoles : playerRoles;
+      const baseCalc = calculateTeamTacticalStats(lineup, formation, startingRoles, 'balanced');
+      return baseCalc[statType] !== undefined ? baseCalc[statType] : 3;
+    }
+
+    // If CPU team has an active lineup, compute base stat (normal roles, balanced mentality)
+    if (cpuLineups && cpuLineups[teamKey] && Object.keys(cpuLineups[teamKey]).filter(k => cpuLineups[teamKey][k]).length >= 7) {
+      const baseCalc = calculateTeamTacticalStats(cpuLineups[teamKey], formation, {}, 'balanced');
+      return baseCalc[statType] !== undefined ? baseCalc[statType] : 3;
+    }
+
+    if (cpuStats && cpuStats[teamKey] && cpuStats[teamKey][statType] !== undefined) {
+      return cpuStats[teamKey][statType];
+    }
+    if (teamid && teamid[teamKey] && teamid[teamKey][statType] !== undefined) {
+      return teamid[teamKey][statType];
+    }
+    return 3;
+  };
+
   const getModifiedStat = (teamKey, statType) => {
-    const baseValue = teamid[teamKey][statType];
+    const baseValue = getBaseStat(teamKey, statType);
     const isHome = teamKey === teamonename;
     const tactic = isHome ? homeTactic : awayTactic;
     const counter = isHome ? homeCounter : awayCounter;
@@ -1026,26 +1255,126 @@ export default function Match() {
     const oppPressing = isHome ? awayPressing : homePressing;
     const pressingDuration = isHome ? homePressingDuration : awayPressingDuration;
     const formation = isHome ? homeFormation : awayFormation;
-    const stamina = isHome ? homeStamina : awayStamina;
 
-    return computeModifiedStat(baseValue, statType, tactic, counter, pressing, oppPressing, pressingDuration, formation, stamina);
+    const isPlayerSide = playerTeamId !== null && teamKey === playerTeamId;
+    const activeLineup = isPlayerSide ? lineup : (cpuLineups ? cpuLineups[teamKey] : null);
+    const activeRoles = isPlayerSide ? playerRoles : (cpuRoles && cpuRoles[teamKey] ? cpuRoles[teamKey] : {});
+
+    return computeModifiedStat(
+      baseValue,
+      statType,
+      tactic,
+      counter,
+      pressing,
+      oppPressing,
+      pressingDuration,
+      formation,
+      null,
+      activeLineup,
+      activeRoles
+    );
   };
+
+  // Load CPU authentic starting lineups, rotation, tactical roles, and dynamic strength ratings
+  useEffect(() => {
+    let isMounted = true;
+    const loadCPUSquads = async () => {
+      if (!teamid) return;
+      const newStats = {};
+      const newLineups = {};
+      const newBenches = {};
+      const newRoles = {};
+      const currentCalEvent = leagueState?.calendar ? leagueState.calendar[leagueState.calendarIndex] : null;
+      const isDomCup = isLeague && currentCalEvent && (currentCalEvent.type === "domestic_cup" || currentCalEvent.isDomesticCup);
+      const isCupMatch = Boolean(cup || isEurope || isDomCup || isTournament || (!isLeague && !isEurope));
+
+      // Home team if CPU
+      if (teamonename !== null && teamonename !== playerTeamId && teamid[teamonename]) {
+        const hTeam = teamid[teamonename];
+        const oppTeam = teamid[teamtwoname];
+        const res = await getCPUMatchLineupAndStats(
+          hTeam.name,
+          hTeam,
+          year,
+          homeFormation,
+          isCupMatch,
+          oppTeam,
+          true,
+          teamtwoname === playerTeamId ? lineup : null,
+          awayFormation
+        );
+        if (res && res.stats) {
+          newStats[teamonename] = res.baseStats || res.stats;
+          newLineups[teamonename] = res.lineup;
+          newBenches[teamonename] = res.bench;
+          newRoles[teamonename] = res.roles || {};
+          if (isMounted && res.mentality) {
+            setHomeTactic(res.mentality);
+          }
+        }
+      }
+
+      // Away team if CPU
+      if (teamtwoname !== null && teamtwoname !== playerTeamId && teamid[teamtwoname]) {
+        const aTeam = teamid[teamtwoname];
+        const oppTeam = teamid[teamonename];
+        const res = await getCPUMatchLineupAndStats(
+          aTeam.name,
+          aTeam,
+          year,
+          awayFormation,
+          isCupMatch,
+          oppTeam,
+          false,
+          teamonename === playerTeamId ? lineup : null,
+          homeFormation
+        );
+        if (res && res.stats) {
+          newStats[teamtwoname] = res.baseStats || res.stats;
+          newLineups[teamtwoname] = res.lineup;
+          newBenches[teamtwoname] = res.bench;
+          newRoles[teamtwoname] = res.roles || {};
+          if (isMounted && res.mentality) {
+            setAwayTactic(res.mentality);
+          }
+        }
+      }
+
+      if (isMounted) {
+        setCpuStats(newStats);
+        setCpuLineups(newLineups);
+        setCpuBenches(newBenches);
+        setCpuRoles(newRoles);
+      }
+    };
+
+    loadCPUSquads();
+    return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamonename, teamtwoname, playerTeamId, year, homeFormation, awayFormation, cup, isEurope]);
 
   const adjustCPUTactic = (teamKey, opponentKey, scoreSelf, scoreOpp, isHomeSide, setTacticSetter, setCounterSetter, setPressingSetter, currentMatchTime) => {
     const team = teamid[teamKey];
     const opp = teamid[opponentKey];
-    const opponentTactic = isHomeSide ? awayTactic : homeTactic;
-    const opponentCounter = isHomeSide ? awayCounter : homeCounter;
-    const opponentPressing = isHomeSide ? awayPressing : homePressing;
-    const pressingDuration = isHomeSide ? homePressingDuration : awayPressingDuration;
+    if (!team || !opp) return;
 
-    let proposedTactic = isHomeSide ? homeTactic : awayTactic;
-    let proposedCounter = isHomeSide ? homeCounter : awayCounter;
-    let proposedPressing = isHomeSide ? homePressing : awayPressing;
+    const selfFormation = isHomeSide ? homeFormation : awayFormation;
+    const oppFormation = isHomeSide ? awayFormation : homeFormation;
+    const selfLineup = cpuLineups[teamKey] || {};
+    const oppLineup = (opponentKey === playerTeamId) ? lineup : (cpuLineups[opponentKey] || {});
+    const currentTactic = isHomeSide ? homeTactic : awayTactic;
+    const currentTeamRoles = cpuRoles[teamKey] || {};
+
+    let proposedTactic = currentTactic;
+    let proposedRoles = currentTeamRoles;
 
     runCPUTacticAdjustment({
       team,
       opp,
+      lineup: selfLineup,
+      formation: selfFormation,
+      oppLineup,
+      oppFormation,
       scoreSelf,
       scoreOpp,
       isLeg2,
@@ -1053,53 +1382,39 @@ export default function Match() {
       leg1AwayScore,
       currentMatchTime,
       isHomeSide,
-      opponentTactic,
-      opponentCounter,
-      opponentPressing,
-      pressingDuration,
+      currentMentality: currentTactic,
+      currentRoles: currentTeamRoles,
       setTactic: (t) => { proposedTactic = t; },
-      setCounter: (c) => { proposedCounter = c; },
-      setPressing: (p) => { proposedPressing = p; },
-      stamina: isHomeSide ? homeStamina : awayStamina
+      setRoles: (r) => { proposedRoles = r; }
     });
 
-    const currentTactic = isHomeSide ? homeTactic : awayTactic;
-    const lastChanged = isHomeSide ? homeTacticLastChanged : awayTacticLastChanged;
     const setTactic = isHomeSide ? setHomeTactic : setAwayTactic;
-    const setTacticLastChanged = isHomeSide ? setHomeTacticLastChanged : setAwayTacticLastChanged;
-    const setCounter = isHomeSide ? setHomeCounter : setAwayCounter;
-    const setPressing = isHomeSide ? setHomePressing : setAwayPressing;
     const teamName = team.name;
 
+    // Update CPU player roles and log if roles changed during active play
+    const prevSummary = summarizeActiveRoles(selfLineup, selfFormation, currentTeamRoles)
+      .map(s => `${s.lastName} (${s.shortLabel})`).join(', ');
+    const nextSummary = summarizeActiveRoles(selfLineup, selfFormation, proposedRoles)
+      .map(s => `${s.lastName} (${s.shortLabel})`).join(', ');
+
+    if (prevSummary !== nextSummary) {
+      setCpuRoles(prev => ({
+        ...prev,
+        [teamKey]: proposedRoles
+      }));
+      if (currentMatchTime > 0 && nextSummary) {
+        logEvent(`🧠 ${teamName} tactical shift: ${nextSummary}`, "normal");
+      }
+    }
+
     const tacticChanged = proposedTactic !== currentTactic;
-    const isAllowed = currentMatchTime === 0 || (currentMatchTime - lastChanged >= 20);
 
     if (tacticChanged) {
-      if (isAllowed) {
-        setTactic(proposedTactic);
-        setTacticLastChanged(currentMatchTime);
-        logEvent(`${teamName} changes mentality to ${proposedTactic.replace('_', ' ').toUpperCase()}!`, "normal");
-        setCounter(proposedCounter);
-        setPressing(proposedPressing);
-      } else {
-        // Cooldown is active: reject mentality change, enforce current mentality constraints on modifiers
-        let finalCounter = proposedCounter;
-        let finalPressing = proposedPressing;
-        if (currentTactic === "balanced") {
-          finalCounter = false;
-          finalPressing = false;
-        } else if (currentTactic === "defense" || currentTactic === "ultra_defense") {
-          finalPressing = false;
-        } else if (currentTactic === "attack" || currentTactic === "ultra_attack") {
-          finalCounter = false;
-        }
-        setCounter(finalCounter);
-        setPressing(finalPressing);
+      setTactic(proposedTactic);
+      if (currentMatchTime > 0) {
+        const label = proposedTactic === 'defense' ? 'DEFENSIVE' : (proposedTactic === 'attack' ? 'ATTACKING' : 'NORMAL');
+        logEvent(`📋 ${teamName} changes mentality to ${label}!`, "normal");
       }
-    } else {
-      // Tactic not changing, apply proposed sub-tactic settings directly
-      setCounter(proposedCounter);
-      setPressing(proposedPressing);
     }
   };
 
@@ -1109,13 +1424,11 @@ export default function Match() {
     if (isHome) {
       if (homeSubs >= maxSubs) return;
       setHomeSubs(prev => prev + 1);
-      setHomeStamina(prev => Math.min(100, prev + 10));
-      logEvent(`🔄 Substitution for ${teamid[teamonename].name}: fresh legs brought on! (+10% stamina)`, "normal");
+      logEvent(`🔄 Substitution for ${teamid[teamonename].name}: fresh legs brought on!`, "normal");
     } else {
       if (awaySubs >= maxSubs) return;
       setAwaySubs(prev => prev + 1);
-      setAwayStamina(prev => Math.min(100, prev + 10));
-      logEvent(`🔄 Substitution for ${teamid[teamtwoname].name}: fresh legs brought on! (+10% stamina)`, "normal");
+      logEvent(`🔄 Substitution for ${teamid[teamtwoname].name}: fresh legs brought on!`, "normal");
     }
   };
 
@@ -1137,13 +1450,13 @@ export default function Match() {
 
           let drop = 0;
           if (sp.position === "GK") {
-            // GK depletes much slower: ~1-2% chance of 1% drop per 5 mins
-            drop = Math.random() < 0.1 ? 1 : 0;
+            // GK depletes much slower: ~1-2% chance of 1% drop per 3 mins
+            drop = Math.random() < 0.06 ? 1 : 0;
           } else {
-            // Other positions deplete ~5-9% over 90 mins (approx 0.3-0.5% drop per turn)
+            // Other positions deplete ~5-9% over 90 mins (approx 0.27-0.39% drop per 3-min turn)
             // Pressing increases fatigue
             const isPressingActive = isPlayerHome ? homePressing : awayPressing;
-            const threshold = isPressingActive ? 0.65 : 0.45;
+            const threshold = isPressingActive ? 0.39 : 0.27;
             drop = Math.random() < threshold ? 1 : 0;
           }
 
@@ -1155,13 +1468,13 @@ export default function Match() {
           let injury = sp.injury || null;
 
           if (injuryMatches === 0) {
-            let turnInjuryChance = 0.0005; // 0.05% base chance for fit players
+            let turnInjuryChance = 0.0003; // ~0.03% base chance for fit players per 3 mins
             if (newCond <= 40) {
-              turnInjuryChance = 0.008; // 0.8% chance per turn for extremely exhausted players
+              turnInjuryChance = 0.005; // 0.5% chance per turn for extremely exhausted players
             } else if (newCond <= 60) {
-              turnInjuryChance = 0.004; // 0.4% chance per turn
+              turnInjuryChance = 0.0025; // 0.25% chance per turn
             } else if (newCond <= 80) {
-              turnInjuryChance = 0.0015; // 0.15% chance per turn
+              turnInjuryChance = 0.001; // 0.1% chance per turn
             }
 
             if (Math.random() < turnInjuryChance) {
@@ -1222,22 +1535,16 @@ export default function Match() {
       }
     }
 
-    // Deplete stamina
-    const nextHomeStamina = Math.max(0, homeStamina - (homePressing ? 8 : 6));
-    const nextAwayStamina = Math.max(0, awayStamina - (awayPressing ? 8 : 6));
-    setHomeStamina(nextHomeStamina);
-    setAwayStamina(nextAwayStamina);
-
     if (homePressing) {
-      setHomePressingDuration(prev => prev + 5);
+      setHomePressingDuration(prev => prev + 3);
     } else {
-      setHomePressingDuration(prev => Math.max(0, prev - 5));
+      setHomePressingDuration(prev => Math.max(0, prev - 3));
     }
 
     if (awayPressing) {
-      setAwayPressingDuration(prev => prev + 5);
+      setAwayPressingDuration(prev => prev + 3);
     } else {
-      setAwayPressingDuration(prev => Math.max(0, prev - 5));
+      setAwayPressingDuration(prev => Math.max(0, prev - 3));
     }
 
     setHasHomeChance(false);
@@ -1246,7 +1553,7 @@ export default function Match() {
     setHasAwayScoreChance(false);
     setBallPosition("center");
 
-    const nextTime = time + 5;
+    const nextTime = time + 3;
     setTime(nextTime);
 
     // AI CPU substitutions
@@ -1255,27 +1562,25 @@ export default function Match() {
       const maxStoppages = getStoppageLimit(null, season);
 
       // Home CPU sub
-      if (isHomeDisabled && homeSubs < maxSubs && nextHomeStamina < 60 && Math.random() < 0.6) {
+      if (isHomeDisabled && homeSubs < maxSubs && nextTime >= 60 && Math.random() < 0.20) {
         const isStoppage = nextTime !== 45;
         if (!isStoppage || maxStoppages >= 99 || homeStoppagesUsed < maxStoppages) {
           setHomeSubs(prev => prev + 1);
-          setHomeStamina(prev => Math.min(100, prev + 10));
           if (isStoppage && maxStoppages < 99) {
             setHomeStoppagesUsed(prev => prev + 1);
           }
-          logEvent(`🔄 Substitution for ${teamid[teamonename].name}: fresh legs brought on! (+10% stamina)`, "normal");
+          logEvent(`🔄 Substitution for ${teamid[teamonename].name}: fresh legs brought on!`, "normal");
         }
       }
       // Away CPU sub
-      if (isAwayDisabled && awaySubs < maxSubs && nextAwayStamina < 60 && Math.random() < 0.6) {
+      if (isAwayDisabled && awaySubs < maxSubs && nextTime >= 60 && Math.random() < 0.20) {
         const isStoppage = nextTime !== 45;
         if (!isStoppage || maxStoppages >= 99 || awayStoppagesUsed < maxStoppages) {
           setAwaySubs(prev => prev + 1);
-          setAwayStamina(prev => Math.min(100, prev + 10));
           if (isStoppage && maxStoppages < 99) {
             setAwayStoppagesUsed(prev => prev + 1);
           }
-          logEvent(`🔄 Substitution for ${teamid[teamtwoname].name}: fresh legs brought on! (+10% stamina)`, "normal");
+          logEvent(`🔄 Substitution for ${teamid[teamtwoname].name}: fresh legs brought on!`, "normal");
         }
       }
     }
@@ -1340,7 +1645,7 @@ export default function Match() {
 
     if (isCPUTurn) {
       setIsPenaltyCPUProcessing(true);
-      const delay = Math.max(1000, simSpeed * 1.5);
+      const delay = Math.max(1600, simSpeed * 1.2);
       const timer = setTimeout(() => {
         executePenalty(penaltyTurn);
         setIsPenaltyCPUProcessing(false);
@@ -1356,6 +1661,14 @@ export default function Match() {
       return;
     }
 
+    // Dynamic pacing: grant extra time during key attack build-ups and goal chances so commentary can be comfortably read
+    let stepDelay = simSpeed;
+    if (hasHomeScoreChance || hasAwayScoreChance) {
+      stepDelay = Math.round(simSpeed * 1.3);
+    } else if (hasHomeChance || hasAwayChance) {
+      stepDelay = Math.round(simSpeed * 1.15);
+    }
+
     const timer = setTimeout(() => {
       if (hasHomeScoreChance) {
         handleHomeScoreChance();
@@ -1368,7 +1681,7 @@ export default function Match() {
       } else {
         increaseTime();
       }
-    }, simSpeed);
+    }, stepDelay);
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1388,16 +1701,20 @@ export default function Match() {
 
   useEffect(() => {
     if (time === 0) {
-      logEvent("Referee calls the captains. KICK OFF! Round 1 is underway!", "kickoff");
+      logEvent({
+        text: `Referee ${referee} calls the captains. KICK OFF! The match is underway!`,
+        sound: "kickoff.wav"
+      }, "kickoff", "neutral");
       return;
     }
 
     if (time === 45) {
-      logEvent("Halftime whistle blows! The players head to the lockers.", "kickoff");
+      logEvent({
+        text: `Halftime whistle blows! ${teamid[teamonename].name} ${scorehome} - ${scoreaway} ${teamid[teamtwoname].name}. The players head to the lockers.`,
+        sound: "halfwhis.wav"
+      }, "kickoff", "neutral");
       setHomePressingDuration(prev => Math.max(0, prev - 10));
       setAwayPressingDuration(prev => Math.max(0, prev - 10));
-      setHomeStamina(prev => Math.min(100, prev + 20));
-      setAwayStamina(prev => Math.min(100, prev + 20));
       setIsPlaying(false);
       return;
     }
@@ -1408,7 +1725,12 @@ export default function Match() {
       let oppAgg = 0;
       let isKnockoutLeg2 = false;
 
-      if (isLeague || (isTournament && (tournamentState?.stage === "groups" || tournamentState?.stage === "finalGroup"))) {
+      const currentCalEvent = leagueState?.calendar ? leagueState.calendar[leagueState.calendarIndex] : null;
+      const isDomesticCupMatch = isLeague && currentCalEvent && (currentCalEvent.type === "domestic_cup" || currentCalEvent.isDomesticCup);
+
+      if (isDomesticCupMatch) {
+        needsExtraTime = (scorehome === scoreaway);
+      } else if (isLeague || (isTournament && (tournamentState?.stage === "groups" || tournamentState?.stage === "finalGroup"))) {
         needsExtraTime = false;
       } else if (isEurope) {
         // Parse European cup parameters dynamically from active save state
@@ -1501,16 +1823,21 @@ export default function Match() {
       setrollOne(r1);
       setRollTwo(r2);
 
+      const homeLineupData = getTeamLineup(teamonename);
+      const awayLineupData = getTeamLineup(teamtwoname);
+      const homeName = teamid[teamonename].name;
+      const awayName = teamid[teamtwoname].name;
+
       if (r1 > r2) {
-        logEvent(getMidfieldWinCommentary(teamid[teamonename].name, teamid[teamtwoname].name), "chance");
+        logEvent(getMidfieldWinCommentary(homeName, awayName, homeLineupData, awayLineupData), "chance", "home");
         setHasHomeChance(true);
         setBallPosition("home-attack");
       } else if (r2 > r1) {
-        logEvent(getMidfieldWinCommentary(teamid[teamtwoname].name, teamid[teamonename].name), "chance");
+        logEvent(getMidfieldWinCommentary(awayName, homeName, awayLineupData, homeLineupData), "chance", "away");
         setHasAwayChance(true);
         setBallPosition("away-attack");
       } else {
-        logEvent(getMidfieldDrawCommentary(teamid[teamonename].name, teamid[teamtwoname].name), "normal");
+        logEvent(getMidfieldDrawCommentary(homeName, awayName, homeLineupData, awayLineupData), "normal", "neutral");
         setBallPosition("center");
       }
     }
@@ -1526,11 +1853,16 @@ export default function Match() {
     setrollOne(homeattack);
     setRollTwo(awaydefense);
 
+    const homeLineupData = getTeamLineup(teamonename);
+    const awayLineupData = getTeamLineup(teamtwoname);
+    const homeName = teamid[teamonename].name;
+    const awayName = teamid[teamtwoname].name;
+
     if (homeattack > awaydefense) {
-      logEvent(getAttackSuccessCommentary(teamid[teamonename].name, teamid[teamtwoname].name), "chance");
+      logEvent(getAttackSuccessCommentary(homeName, awayName, homeLineupData, awayLineupData), "chance", "home");
       setHasHomeScoreChance(true);
     } else {
-      logEvent(getAttackFailCommentary(teamid[teamtwoname].name, teamid[teamonename].name), "save");
+      logEvent(getAttackFailCommentary(awayName, homeName, awayLineupData, homeLineupData), "save", "away");
       setBallPosition("center");
     }
   }
@@ -1542,13 +1874,18 @@ export default function Match() {
     setrollOne(homescore);
     setRollTwo(awaysave);
 
+    const homeLineupData = getTeamLineup(teamonename);
+    const awayLineupData = getTeamLineup(teamtwoname);
+    const homeName = teamid[teamonename].name;
+    const awayName = teamid[teamtwoname].name;
+
     if (homescore > awaysave) {
-      logEvent(getGoalCommentary(teamid[teamonename].name, teamid[teamtwoname].name), "goal");
+      logEvent(getGoalCommentary(homeName, awayName, homeLineupData, awayLineupData), "goal", "home");
       setScoreHome(prev => prev + 1);
       setBallPosition("home-goal");
       triggerGoalFlash(teamid[teamonename]);
     } else {
-      logEvent(getSaveCommentary(teamid[teamtwoname].name, teamid[teamonename].name), "save");
+      logEvent(getSaveCommentary(awayName, homeName, awayLineupData, homeLineupData), "save", "away");
       setBallPosition("center");
     }
   }
@@ -1562,11 +1899,16 @@ export default function Match() {
     setrollOne(homedefense);
     setRollTwo(awayattack);
 
+    const homeLineupData = getTeamLineup(teamonename);
+    const awayLineupData = getTeamLineup(teamtwoname);
+    const homeName = teamid[teamonename].name;
+    const awayName = teamid[teamtwoname].name;
+
     if (awayattack > homedefense) {
-      logEvent(getAttackSuccessCommentary(teamid[teamtwoname].name, teamid[teamonename].name), "chance");
+      logEvent(getAttackSuccessCommentary(awayName, homeName, awayLineupData, homeLineupData), "chance", "away");
       setHasAwayScoreChance(true);
     } else {
-      logEvent(getAttackFailCommentary(teamid[teamonename].name, teamid[teamtwoname].name), "save");
+      logEvent(getAttackFailCommentary(homeName, awayName, homeLineupData, awayLineupData), "save", "home");
       setBallPosition("center");
     }
   }
@@ -1578,13 +1920,18 @@ export default function Match() {
     setrollOne(homesave);
     setRollTwo(awayscore);
 
+    const homeLineupData = getTeamLineup(teamonename);
+    const awayLineupData = getTeamLineup(teamtwoname);
+    const homeName = teamid[teamonename].name;
+    const awayName = teamid[teamtwoname].name;
+
     if (awayscore > homesave) {
-      logEvent(getGoalCommentary(teamid[teamtwoname].name, teamid[teamonename].name), "goal");
+      logEvent(getGoalCommentary(awayName, homeName, awayLineupData, homeLineupData), "goal", "away");
       setScoreAway(prev => prev + 1);
       setBallPosition("away-goal");
       triggerGoalFlash(teamid[teamtwoname]);
     } else {
-      logEvent(getSaveCommentary(teamid[teamonename].name, teamid[teamtwoname].name), "save");
+      logEvent(getSaveCommentary(homeName, awayName, homeLineupData, awayLineupData), "save", "home");
       setBallPosition("center");
     }
   }
@@ -1612,6 +1959,8 @@ export default function Match() {
     const isHome = shootingTeam === 'home';
     const attackerTeamKey = isHome ? teamonename : teamtwoname;
     const defenderTeamKey = isHome ? teamtwoname : teamonename;
+    const attackerLineup = getTeamLineup(attackerTeamKey);
+    const defenderLineup = getTeamLineup(defenderTeamKey);
     const attackerName = teamid[attackerTeamKey].name;
     const defenderName = teamid[defenderTeamKey].name;
 
@@ -1627,11 +1976,11 @@ export default function Match() {
 
     let isGoal = false;
     if (r > 7) {
-      logEvent(getPenaltyGoalCommentary(attackerName, defenderName), "goal");
+      logEvent(getPenaltyGoalCommentary(attackerName, defenderName, attackerLineup, defenderLineup), "goal", isHome ? "home" : "away");
       triggerGoalFlash(teamid[attackerTeamKey]);
       isGoal = true;
     } else {
-      logEvent(getPenaltyMissCommentary(attackerName, defenderName), "miss");
+      logEvent(getPenaltyMissCommentary(attackerName, defenderName, attackerLineup, defenderLineup), "miss", isHome ? "home" : "away");
     }
 
     // Since react states update asynchronously, compute local next scores
@@ -1928,7 +2277,7 @@ export default function Match() {
       const isPlayerHome = teamonename === pId;
       const opponentId = isPlayerHome ? teamtwoname : teamonename;
       const playerTeam = leagueState.teams.find(t => t.idnum === pId);
-      const opponentTeam = leagueState.teams.find(t => t.idnum === opponentId);
+      const opponentTeam = leagueState.teams.find(t => t.idnum === opponentId) || (leagueState.domesticCupState?.participatingTeams?.find(t => t.idnum === opponentId));
       const playerGoals = isPlayerHome ? scorehome : scoreaway;
       const opponentGoals = isPlayerHome ? scoreaway : scorehome;
       leagueState.fanConfidence = updateFanConfidence(leagueState.fanConfidence, playerTeam, opponentTeam, playerGoals, opponentGoals);
@@ -1936,13 +2285,21 @@ export default function Match() {
       // Save the advanced league state to localStorage first so that updateTeamStatsInStorage works on the updated state
       localStorage.setItem("retro_league_career", JSON.stringify(leagueState));
 
-      // Restore starting lineup so mid-match substitutions don't persist
+      // Restore starting lineup and roles so mid-match substitutions/adjustments don't persist
       if (savedStartingLineup) {
         localStorage.setItem(`retro_lineup_${playerTeam.name}_${leagueState.season}`, JSON.stringify(savedStartingLineup));
+      }
+      if (savedStartingRoles) {
+        localStorage.setItem(`retro_roles_${playerTeam.name}_${leagueState.season}`, JSON.stringify(savedStartingRoles));
       }
 
       // Update roster & lineup conditions/injuries
       updatePlayerConditionsAndInjuries(playerTeam.name, leagueState.season, false, true, getFinalMinutesMap());
+      const oppIdRound = teamonename === playerTeamId ? teamtwoname : teamonename;
+      const oppTeamRound = teamid ? teamid[oppIdRound] : null;
+      if (oppTeamRound && oppTeamRound.name) {
+        updatePlayerConditionsAndInjuries(oppTeamRound.name, leagueState.season, false, true);
+      }
 
       // Load updated lineup and update team stats in storage
       const lineupKey = `retro_lineup_${playerTeam.name}_${leagueState.season}`;
@@ -1950,7 +2307,7 @@ export default function Match() {
       if (savedLineup) {
         try {
           const parsedLineup = JSON.parse(savedLineup);
-          updateTeamStatsInStorage(parsedLineup, getSavedFormation());
+          updateTeamStatsInStorage(parsedLineup, getSavedFormation(), savedStartingRoles || playerRoles);
           // Re-load the leagueState from storage so that the newly updated team stats are included!
           const refreshedRaw = localStorage.getItem("retro_league_career");
           if (refreshedRaw) {
@@ -1962,12 +2319,13 @@ export default function Match() {
       }
 
       localStorage.setItem("retro_league_career", JSON.stringify(leagueState));
+      const isDomCupFinished = roundTitle && !roundTitle.includes("RESULTS");
       navigate("/league/dashboard", {
         state: {
           showRoundResults: true,
           fixtures: justPlayedFixtures,
           roundTitle,
-          themeColor: "#00ff64"
+          themeColor: isDomCupFinished ? "#ff0055" : "#00ff64"
         }
       });
     } else if (isEurope) {
@@ -2869,13 +3227,21 @@ export default function Match() {
       // Save the advanced career state to localStorage first so that updateTeamStatsInStorage works on the updated state
       localStorage.setItem("retro_league_career", JSON.stringify(stateCopy));
 
-      // Restore starting lineup so mid-match substitutions don't persist
+      // Restore starting lineup and roles so mid-match substitutions/adjustments don't persist
       if (savedStartingLineup) {
         localStorage.setItem(`retro_lineup_${playerTeam.name}_${stateCopy.season}`, JSON.stringify(savedStartingLineup));
+      }
+      if (savedStartingRoles) {
+        localStorage.setItem(`retro_roles_${playerTeam.name}_${stateCopy.season}`, JSON.stringify(savedStartingRoles));
       }
 
       // Update roster & lineup conditions/injuries
       updatePlayerConditionsAndInjuries(playerTeam.name, stateCopy.season, false, true, getFinalMinutesMap());
+      const oppIdEuro = teamonename === playerTeamId ? teamtwoname : teamonename;
+      const oppTeamEuro = teamid ? teamid[oppIdEuro] : null;
+      if (oppTeamEuro && oppTeamEuro.name) {
+        updatePlayerConditionsAndInjuries(oppTeamEuro.name, stateCopy.season, false, true);
+      }
 
       // Load updated lineup and update team stats in storage
       const lineupKey = `retro_lineup_${playerTeam.name}_${stateCopy.season}`;
@@ -2883,7 +3249,7 @@ export default function Match() {
       if (savedLineup) {
         try {
           const parsedLineup = JSON.parse(savedLineup);
-          updateTeamStatsInStorage(parsedLineup, getSavedFormation());
+          updateTeamStatsInStorage(parsedLineup, getSavedFormation(), savedStartingRoles || playerRoles);
           // Re-load the leagueState from storage
           const refreshedRaw = localStorage.getItem("retro_league_career");
           if (refreshedRaw) {
@@ -3016,14 +3382,22 @@ export default function Match() {
       // Save the advanced tournament state to localStorage first so that updateTeamStatsInStorage works on the updated state
       localStorage.setItem("retro_tournament_state", JSON.stringify(stateCopy));
 
-      // Restore starting lineup so mid-match substitutions don't persist
+      // Restore starting lineup and roles so mid-match substitutions/adjustments don't persist
       const rosterSeason = stateCopy.cupId ? (stateCopy.cupId.match(/\d+/) ? stateCopy.cupId.match(/\d+/)[0] : "1995") : "1995";
       if (savedStartingLineup) {
         localStorage.setItem(`retro_lineup_${playerTeam.name}_${rosterSeason}`, JSON.stringify(savedStartingLineup));
       }
+      if (savedStartingRoles) {
+        localStorage.setItem(`retro_roles_${playerTeam.name}_${rosterSeason}`, JSON.stringify(savedStartingRoles));
+      }
 
       // Update roster & lineup conditions/injuries
       updatePlayerConditionsAndInjuries(playerTeam.name, rosterSeason, true, true, getFinalMinutesMap());
+      const oppIdTourn = teamonename === playerTeamId ? teamtwoname : teamonename;
+      const oppTeamTourn = teamid ? teamid[oppIdTourn] : null;
+      if (oppTeamTourn && oppTeamTourn.name) {
+        updatePlayerConditionsAndInjuries(oppTeamTourn.name, rosterSeason, true, true);
+      }
 
       // Load updated lineup and update team stats in storage
       const lineupKey = `retro_lineup_${playerTeam.name}_${rosterSeason}`;
@@ -3031,7 +3405,7 @@ export default function Match() {
       if (savedLineup) {
         try {
           const parsedLineup = JSON.parse(savedLineup);
-          updateTeamStatsInStorage(parsedLineup, getSavedFormation());
+          updateTeamStatsInStorage(parsedLineup, getSavedFormation(), savedStartingRoles || playerRoles);
           // Re-load tournamentState from storage
           const refreshedRaw = localStorage.getItem("retro_tournament_state");
           if (refreshedRaw) {
@@ -3057,6 +3431,9 @@ export default function Match() {
       if (teamName && savedStartingLineup) {
         localStorage.setItem(`retro_lineup_${teamName}_${season}`, JSON.stringify(savedStartingLineup));
       }
+      if (teamName && savedStartingRoles) {
+        localStorage.setItem(`retro_roles_${teamName}_${season}`, JSON.stringify(savedStartingRoles));
+      }
       navigate("/friendly");
     }
   };
@@ -3070,7 +3447,25 @@ export default function Match() {
     buttonStyle: {}
   };
 
-  if (isEurope) {
+  const currentCalendarEvent = leagueState?.calendar ? leagueState.calendar[leagueState.calendarIndex] : null;
+  const isDomesticCupMatch = isLeague && currentCalendarEvent && (currentCalendarEvent.type === "domestic_cup" || currentCalendarEvent.isDomesticCup);
+
+  if (isDomesticCupMatch) {
+    const primary = "#ff0055";
+    theme.border = "2.5px solid #ff0055";
+    theme.boxShadow = "0 0 35px rgba(255, 0, 85, 0.25)";
+    theme.scoreboardStyle = {
+      borderColor: primary,
+      boxShadow: `0 10px 40px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(255, 0, 85, 0.05)`
+    };
+    theme.buttonStyle = {
+      borderColor: primary,
+      color: primary,
+      background: "rgba(255, 0, 85, 0.04)",
+      textShadow: `0 0 5px ${primary}`,
+      boxShadow: `0 0 15px rgba(255, 0, 85, 0.25)`
+    };
+  } else if (isEurope) {
     const isCL = leagueState?.europeanCup === "cl";
     theme.background = isCL
       ? "radial-gradient(circle, #0b2545 0%, #020712 100%)"
@@ -3207,52 +3602,57 @@ export default function Match() {
               ⚽ {homeFormation}
             </span>
           )}
+          {cpuLineups[teamonename] && Object.keys(cpuLineups[teamonename]).length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowOpponentModal(teamonename)}
+              style={{
+                background: 'rgba(0, 229, 255, 0.12)',
+                border: '1px solid #00e5ff',
+                color: '#00e5ff',
+                fontSize: '9px',
+                fontFamily: 'Orbitron',
+                borderRadius: '4px',
+                padding: '3px 8px',
+                cursor: 'pointer',
+                marginBottom: '6px',
+                letterSpacing: '0.5px'
+              }}
+            >
+              📋 VIEW TEAM
+            </button>
+          )}
 
           <div className="team-card-bars">
             {(() => {
-              const baseAtt = teamid[teamonename].attack;
+              const baseAtt = getBaseStat(teamonename, "attack");
               const modAtt = getModifiedStat(teamonename, "attack");
               const diffAtt = modAtt - baseAtt;
               const attSpan = diffAtt > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffAtt}</span> : (diffAtt < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffAtt}</span> : null);
 
-              const baseMid = teamid[teamonename].midfield;
+              const baseMid = getBaseStat(teamonename, "midfield");
               const modMid = getModifiedStat(teamonename, "midfield");
               const diffMid = modMid - baseMid;
               const midSpan = diffMid > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffMid}</span> : (diffMid < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffMid}</span> : null);
 
-              const baseDef = teamid[teamonename].defense;
+              const baseDef = getBaseStat(teamonename, "defense");
               const modDef = getModifiedStat(teamonename, "defense");
               const diffDef = modDef - baseDef;
               const defSpan = diffDef > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffDef}</span> : (diffDef < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffDef}</span> : null);
-
-              const stmPercent = homeStamina;
 
               return (
                 <>
                   <div className="rpg-bar">
                     <span className="rpg-label">ATT: {baseAtt}{attSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${modAtt * 20}%`, transition: 'width 0.4s ease' }}></div></div>
+                    <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, modAtt * 20)}%`, transition: 'width 0.4s ease' }}></div></div>
                   </div>
                   <div className="rpg-bar">
                     <span className="rpg-label">MID: {baseMid}{midSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${modMid * 20}%`, transition: 'width 0.4s ease' }}></div></div>
+                    <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, modMid * 20)}%`, transition: 'width 0.4s ease' }}></div></div>
                   </div>
                   <div className="rpg-bar">
                     <span className="rpg-label">DEF: {baseDef}{defSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${modDef * 20}%`, transition: 'width 0.4s ease' }}></div></div>
-                  </div>
-                  <div className="rpg-bar">
-                    <span className="rpg-label">STM: {stmPercent}%</span>
-                    <div className="progress-bar-bg">
-                      <div
-                        className="progress-bar-fill"
-                        style={{
-                          width: `${stmPercent}%`,
-                          background: stmPercent > 50 ? '#00e5ff' : (stmPercent > 20 ? '#ffc107' : '#ff3b30'),
-                          transition: 'width 0.4s ease'
-                        }}
-                      ></div>
-                    </div>
+                    <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, modDef * 20)}%`, transition: 'width 0.4s ease' }}></div></div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', width: '100%' }}>
                     <span style={{ fontSize: '9px', color: '#888', fontFamily: 'Orbitron' }}>
@@ -3290,9 +3690,9 @@ export default function Match() {
                         boxShadow: isHomeSubDisabled ? 'none' : '0 0 10px rgba(0, 229, 255, 0.2)',
                         textShadow: isHomeSubDisabled ? 'none' : '0 0 3px rgba(0, 229, 255, 0.5)'
                       }}
-                      title={maxStoppages < 99 ? `Make substitution (Max ${maxSubs} subs, ${maxStoppages} stoppages)` : `Make substitution (Max ${maxSubs} subs)`}
+                      title="Open team tactics and substitutions"
                     >
-                      🔄 SUBST
+                      ⚙️ TACTICS
                     </button>
                   </div>
                 </>
@@ -3314,7 +3714,11 @@ export default function Match() {
             setPressing={setHomePressing}
             tactic={homeTactic}
             setTactic={handleHomeTacticChange}
-            mentalityCooldown={time === 0 ? 0 : Math.max(0, 20 - (time - homeTacticLastChanged))}
+            mentalityCooldown={0}
+            lineup={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? lineup : cpuLineups[teamonename]}
+            formation={homeFormation || getSavedFormation() || '4-4-2'}
+            playerRoles={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? playerRoles : (cpuRoles[teamonename] || {})}
+            onToggleRole={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? handleTogglePlayerRole : undefined}
           />
         </div>
 
@@ -3442,13 +3846,15 @@ export default function Match() {
                   {/* Speed Controls */}
                   <div style={{ display: 'flex', background: 'rgba(0,0,0,0.4)', borderRadius: '8px', padding: '3px', border: '1px solid rgba(255,255,255,0.08)' }}>
                     {[
-                      { label: "1x", delay: 1000 },
-                      { label: "2x", delay: 600 },
-                      { label: "3x", delay: 300 }
+                      { label: "Slow", delay: 3200, title: "Relaxed Reading Pace (3.2s)" },
+                      { label: "1x Normal", delay: 2200, title: "Authentic CM Pace (2.2s)" },
+                      { label: "2x Fast", delay: 1200, title: "Fast Pace (1.2s)" },
+                      { label: "3x Quick", delay: 600, title: "Quick Simulation (0.6s)" }
                     ].map(speedOpt => (
                       <button
                         key={speedOpt.label}
                         onClick={() => setSimSpeed(speedOpt.delay)}
+                        title={speedOpt.title}
                         style={{
                           padding: '6px 12px',
                           fontFamily: 'Orbitron',
@@ -3457,7 +3863,7 @@ export default function Match() {
                           borderRadius: '6px',
                           cursor: 'pointer',
                           border: 'none',
-                          background: simSpeed === speedOpt.delay ? 'rgba(255, 215, 0, 0.15)' : 'transparent',
+                          background: simSpeed === speedOpt.delay ? 'rgba(255, 215, 0, 0.18)' : 'transparent',
                           color: simSpeed === speedOpt.delay ? '#ffd700' : '#888',
                           textShadow: simSpeed === speedOpt.delay ? '0 0 5px rgba(255, 215, 0, 0.4)' : 'none',
                           transition: 'all 0.2s ease'
@@ -3490,7 +3896,7 @@ export default function Match() {
             {isPenaltyShootout && (
               <div className="penalty-shootout-actions animated-slide-in">
                 <h3>PENALTY SHOOTOUT</h3>
-                
+
                 {/* Round Info */}
                 {(() => {
                   const currentRoundNum = Math.max(penaltyHomeShots, penaltyAwayShots) + 1;
@@ -3501,11 +3907,11 @@ export default function Match() {
                       </div>
                     );
                   }
-                  
+
                   const isHomeTurn = (penaltyTurn === 'home');
                   const nextTeamName = teamid[isHomeTurn ? teamonename : teamtwoname].name;
                   const isCPUTurn = isHomeTurn ? isHomeDisabled : isAwayDisabled;
-                  
+
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', margin: '5px 0' }}>
                       <span style={{ fontSize: '14px', color: '#ffb300', fontFamily: 'Orbitron' }}>
@@ -3530,8 +3936,8 @@ export default function Match() {
 
                 {!penaltyWinner && (
                   <div className="penalty-buttons-deck">
-                    <button 
-                      className="penalty-btn glowing-btn" 
+                    <button
+                      className="penalty-btn glowing-btn"
                       onClick={handleHomePenalty}
                       disabled={penaltyTurn !== 'home' || isHomeDisabled || isPenaltyCPUProcessing}
                       style={{
@@ -3544,8 +3950,8 @@ export default function Match() {
                     >
                       Home Shoot ({teamid[teamonename].name})
                     </button>
-                    <button 
-                      className="penalty-btn glowing-btn" 
+                    <button
+                      className="penalty-btn glowing-btn"
                       onClick={handleAwayPenalty}
                       disabled={penaltyTurn !== 'away' || isAwayDisabled || isPenaltyCPUProcessing}
                       style={{
@@ -3584,16 +3990,55 @@ export default function Match() {
 
           </div>
 
-          {/* Scrolling Live Feed Chronicle */}
-          <div className="live-chronicle-console">
-            <h3>LIVE COMMENTARY CHRONICLE</h3>
-            <div className="chronicle-scrolling-box">
-              {chronicle.map((item, index) => (
-                <div key={index} className={`chronicle-event-row chronicle-type-${item.type} ${index === 0 ? 'latest-row' : ''}`}>
-                  <span className="chronicle-time">[{item.time}']</span>
-                  <span className="chronicle-text">{item.text}</span>
-                </div>
-              ))}
+          {/* CM 01/02 Retro Live Commentary Console (Positioned directly below Pitch & Controls) */}
+          <div className="cm-live-commentary-section">
+            {/* Iconic CM 01/02 Flashing Single-Line Live Commentary Bar */}
+            <div
+              className={`cm-live-commentary-bar ${liveBanner?.type === 'goal' ? 'cm-goal-flash' : ''}`}
+              style={getCommentaryBarStyle()}
+            >
+              {liveBanner?.text || "⚽ Match awaiting kickoff..."}
+            </div>
+
+            {/* CM 01/02 Incident & Chronicle Stream */}
+            <div className="cm-commentary-console">
+              <div className="cm-console-header">
+                <span className="cm-header-title">
+                  <span className="cm-retro-icon">⚽</span> CM 01/02 MATCH INCIDENT &amp; COMMENTARY LOG
+                </span>
+                <span className="cm-header-ref">
+                  REF: {referee.toUpperCase()}
+                </span>
+              </div>
+              <div className="cm-commentary-stream">
+                {chronicle.map((item, index) => {
+                  let rowClass = `cm-comm-item cm-type-${item.type}`;
+                  if (item.type === 'goal') rowClass += ' goal';
+                  else if (item.type === 'save') rowClass += ' save';
+                  else if (item.type === 'miss') rowClass += ' miss';
+                  else if (item.type === 'chance') rowClass += ' chance';
+                  if (index === 0) rowClass += ' latest-item';
+
+                  const sideColor = item.side === 'away'
+                    ? (teamid[teamtwoname]?.primaryColor || '#40e0d0')
+                    : item.side === 'home'
+                      ? (teamid[teamonename]?.primaryColor || '#ffdd44')
+                      : '#00a2a2';
+
+                  return (
+                    <div
+                      key={index}
+                      className={rowClass}
+                      style={{
+                        borderLeftColor: item.type === 'goal' ? '#ffd700' : (item.side === 'neutral' ? '#00a2a2' : sideColor)
+                      }}
+                    >
+                      <span className="cm-comm-min">{item.time}'</span>
+                      <span className="cm-comm-text">{item.text}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -3610,52 +4055,57 @@ export default function Match() {
               ⚽ {awayFormation}
             </span>
           )}
+          {cpuLineups[teamtwoname] && Object.keys(cpuLineups[teamtwoname]).length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowOpponentModal(teamtwoname)}
+              style={{
+                background: 'rgba(0, 229, 255, 0.12)',
+                border: '1px solid #00e5ff',
+                color: '#00e5ff',
+                fontSize: '9px',
+                fontFamily: 'Orbitron',
+                borderRadius: '4px',
+                padding: '3px 8px',
+                cursor: 'pointer',
+                marginBottom: '6px',
+                letterSpacing: '0.5px'
+              }}
+            >
+              📋 VIEW TEAM
+            </button>
+          )}
 
           <div className="team-card-bars">
             {(() => {
-              const baseAtt = teamid[teamtwoname].attack;
+              const baseAtt = getBaseStat(teamtwoname, "attack");
               const modAtt = getModifiedStat(teamtwoname, "attack");
               const diffAtt = modAtt - baseAtt;
               const attSpan = diffAtt > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffAtt}</span> : (diffAtt < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffAtt}</span> : null);
 
-              const baseMid = teamid[teamtwoname].midfield;
+              const baseMid = getBaseStat(teamtwoname, "midfield");
               const modMid = getModifiedStat(teamtwoname, "midfield");
               const diffMid = modMid - baseMid;
               const midSpan = diffMid > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffMid}</span> : (diffMid < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffMid}</span> : null);
 
-              const baseDef = teamid[teamtwoname].defense;
+              const baseDef = getBaseStat(teamtwoname, "defense");
               const modDef = getModifiedStat(teamtwoname, "defense");
               const diffDef = modDef - baseDef;
               const defSpan = diffDef > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffDef}</span> : (diffDef < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffDef}</span> : null);
-
-              const stmPercent = awayStamina;
 
               return (
                 <>
                   <div className="rpg-bar">
                     <span className="rpg-label">ATT: {baseAtt}{attSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${modAtt * 20}%`, transition: 'width 0.4s ease' }}></div></div>
+                    <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, modAtt * 20)}%`, transition: 'width 0.4s ease' }}></div></div>
                   </div>
                   <div className="rpg-bar">
                     <span className="rpg-label">MID: {baseMid}{midSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${modMid * 20}%`, transition: 'width 0.4s ease' }}></div></div>
+                    <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, modMid * 20)}%`, transition: 'width 0.4s ease' }}></div></div>
                   </div>
                   <div className="rpg-bar">
                     <span className="rpg-label">DEF: {baseDef}{defSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${modDef * 20}%`, transition: 'width 0.4s ease' }}></div></div>
-                  </div>
-                  <div className="rpg-bar">
-                    <span className="rpg-label">STM: {stmPercent}%</span>
-                    <div className="progress-bar-bg">
-                      <div
-                        className="progress-bar-fill"
-                        style={{
-                          width: `${stmPercent}%`,
-                          background: stmPercent > 50 ? '#00e5ff' : (stmPercent > 20 ? '#ffc107' : '#ff3b30'),
-                          transition: 'width 0.4s ease'
-                        }}
-                      ></div>
-                    </div>
+                    <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, modDef * 20)}%`, transition: 'width 0.4s ease' }}></div></div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', width: '100%' }}>
                     <span style={{ fontSize: '9px', color: '#888', fontFamily: 'Orbitron' }}>
@@ -3693,9 +4143,9 @@ export default function Match() {
                         boxShadow: isAwaySubDisabled ? 'none' : '0 0 10px rgba(0, 229, 255, 0.2)',
                         textShadow: isAwaySubDisabled ? 'none' : '0 0 3px rgba(0, 229, 255, 0.5)'
                       }}
-                      title={maxStoppages < 99 ? `Make substitution (Max ${maxSubs} subs, ${maxStoppages} stoppages)` : `Make substitution (Max ${maxSubs} subs)`}
+                      title="Open team tactics and substitutions"
                     >
-                      🔄 SUBST
+                      ⚙️ TACTICS
                     </button>
                   </div>
                 </>
@@ -3717,7 +4167,11 @@ export default function Match() {
             setPressing={setAwayPressing}
             tactic={awayTactic}
             setTactic={handleAwayTacticChange}
-            mentalityCooldown={time === 0 ? 0 : Math.max(0, 20 - (time - awayTacticLastChanged))}
+            mentalityCooldown={0}
+            lineup={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? lineup : cpuLineups[teamtwoname]}
+            formation={awayFormation || getSavedFormation() || '4-4-2'}
+            playerRoles={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? playerRoles : (cpuRoles[teamtwoname] || {})}
+            onToggleRole={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? handleTogglePlayerRole : undefined}
           />
         </div>
 
@@ -3730,10 +4184,10 @@ export default function Match() {
             <div className="sub-modal-header">
               <div>
                 <h2 className="sub-modal-title">
-                  MANUAL SUBSTITUTIONS
+                  MANUAL SUBSTITUTIONS & ROLES
                 </h2>
                 <span className="sub-modal-subtitle">
-                  Drag & Drop or Click to swap players. Subs used: <strong style={{ color: '#00e5ff' }}>{isPlayerHome ? homeSubs : awaySubs} / {maxSubs}</strong>{maxStoppages < 99 && <> (Stoppages: <strong style={{ color: '#00e5ff' }}>{isPlayerHome ? homeStoppagesUsed : awayStoppagesUsed} / {maxStoppages}</strong>)</>}
+                  Drag & Drop or Click to swap players, or click role badges to change player duties. Subs used: <strong style={{ color: '#00e5ff' }}>{isPlayerHome ? homeSubs : awaySubs} / {maxSubs}</strong>{maxStoppages < 99 && <> (Stoppages: <strong style={{ color: '#00e5ff' }}>{isPlayerHome ? homeStoppagesUsed : awayStoppagesUsed} / {maxStoppages}</strong>)</>}
                 </span>
               </div>
               <button
@@ -3748,8 +4202,17 @@ export default function Match() {
             <div className="sub-modal-content">
               {/* Pitch Area */}
               <div className="sub-modal-pitch-area">
-                <div className="sub-modal-pitch-header">
+                <div className="sub-modal-pitch-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                   <span className="sub-modal-pitch-title">TACTICAL FORMATION: {getSavedFormation().toUpperCase()}</span>
+                  {(() => {
+                    const activeMentality = isPlayerHome ? homeTactic : awayTactic;
+                    const calc = calculateTeamTacticalStats(lineup, getSavedFormation(), playerRoles, activeMentality);
+                    return (
+                      <span style={{ fontSize: '9.5px', fontFamily: 'Orbitron', color: '#00ff64', letterSpacing: '0.5px' }}>
+                        🛡️ DEF: {calc.defense} ({calc.defSum.toFixed(0)}÷4) &nbsp;|&nbsp; ⚙️ MID: {calc.midfield} ({calc.midSum.toFixed(0)}÷4) &nbsp;|&nbsp; ⚔️ ATT: {calc.attack} ({calc.attSum.toFixed(0)}÷2)
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 {/* Visual field */}
@@ -3766,12 +4229,17 @@ export default function Match() {
                   {/* Pitch Slots */}
                   {getFormationSlots(getSavedFormation()).map(slot => {
                     const assignedPlayer = lineup[slot.id];
+                    const idealPos = getIdealSlotPosition(slot.role, slot.x, slot.y);
+                    const slotWithPos = { ...slot, idealPos };
+                    const currentRole = playerRoles[slot.id] || 'normal';
+                    const roleMeta = assignedPlayer
+                      ? getRoleMetadata(slotWithPos, assignedPlayer, currentRole)
+                      : null;
 
                     let displayRating = 1;
                     let penalty = 0;
                     let penaltyTitle = "";
                     if (assignedPlayer) {
-                      const idealPos = getIdealSlotPosition(slot.role, slot.x, slot.y);
                       penalty = getPositionPenalty(assignedPlayer.positions || [assignedPlayer.position], idealPos);
                       const reduction = (assignedPlayer.condition < 80 ? 1 : 0) + penalty;
                       displayRating = Math.max(1, assignedPlayer.rating - reduction);
@@ -3877,6 +4345,32 @@ export default function Match() {
                                 ⚡{assignedPlayer.condition}%
                               </span>
                             </div>
+                            {slot.role !== 'gk' && roleMeta && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const nextRole = getNextRoleForSlot(slotWithPos, assignedPlayer, roleMeta.id);
+                                  handleTogglePlayerRole(slot.id, nextRole, assignedPlayer, slotWithPos);
+                                }}
+                                title={`${roleMeta.label}: ${roleMeta.desc} (Click to change role)`}
+                                style={{
+                                  marginTop: '2px',
+                                  padding: '1px 4px',
+                                  fontSize: '6.5px',
+                                  fontFamily: 'Orbitron, sans-serif',
+                                  fontWeight: 'bold',
+                                  borderRadius: '3px',
+                                  border: `1px solid ${roleMeta.color}`,
+                                  background: roleMeta.id === 'normal' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.75)',
+                                  color: roleMeta.color,
+                                  cursor: 'pointer',
+                                  lineHeight: 1.2
+                                }}
+                              >
+                                {roleMeta.shortLabel} ↻
+                              </button>
+                            )}
                           </div>
                         ) : (
                           <div
@@ -4000,6 +4494,318 @@ export default function Match() {
           </div>
         </div>
       )}
+
+      {showOpponentModal && teamid && teamid[showOpponentModal] && (() => {
+        const oppTeam = teamid[showOpponentModal];
+        const isOppHome = showOpponentModal === teamonename;
+        const oppFormation = isOppHome ? homeFormation : awayFormation;
+        const oppTactic = (isOppHome ? homeTactic : awayTactic) || 'normal';
+        const oppLineup = cpuLineups[showOpponentModal] || {};
+        const oppBench = cpuBenches[showOpponentModal] || [];
+        const oppRoles = cpuRoles[showOpponentModal] || {};
+        const slots = getFormationSlots(oppFormation || '4-4-2');
+
+        return (
+          <div
+            className="sub-modal-overlay"
+            onClick={() => setShowOpponentModal(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.85)',
+              backdropFilter: 'blur(6px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 2000,
+              padding: '16px'
+            }}
+          >
+            <div
+              className="sub-modal-content"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'linear-gradient(180deg, #10131c 0%, #080a0f 100%)',
+                border: '1.5px solid rgba(0, 229, 255, 0.35)',
+                borderRadius: '12px',
+                width: '95%',
+                maxWidth: '1050px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                boxShadow: '0 0 35px rgba(0, 229, 255, 0.25)',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              {/* Header */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '16px 22px',
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(0,0,0,0.3)'
+              }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h2 style={{ margin: 0, fontFamily: 'Orbitron', color: '#00e5ff', fontSize: '18px', letterSpacing: '1px' }}>
+                      {oppTeam?.name}
+                    </h2>
+                    <span style={{
+                      fontSize: '9px',
+                      fontFamily: 'Orbitron',
+                      fontWeight: 'bold',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      background: 'rgba(0, 229, 255, 0.15)',
+                      border: '1px solid rgba(0, 229, 255, 0.4)',
+                      color: '#00e5ff'
+                    }}>
+                      OPPONENT
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '11px', color: '#00ff64', fontFamily: 'Orbitron', fontWeight: 'bold' }}>
+                      ⚽ Formation: {oppFormation}
+                    </span>
+                    <span style={{ fontSize: '10px', color: '#ffd700', fontFamily: 'Orbitron', textTransform: 'uppercase' }}>
+                      Mentality: {oppTactic}
+                    </span>
+                    <span style={{ fontSize: '10px', color: '#aaa', fontFamily: 'Orbitron' }}>
+                      LIVE: ATT {getModifiedStat(showOpponentModal, "attack")} | MID {getModifiedStat(showOpponentModal, "midfield")} | DEF {getModifiedStat(showOpponentModal, "defense")}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowOpponentModal(null)}
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '18px',
+                    cursor: 'pointer',
+                    padding: '4px 12px',
+                    lineHeight: 1
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Two Column Layout: Pitch & Bench */}
+              <div style={{ display: 'flex', gap: '20px', padding: '20px', flexWrap: 'wrap' }}>
+                {/* Column 1: Field Lineup */}
+                <div style={{ flex: '1 1 540px', display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '320px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontFamily: 'Orbitron', fontWeight: 'bold', color: '#00e5ff', letterSpacing: '0.8px' }}>
+                      STARTING XI ON FIELD
+                    </span>
+                  </div>
+
+                  <div
+                    className="sub-modal-pitch-field"
+                    style={{
+                      position: 'relative',
+                      height: '360px',
+                      minHeight: '360px',
+                      background: '#0a4a1a',
+                      backgroundImage: 'radial-gradient(rgba(0, 255, 100, 0.15) 1.5px, transparent 1.5px), radial-gradient(rgba(0, 255, 100, 0.15) 1.5px, #0a4a1a 1.5px)',
+                      backgroundSize: '24px 24px',
+                      backgroundPosition: '0 0, 12px 12px',
+                      borderRadius: '10px',
+                      border: '1.5px solid rgba(255, 255, 255, 0.12)',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {/* Pitch Lines */}
+                    <div style={{ position: 'absolute', top: '4%', bottom: '4%', left: '4%', right: '4%', border: '1px solid rgba(255,255,255,0.1)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', top: '50%', left: '4%', right: '4%', height: '1px', background: 'rgba(255,255,255,0.1)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '60px', height: '60px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '50%', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', top: '4%', left: '25%', right: '25%', height: '12%', border: '1px solid rgba(255,255,255,0.08)', borderTop: 'none', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', bottom: '4%', left: '25%', right: '25%', height: '12%', border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none', pointerEvents: 'none' }} />
+
+                    {/* Field Players */}
+                    {slots.map(slot => {
+                      const p = oppLineup[slot.id];
+                      const idealPos = getIdealSlotPosition(slot.role, slot.x, slot.y);
+                      const activeRole = oppRoles[slot.id] || 'normal';
+                      const roleMeta = p ? getRoleMetadata(idealPos, p.positions || [idealPos], activeRole) : null;
+                      return (
+                        <div
+                          key={slot.id}
+                          style={{
+                            position: 'absolute',
+                            left: `${slot.x}%`,
+                            top: `${slot.y}%`,
+                            transform: 'translate(-50%, -50%)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            zIndex: 10
+                          }}
+                        >
+                          {p ? (
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                background: 'rgba(12, 12, 18, 0.92)',
+                                border: `1.5px solid ${getPositionColor(p.position || idealPos)}`,
+                                borderRadius: '6px',
+                                padding: '2px 6px',
+                                minWidth: '58px',
+                                maxWidth: '85px',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.6)'
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '3px' }}>
+                                <span style={{ fontSize: '7.5px', fontWeight: 'bold', fontFamily: 'Orbitron', color: getPositionColor(p.position || idealPos) }}>
+                                  {idealPos}
+                                </span>
+                                <span style={{ fontSize: '7.5px', color: '#ffd700', fontWeight: 'bold' }}>
+                                  ★{p.rating}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '8.5px', fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '75px', textAlign: 'center' }}>
+                                {getLastName(p.name)}
+                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '2px', marginTop: '1px' }}>
+                                <span style={{ fontSize: '7px', color: (p.condition || 100) < 80 ? '#ff4500' : '#00ff64' }}>
+                                  ⚡{p.condition || 100}%
+                                </span>
+                                {idealPos !== 'GK' && roleMeta && activeRole !== 'normal' && (
+                                  <span style={{ fontSize: '6.5px', fontFamily: 'Orbitron', fontWeight: 'bold', color: roleMeta.color, background: 'rgba(0,0,0,0.5)', padding: '0 2px', borderRadius: '2px' }}>
+                                    {roleMeta.shortLabel}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              background: 'rgba(0,0,0,0.5)',
+                              border: '1px dashed #555',
+                              color: '#888',
+                              fontSize: '8px',
+                              fontFamily: 'Orbitron'
+                            }}>
+                              {idealPos}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Column 2: Substitutes Bench */}
+                <div style={{ flex: '1 1 360px', display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '280px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontFamily: 'Orbitron', fontWeight: 'bold', color: '#aaa', letterSpacing: '0.8px' }}>
+                      AVAILABLE SUBSTITUTES ({oppBench.length})
+                    </span>
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    maxHeight: '360px',
+                    overflowY: 'auto',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '8px',
+                    padding: '8px'
+                  }}>
+                    {oppBench && oppBench.length > 0 ? (
+                      oppBench.map((p, idx) => (
+                        <div
+                          key={p.name || idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '6px 10px',
+                            background: 'rgba(0, 0, 0, 0.35)',
+                            border: '1px solid rgba(255, 255, 255, 0.05)',
+                            borderRadius: '5px',
+                            fontSize: '11px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                            <span style={{
+                              fontSize: '9px',
+                              fontWeight: 'bold',
+                              fontFamily: 'Orbitron',
+                              color: getPositionColor(p.position),
+                              background: 'rgba(255, 255, 255, 0.06)',
+                              padding: '2px 5px',
+                              borderRadius: '3px'
+                            }}>
+                              {p.position || 'SUB'}
+                            </span>
+                            <span style={{ color: '#fff', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>
+                              {p.name}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', flexShrink: 0 }}>
+                            {p.age && <span style={{ color: '#888' }}>{p.age}y</span>}
+                            <span style={{ color: (p.condition || 100) < 80 ? '#ff4500' : '#00ff64' }}>
+                              ⚡{p.condition || 100}%
+                            </span>
+                            <span style={{ color: '#ffd700', fontWeight: 'bold' }}>
+                              ★{p.rating}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ fontSize: '11px', color: '#666', fontStyle: 'italic', padding: '12px', textAlign: 'center' }}>
+                        No substitutes on the bench
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{
+                padding: '12px 22px',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                background: 'rgba(0,0,0,0.2)'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setShowOpponentModal(null)}
+                  style={{
+                    background: 'rgba(0, 229, 255, 0.15)',
+                    border: '1px solid #00e5ff',
+                    color: '#00e5ff',
+                    fontFamily: 'Orbitron',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    padding: '8px 20px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    letterSpacing: '1px'
+                  }}
+                >
+                  CLOSE
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

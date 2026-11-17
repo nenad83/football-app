@@ -1,0 +1,222 @@
+[
+  {
+    "id": 867,
+    "name": "Arsenal",
+    "shortName": "Arsenal",
+    "colors": {
+      "primary": "#EF0107",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 2444,
+    "name": "Chelsea",
+    "shortName": "Chelsea",
+    "colors": {
+      "primary": "#034694",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 7023,
+    "name": "Manchester United",
+    "shortName": "Man Utd",
+    "colors": {
+      "primary": "#DA291C",
+      "secondary": "#FBE122"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 3722,
+    "name": "Everton",
+    "shortName": "Everton",
+    "colors": {
+      "primary": "#003399",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 6635,
+    "name": "Liverpool",
+    "shortName": "Liverpool",
+    "colors": {
+      "primary": "#C8102E",
+      "secondary": "#F6EB61"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 1729,
+    "name": "Bolton Wanderers",
+    "shortName": "Bolton",
+    "colors": {
+      "primary": "#162b48",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 7355,
+    "name": "Middlesbrough",
+    "shortName": "Middlesbrough",
+    "colors": {
+      "primary": "#D00027",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 7022,
+    "name": "Manchester City",
+    "shortName": "Man City",
+    "colors": {
+      "primary": "#6CABDD",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 11726,
+    "name": "Tottenham Hotspur",
+    "shortName": "Tottenham",
+    "colors": {
+      "primary": "#132257",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 933,
+    "name": "Aston Villa",
+    "shortName": "Aston Villa",
+    "colors": {
+      "primary": "#95BFE5",
+      "secondary": "#670E36"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 2423,
+    "name": "Charlton Athletic",
+    "shortName": "Charlton",
+    "colors": {
+      "primary": "#D00027",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 1609,
+    "name": "Birmingham City",
+    "shortName": "Birmingham",
+    "colors": {
+      "primary": "#0000FF",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 4224,
+    "name": "Fulham",
+    "shortName": "Fulham",
+    "colors": {
+      "primary": "#000000",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 7902,
+    "name": "Newcastle United",
+    "shortName": "Newcastle",
+    "colors": {
+      "primary": "#000000",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 1641,
+    "name": "Blackburn Rovers",
+    "shortName": "Blackburn",
+    "colors": {
+      "primary": "#0000FF",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 8998,
+    "name": "Portsmouth",
+    "shortName": "Portsmouth",
+    "colors": {
+      "primary": "#001489",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 12629,
+    "name": "West Bromwich Albion",
+    "shortName": "West Brom",
+    "colors": {
+      "primary": "#122F67",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 2839,
+    "name": "Crystal Palace",
+    "shortName": "Crystal Palace",
+    "colors": {
+      "primary": "#1B458F",
+      "secondary": "#C4122E"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 8039,
+    "name": "Norwich City",
+    "shortName": "Norwich",
+    "colors": {
+      "primary": "#FFF200",
+      "secondary": "#00A650"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  },
+  {
+    "id": 10807,
+    "name": "Southampton",
+    "shortName": "Southampton",
+    "colors": {
+      "primary": "#D71920",
+      "secondary": "#FFFFFF"
+    },
+    "reputation": 0,
+    "squadCount": 24
+  }
+]
