@@ -22,7 +22,10 @@
  *      • Midfield ('normal'): Full skill to Midfield.
  *      • Support Attack ('support_att'): -2 skill to Midfield, Full skill to Attack.
  *      • Support Defense ('support_def'): -2 skill to Midfield, Full skill to Defense.
- *    - AMC / AMR / AML:
+ *    - AMC:
+ *      • Midfield ('normal'): Full skill to Midfield.
+ *      • Support Attack ('support_att'): -1 skill to Midfield (if natural AMC in AMC slot; -2 otherwise), Full skill to Attack.
+ *    - AMR / AML:
  *      • Midfield ('normal'): Full skill to Midfield.
  *      • Support Attack ('support_att'): -2 skill to Midfield, Full skill to Attack.
  *    - ST / CF / FC / SC / LW / RW:
@@ -87,7 +90,17 @@ export function getAvailableRolesForSlot(slot, player = null) {
     ? player[0]
     : (player?.position || (Array.isArray(player?.positions) ? player.positions[0] : '') || idealPos || '');
   const playerPos = String(rawPlayerPos).toUpperCase();
-  const isDMCPlayer = idealPos === 'DMC' || playerPos === 'DMC';
+  const playerPositions = (
+    Array.isArray(player?.positions)
+      ? player.positions
+      : (player?.position ? [player.position] : (typeof player === 'string' ? [player] : []))
+  ).map(p => String(p).toUpperCase());
+  if (playerPos && !playerPositions.includes(playerPos)) {
+    playerPositions.push(playerPos);
+  }
+
+  const isDMCPlayer = idealPos === 'DMC' || playerPositions.includes('DMC') || playerPos === 'DMC';
+  const isEligibleAMC = idealPos === 'AMC' && (player ? (playerPositions.includes('AMC') || playerPos === 'AMC') : true);
 
   if (slotRole === 'def') {
     if (idealPos === 'DL' || idealPos === 'DR') {
@@ -147,7 +160,31 @@ export function getAvailableRolesForSlot(slot, player = null) {
       ];
     }
 
-    if (idealPos === 'AMC' || idealPos === 'AML' || idealPos === 'AMR') {
+    if (idealPos === 'AMC') {
+      const attPenaltyLabel = isEligibleAMC ? '-1M' : '-2M';
+      const attPenaltyDesc = isEligibleAMC
+        ? '-1 in Midfield (AMC), Full rating in Attack'
+        : '-2 in Midfield, Full rating in Attack';
+
+      return [
+        {
+          id: 'normal',
+          label: 'Attacking Mid (Midfield)',
+          shortLabel: 'MID',
+          color: '#00ff64',
+          desc: 'Full rating in Midfield'
+        },
+        {
+          id: 'support_att',
+          label: 'Support Attack (+ATT)',
+          shortLabel: `ATT (${attPenaltyLabel})`,
+          color: '#ff4500',
+          desc: attPenaltyDesc
+        }
+      ];
+    }
+
+    if (idealPos === 'AML' || idealPos === 'AMR') {
       return [
         {
           id: 'normal',
@@ -294,7 +331,17 @@ export function calculatePlayerContribution(player, slot, roleId = 'normal', men
 
   const idealPos = slot.idealPos || getIdealSlotPosition(slot.role, slot.x, slot.y);
   const playerPos = (player.position || idealPos || '').toUpperCase();
-  const isDMC = idealPos === 'DMC' || playerPos === 'DMC';
+  const playerPositions = (
+    Array.isArray(player?.positions)
+      ? player.positions
+      : (player?.position ? [player.position] : [])
+  ).map(p => String(p).toUpperCase());
+  if (playerPos && !playerPositions.includes(playerPos)) {
+    playerPositions.push(playerPos);
+  }
+
+  const isDMC = idealPos === 'DMC' || playerPositions.includes('DMC') || playerPos === 'DMC';
+  const isEligibleAMC = idealPos === 'AMC' && (playerPositions.includes('AMC') || playerPos === 'AMC');
 
   const validRole = getRoleMetadata(slot, player, roleId).id;
   const eff = getPlayerEffectiveSkill(player, slot);
@@ -319,8 +366,9 @@ export function calculatePlayerContribution(player, slot, roleId = 'normal', men
       mid = Math.max(0, eff - midLoss);
       def = Math.max(0, eff + defMentalityBonus);
     } else if (validRole === 'support_att') {
-      // Supporting attack: -2 in midfield, full to attack + mentality bonus.
-      mid = Math.max(0, eff - 2);
+      // Supporting attack: Specialist AMC in AMC slot loses only 1 in midfield; others lose 2. Full to attack + mentality bonus.
+      const midLoss = isEligibleAMC ? 1 : 2;
+      mid = Math.max(0, eff - midLoss);
       att = Math.max(0, eff + attMentalityBonus);
     } else {
       // Normal midfield
@@ -625,7 +673,16 @@ export function computeCPUTacticalPlan({
   const wideMids = slots.filter(s => s.role === 'mid' && (s.idealPos === 'ML' || s.idealPos === 'MR'))
     .sort((a, b) => b.eff - a.eff);
   const attMids = slots.filter(s => s.role === 'mid' && (s.idealPos === 'AMC' || s.idealPos === 'AML' || s.idealPos === 'AMR'))
-    .sort((a, b) => b.eff - a.eff);
+    .sort((a, b) => {
+      // Prioritize natural AMC in AMC slot because they only lose -1 to midfield
+      const aPositions = (a.player?.positions || [a.player?.position || '']).map(p => String(p).toUpperCase());
+      const bPositions = (b.player?.positions || [b.player?.position || '']).map(p => String(p).toUpperCase());
+      const aIsEligibleAMC = a.idealPos === 'AMC' && aPositions.includes('AMC');
+      const bIsEligibleAMC = b.idealPos === 'AMC' && bPositions.includes('AMC');
+      if (aIsEligibleAMC && !bIsEligibleAMC) return -1;
+      if (!aIsEligibleAMC && bIsEligibleAMC) return 1;
+      return b.eff - a.eff;
+    });
 
   const forwards = slots.filter(s => s.role === 'att')
     .sort((a, b) => a.eff - b.eff); // Weakest/secondary striker first for dropping deep into midfield

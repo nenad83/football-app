@@ -12,6 +12,7 @@ import { clibRules } from '../data/clib/clibRules';
 import { csudRules } from '../data/csud/csudRules'; import CountryFlag from './CountryFlag';
 import { createDomesticCup, getDomesticCupExpectation } from '../utils/domesticCupGenerator';
 import { loadSeasonRosters } from '../data/rosters/rosterRegistry';
+import { applyTeamTheme } from '../utils/themeManager';
 
 
 // Inline premium vector Team Flag component
@@ -438,6 +439,7 @@ export default function LeagueSelect() {
         }
 
         alert("Career save and manager profile successfully imported! Loading dashboard...");
+        applyTeamTheme(careerData.teams?.find(t => t.idnum === careerData.playerTeamId));
         navigate("/league/dashboard");
       } catch (err) {
         alert("Error importing save file: " + err.message);
@@ -1017,6 +1019,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
 
     localStorage.removeItem("retro_manager_profile");
     localStorage.setItem("retro_league_career", JSON.stringify(leagueState));
+    applyTeamTheme(leagueState.teams?.find(t => t.idnum === leagueState.playerTeamId));
     setIsStarting(false);
     navigate("/league/dashboard");
   };

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import '../assets/styles/Match.css';
+import { applyTeamTheme } from '../utils/themeManager';
 
 // Import Compile-time Databases
 import mex86Data from '../data/cups/wc/mex86.json';
@@ -971,6 +972,7 @@ export default function TournamentSelect() {
         }
 
         alert("Tournament save successfully imported! Loading dashboard...");
+        applyTeamTheme(stateData.teams?.find(t => t.idnum === stateData.playerTeamId));
         navigate("/tournament/dashboard");
       } catch (err) {
         alert("Error importing save file: " + err.message);
@@ -1173,6 +1175,7 @@ export default function TournamentSelect() {
     };
 
     localStorage.setItem("retro_tournament_state", JSON.stringify(tournamentState));
+    applyTeamTheme(tournamentState.teams?.find(t => t.idnum === tournamentState.playerTeamId));
     navigate("/tournament/dashboard");
   };
 

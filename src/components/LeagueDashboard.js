@@ -13,7 +13,7 @@ import { qualifiersBySeason } from '../data/qualifiersBySeason';
 import { qualifiersBySeasonSA } from '../data/qualifiersBySeasonSA';
 import CountryFlag from './CountryFlag';
 import RoundResultsModal from './RoundResultsModal';
-import { FormationTacticsModal, getSavedFormation, FormationPitch, updateTeamStatsInStorage, getPreviousSeasonString } from './FormationTactics';
+import { FormationTacticsModal, getSavedFormation, updateTeamStatsInStorage, getPreviousSeasonString } from './FormationTactics';
 import { updatePlayerConditionsAndInjuries } from './Match';
 import TransferModal from './TransferModal';
 import NewsFeed from './NewsFeed';
@@ -22,6 +22,7 @@ import { createDomesticCup, advanceDomesticCup, getDomesticCupExpectation, CUP_S
 import { generateInitialNews, generateMatchdayNews, generateDomesticCupDrawNews, generateDomesticCupMatchNews, generateMonthlyAwardsNews, generateYearlyAwardsNews } from '../utils/newsGenerator';
 import { checkMonthConclusion, generateMatchEvents, recordMatchEventsInStats, calculateMonthlyAwards, calculateYearlyAwards, awardManagerTitle } from '../utils/awardsManager';
 import { loadSeasonRosters } from '../data/rosters/rosterRegistry';
+import { applyTeamTheme } from '../utils/themeManager';
 
 
 
@@ -697,7 +698,6 @@ export default function LeagueDashboard() {
   const [officeTab, setOfficeTab] = useState("home"); // "news" | "home" | "tactics" | "transfers" | "board" | "manager"
   const [activeTab, setActiveTab] = useState("league"); // league or europe
   const [clActiveGroup, setClActiveGroup] = useState("A");
-  const [selectedRound, setSelectedRound] = useState(1);
   const [subStandingsTab, setSubStandingsTab] = useState(null);
   const [leagueViewMode, setLeagueViewMode] = useState("standings"); // "standings" | "scorers" | "assists"
   const [selectedCupStage, setSelectedCupStage] = useState(null);
@@ -874,13 +874,6 @@ export default function LeagueDashboard() {
 
     return calculateStandingsForRounds(teams, fixtures, startRound, endRound);
   }, [leagueState, subStandingsTab]);
-
-  // Keep selectedRound synced with leagueState's current round when it changes
-  useEffect(() => {
-    if (leagueState?.currentRound) {
-      setSelectedRound(leagueState.currentRound);
-    }
-  }, [leagueState?.currentRound]);
 
   // Manager Profile States
   const [managerProfile, setManagerProfile] = useState(() => {
@@ -2278,7 +2271,6 @@ export default function LeagueDashboard() {
 
     localStorage.setItem("retro_league_career", JSON.stringify(nextLeagueState));
     setLeagueState(nextLeagueState);
-    setSelectedRound(1);
     setSubStandingsTab(null);
     setNextSeasonTeams([]);
     setJobOffers([]);
@@ -2478,8 +2470,8 @@ export default function LeagueDashboard() {
           localStorage.setItem('retro_player_formation', importedData.formation);
         }
         localStorage.setItem("retro_league_career", JSON.stringify(careerData));
+        applyTeamTheme(careerData.teams?.find(t => t.idnum === careerData.playerTeamId));
         setLeagueState(careerData);
-        setSelectedRound(careerData.currentRound || 1);
 
         if (profileData) {
           localStorage.setItem("retro_manager_profile", JSON.stringify(profileData));
@@ -2540,18 +2532,6 @@ export default function LeagueDashboard() {
 
   // Find player's team object
   const playerTeamObj = teams.find(t => t.idnum === playerTeamId);
-
-  const activeFormation = getSavedFormation();
-  const playerTacticalFocus = (() => {
-    if (!playerTeamObj) return "Balanced Style";
-    const att = playerTeamObj.attack;
-    const mid = playerTeamObj.midfield;
-    const def = playerTeamObj.defense;
-    if (att > mid && att > def) return "⚔️ Attacking Style";
-    if (mid > att && mid > def) return "🧠 Midfield Control Style";
-    if (def > att && def > mid) return "🛡️ Defensive Style";
-    return "⚖️ Balanced Style";
-  })();
 
   // Dynamic calculations for total rounds based on teams count
   const totalRounds = (teams.length - 1) * 2;
@@ -5736,267 +5716,6 @@ export default function LeagueDashboard() {
               })()
             )}
 
-            {/* Active Tactical Overview Panel */}
-            {!isSeasonOver && (
-              <div className="glass-card next-match-panel" style={{ padding: '15px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <h3 className="team-card-title" style={{ fontSize: '13px', textAlign: 'left', color: '#00ff64', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>⚽ ACTIVE FORMATION & TACTICS</span>
-                  <button
-                    onClick={() => setOfficeTab("tactics")}
-                    style={{ background: 'transparent', border: '1px solid rgba(0, 255, 100, 0.3)', borderRadius: '4px', color: '#00ff64', cursor: 'pointer', fontSize: '10px', padding: '2px 8px', fontWeight: 'bold', fontFamily: 'Orbitron' }}
-                  >
-                    EDIT TACTICS ➔
-                  </button>
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: '#888' }}>Active Formation:</span>
-                    <span style={{ fontWeight: 'bold', color: '#00ff64', fontFamily: 'Orbitron' }}>
-                      ⚽ {activeFormation}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: '#888' }}>Squad Tactic Style:</span>
-                    <span style={{ fontWeight: 'bold', color: '#00e5ff', fontFamily: 'Orbitron' }}>
-                      {playerTacticalFocus}
-                    </span>
-                  </div>
-
-                  {/* Visual Pitch */}
-                  <div style={{ display: 'flex', justifyContent: 'center', marginTop: '6px' }}>
-                    <FormationPitch formation={activeFormation} isSelected={false} size="small" />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Round Schedule Feed scrollbox */}
-            {!isSeasonOver && !isEuropeanMatchNext && (
-              <div className="glass-card fixtures-feed-panel" style={{ padding: '15px 20px', height: '200px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <h3 className="team-card-title" style={{
-                  fontSize: '13px',
-                  textAlign: 'left',
-                  color: '#888',
-                  borderBottom: '1px solid rgba(255,255,255,0.05)',
-                  paddingBottom: '6px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRound(prev => Math.max(1, prev - 1))}
-                      disabled={selectedRound <= 1}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: selectedRound <= 1 ? 'rgba(255,255,255,0.15)' : '#ffd700',
-                        cursor: selectedRound <= 1 ? 'default' : 'pointer',
-                        fontSize: '14px',
-                        padding: '0 5px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s ease'
-                      }}
-                      title="Previous Round"
-                    >
-                      ◀
-                    </button>
-                    <span>ROUND {selectedRound} SCHEDULE</span>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRound(prev => Math.min(totalRounds, prev + 1))}
-                      disabled={selectedRound >= totalRounds}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: selectedRound >= totalRounds ? 'rgba(255,255,255,0.15)' : '#ffd700',
-                        cursor: selectedRound >= totalRounds ? 'default' : 'pointer',
-                        fontSize: '14px',
-                        padding: '0 5px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s ease'
-                      }}
-                      title="Next Round"
-                    >
-                      ▶
-                    </button>
-                  </div>
-                  {selectedRound === (currentEvent.index || currentRound) && (
-                    <span style={{
-                      fontSize: '9px',
-                      background: 'rgba(0, 255, 100, 0.1)',
-                      color: '#00ff64',
-                      padding: '2px 6px',
-                      borderRadius: '3px',
-                      fontFamily: 'Orbitron',
-                      fontWeight: 'bold'
-                    }}>
-                      ACTIVE
-                    </span>
-                  )}
-                </h3>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', flexGrow: 1 }}>
-                  {fixtures[selectedRound - 1]?.map((f, idx) => {
-                    const hTeam = teams.find(t => t.idnum === f.homeId);
-                    const aTeam = teams.find(t => t.idnum === f.awayId);
-                    if (!hTeam || !aTeam) return null;
-                    const isPlayerFixture = f.homeId === playerTeamId || f.awayId === playerTeamId;
-
-                    return (
-                      <div
-                        key={idx}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          fontSize: '11px',
-                          padding: '4px 6px',
-                          borderRadius: '6px',
-                          background: isPlayerFixture ? 'rgba(0, 255, 100, 0.03)' : 'transparent',
-                          border: isPlayerFixture ? '1px dashed rgba(0, 255, 100, 0.2)' : 'none',
-                          color: isPlayerFixture ? '#00ff64' : '#fff'
-                        }}
-                      >
-                        <span style={{ width: '42%', textAlign: 'left', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={hTeam.name}>{hTeam.name}</span>
-
-                        <span style={{ fontWeight: 'bold', fontFamily: 'Orbitron', color: f.played ? '#00ff64' : '#ff4500' }}>
-                          {f.played ? `${f.homeScore} - ${f.awayScore}` : "vs"}
-                        </span>
-
-                        <span style={{ width: '42%', textAlign: 'right', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={aTeam.name}>{aTeam.name}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* European Match Schedule Feed scrollbox */}
-            {!isSeasonOver && isEuropeanMatchNext && (
-              <div className="glass-card fixtures-feed-panel" style={{ padding: '15px 20px', height: '200px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <h3 className="team-card-title" style={{ fontSize: '13px', textAlign: 'left', color: '#00e5ff', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
-                  MIDWEEK FIXTURES (CUP MATCHDAY {currentEvent.matchday})
-                </h3>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', flexGrow: 1 }}>
-                  {(europeanCup === "cl" || (rules && (rules.format === "group_then_knockout" || rules.format === "league_then_knockout"))) ? (
-                    (currentEvent.stage === "group_stage" || currentEvent.stage === "league_stage") ? (
-                      (() => {
-                        const fixturesList = europeanCupState.fixtures[currentEvent.matchday - 1];
-                        if (!fixturesList) return <div style={{ fontSize: '11px', color: '#888' }}>Fixtures pending...</div>;
-                        const filteredFixtures = currentEvent.stage === "league_stage"
-                          ? fixturesList.filter(f => f.homeId === europeanCupState.europeanPlayerTeamId || f.awayId === europeanCupState.europeanPlayerTeamId)
-                          : fixturesList.filter(f => f.group === playerTeamObj.group || f.group === clActiveGroup);
-                        return filteredFixtures.map((f, idx) => {
-                          const hTeam = europeanCupState.teams.find(t => t.idnum === f.homeId);
-                          const aTeam = europeanCupState.teams.find(t => t.idnum === f.awayId);
-                          const isPlayerFixture = f.homeId === europeanCupState.europeanPlayerTeamId || f.awayId === europeanCupState.europeanPlayerTeamId;
-
-                          return (
-                            <div
-                              key={idx}
-                              style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                fontSize: '11px',
-                                padding: '4px 6px',
-                                borderRadius: '6px',
-                                background: isPlayerFixture ? 'rgba(0, 229, 255, 0.03)' : 'transparent',
-                                border: isPlayerFixture ? '1px dashed rgba(0, 229, 255, 0.2)' : 'none',
-                                color: isPlayerFixture ? '#00e5ff' : '#fff'
-                              }}
-                            >
-                              <span style={{ width: '42%', textAlign: 'left', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={hTeam.name}>{hTeam.name}</span>
-                              <span style={{ fontWeight: 'bold', fontFamily: 'Orbitron', color: f.played ? '#00e5ff' : '#ff4500' }}>
-                                {f.played ? `${f.homeScore} - ${f.awayScore}` : "vs"}
-                              </span>
-                              <span style={{ width: '42%', textAlign: 'right', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={aTeam.name}>{aTeam.name}</span>
-                            </div>
-                          );
-                        });
-                      })()
-                    ) : (
-                      // CL Knockout fixtures summary list
-                      (() => {
-                        const stage = currentEvent.stage;
-                        const matchday = currentEvent.matchday;
-                        const toCamelCase = (str) => str.replace(/_([a-z0-9])/g, (g) => g[1].toUpperCase());
-                        const kStateKey = toCamelCase(stage) + (stage !== "final" ? "Leg" + matchday : "");
-                        const bracket = europeanCupState.knockoutState[kStateKey];
-                        if (!bracket) return <div style={{ fontSize: '11px', color: '#888' }}>Bracket pending...</div>;
-                        return bracket.map((m, idx) => {
-                          const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                          const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                          const isPlayerFixture = m.homeId === europeanCupState.europeanPlayerTeamId || m.awayId === europeanCupState.europeanPlayerTeamId;
-                          return (
-                            <div
-                              key={idx}
-                              style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                fontSize: '11px',
-                                padding: '4px 6px',
-                                borderRadius: '6px',
-                                background: isPlayerFixture ? 'rgba(0, 229, 255, 0.03)' : 'transparent',
-                                border: isPlayerFixture ? '1px dashed rgba(0, 229, 255, 0.2)' : 'none',
-                                color: isPlayerFixture ? '#00e5ff' : '#fff'
-                              }}
-                            >
-                              <span style={{ width: '42%', textAlign: 'left', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={h.name}>{h.name}</span>
-                              <span style={{ fontWeight: 'bold', fontFamily: 'Orbitron', color: m.played ? '#00e5ff' : '#ff4500' }}>
-                                {m.played ? `${m.homeScore} - ${m.awayScore}` : "vs"}
-                              </span>
-                              <span style={{ width: '42%', textAlign: 'right', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</span>
-                            </div>
-                          );
-                        });
-                      })()
-                    )
-                  ) : (
-                    // UEFA fixtures summary list
-                    (() => {
-                      const stage = currentEvent.stage;
-                      const matchday = currentEvent.matchday;
-                      const toCamelCase = (str) => str.replace(/_([a-z0-9])/g, (g) => g[1].toUpperCase());
-                      const kStateKey = toCamelCase(stage) + (stage !== "final" ? "Leg" + matchday : "");
-                      const bracket = europeanCupState.knockoutState[kStateKey];
-                      if (!bracket) return <div style={{ fontSize: '11px', color: '#888' }}>Bracket pending...</div>;
-                      return bracket.map((m, idx) => {
-                        const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                        const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                        const isPlayerFixture = m.homeId === europeanCupState.europeanPlayerTeamId || m.awayId === europeanCupState.europeanPlayerTeamId;
-                        return (
-                          <div
-                            key={idx}
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              fontSize: '11px',
-                              padding: '4px 6px',
-                              borderRadius: '6px',
-                              background: isPlayerFixture ? 'rgba(0, 229, 255, 0.03)' : 'transparent',
-                              border: isPlayerFixture ? '1px dashed rgba(0, 229, 255, 0.2)' : 'none',
-                              color: isPlayerFixture ? '#00e5ff' : '#fff'
-                            }}
-                          >
-                            <span style={{ width: '42%', textAlign: 'left', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={h.name}>{h.name}</span>
-                            <span style={{ fontWeight: 'bold', fontFamily: 'Orbitron', color: m.played ? '#00e5ff' : '#ff4500' }}>
-                              {m.played ? `${m.homeScore} - ${m.awayScore}` : "vs"}
-                            </span>
-                            <span style={{ width: '42%', textAlign: 'right', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</span>
-                          </div>
-                        );
-                      });
-                    })()
-                  )}
-                </div>
-              </div>
-            )}
 
           </div>
 

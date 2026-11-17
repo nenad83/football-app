@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import '../assets/styles/Match.css';
 import RoundResultsModal from './RoundResultsModal';
-import { FormationTacticsModal, getSavedFormation, FormationPitch, updateTeamStatsInStorage } from './FormationTactics';
+import { FormationTacticsModal, getSavedFormation, updateTeamStatsInStorage } from './FormationTactics';
 import { updatePlayerConditionsAndInjuries } from './Match';
 import { sortGroupTable, initializeKnockouts } from "../utils/tournamentRules";
 import NewsFeed from './NewsFeed';
@@ -483,18 +483,6 @@ export default function TournamentDashboard() {
   };
 
   const playerTeamObj = teams.find(t => t.idnum === playerTeamId);
-
-  const activeFormation = getSavedFormation();
-  const playerTacticalFocus = (() => {
-    if (!playerTeamObj) return "Balanced Style";
-    const att = playerTeamObj.attack;
-    const mid = playerTeamObj.midfield;
-    const def = playerTeamObj.defense;
-    if (att > mid && att > def) return "⚔️ Attacking Style";
-    if (mid > att && mid > def) return "🧠 Midfield Control Style";
-    if (def > att && def > mid) return "🛡️ Defensive Style";
-    return "⚖️ Balanced Style";
-  })();
 
   // Recalculate group tables
   const standings = teams.map(t => {
@@ -1707,81 +1695,6 @@ export default function TournamentDashboard() {
                 </div>
               );
             })()
-          )}
-
-          {/* Active Tactical Overview Panel */}
-          {stage !== "over" && (
-            <div className="glass-card next-match-panel" style={{ padding: '15px 20px', display: 'flex', flexDirection: 'column', gap: '8px', width: '95%', margin: '0 auto 20px auto' }}>
-              <h3 className="team-card-title" style={{ fontSize: '13px', textAlign: 'left', color: '#00ff64', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>⚽ ACTIVE FORMATION & TACTICS</span>
-                <button
-                  onClick={() => setOfficeTab("tactics")}
-                  style={{ background: 'transparent', border: '1px solid rgba(0, 255, 100, 0.3)', borderRadius: '4px', color: '#00ff64', cursor: 'pointer', fontSize: '10px', padding: '2px 8px', fontWeight: 'bold', fontFamily: 'Orbitron' }}
-                >
-                  EDIT TACTICS ➔
-                </button>
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px', width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#888' }}>Active Formation:</span>
-                  <span style={{ fontWeight: 'bold', color: '#00ff64', fontFamily: 'Orbitron' }}>
-                    ⚽ {activeFormation}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#888' }}>Squad Tactic Style:</span>
-                  <span style={{ fontWeight: 'bold', color: '#00e5ff', fontFamily: 'Orbitron' }}>
-                    {playerTacticalFocus}
-                  </span>
-                </div>
-                
-                {/* Visual Pitch */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '6px' }}>
-                  <FormationPitch formation={activeFormation} isSelected={false} size="small" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Group Matchday Round Feed */}
-          {(stage === "groups" || stage === "finalGroup") && (
-            <div className="glass-card fixtures-feed-panel" style={{ padding: '15px 20px', height: '210px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <h3 className="team-card-title" style={{ fontSize: '12px', textAlign: 'left', color: '#888', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '6px' }}>
-                {stage === "finalGroup" ? `FINAL ROUND - ROUND ${currentRound} SCHEDULE` : `MATCHDAY ROUND ${currentRound} SCHEDULE`}
-              </h3>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', flexGrow: 1 }}>
-                {(stage === "groups" ? fixtures[currentRound - 1] : knockoutState.finalGroup[currentRound - 1]).map((f, idx) => {
-                  const hTeam = teams.find(t => t.idnum === f.homeId);
-                  const aTeam = teams.find(t => t.idnum === f.awayId);
-                  const isPlayerFixture = f.homeId === playerTeamId || f.awayId === playerTeamId;
-                  
-                  return (
-                    <div 
-                      key={idx} 
-                      style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        fontSize: '11px',
-                        padding: '4px 6px',
-                        borderRadius: '6px',
-                        background: isPlayerFixture ? 'rgba(0, 255, 100, 0.03)' : 'transparent',
-                        border: isPlayerFixture ? '1px dashed rgba(0, 255, 100, 0.2)' : 'none',
-                        color: isPlayerFixture ? '#00ff64' : '#fff'
-                      }}
-                    >
-                      <span style={{ width: '40%', textAlign: 'left', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={hTeam.name}>{hTeam.name}</span>
-                      
-                      <span style={{ fontWeight: 'bold', fontFamily: 'Orbitron', color: f.played ? '#00ff64' : '#ff4500' }}>
-                        {f.played ? `${f.homeScore} - ${f.awayScore}` : `vs (Gr ${f.group})`}
-                      </span>
-                      
-                      <span style={{ width: '40%', textAlign: 'right', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={aTeam.name}>{aTeam.name}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
           )}
 
         </div>

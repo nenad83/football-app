@@ -1,5 +1,6 @@
+import React, { useEffect } from 'react';
 import './App.css';
-import {Routes, Route} from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Home from './components/Home';
 import Friendly from './components/Friendly';
 import TeamSelect from './components/TeamSelect';
@@ -11,9 +12,21 @@ import TournamentDashboard from './components/TournamentDashboard';
 import PreMatch from './components/PreMatch';
 import Fixtures from './components/Fixtures';
 import CMRetroHub from './cmRetro/components/CMRetroHub';
+import { applyTeamTheme, resetToDefaultTheme } from './utils/themeManager';
 
 function App() {
-  
+  const location = useLocation();
+
+  useEffect(() => {
+    // When on home page or initial game mode select, use default retro green
+    if (location.pathname === '/' || location.pathname === '/friendly' || location.pathname === '/league' || location.pathname === '/tournament') {
+      resetToDefaultTheme();
+    } else {
+      // In league dashboard, tournament, pre-match, match, etc., apply the player team's theme
+      applyTeamTheme();
+    }
+  }, [location.pathname]);
+
   return (
     
 

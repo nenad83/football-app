@@ -133,6 +133,33 @@ export function getPrebuiltRosterSync(teamName, season) {
   return null;
 }
 
+function findTeamInDetails(detailsData, teamName) {
+  if (!detailsData || !teamName) return null;
+  if (detailsData[teamName]) return detailsData[teamName];
+
+  const clean = (s) => String(s || "").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+
+  const lowerName = teamName.toLowerCase().trim();
+  const cleanTarget = clean(teamName);
+
+  for (const [key, details] of Object.entries(detailsData)) {
+    if (key.toLowerCase().trim() === lowerName) return details;
+  }
+  for (const [key, details] of Object.entries(detailsData)) {
+    const k = key.toLowerCase().trim();
+    if (k.includes(lowerName) || lowerName.includes(k)) return details;
+  }
+  for (const [key, details] of Object.entries(detailsData)) {
+    const cleanKey = clean(key);
+    if (cleanKey && cleanTarget && (cleanKey === cleanTarget || cleanKey.includes(cleanTarget) || cleanTarget.includes(cleanKey))) {
+      return details;
+    }
+  }
+  return null;
+}
+
 /**
  * Retrieves authentic team details (manager and stadium) for a club.
  * @param {string} teamName - Name of the team
@@ -152,18 +179,85 @@ export async function getTeamDetails(teamName, season) {
   }
   if (!detailsData) return null;
 
-  if (detailsData[teamName]) {
-    return detailsData[teamName];
+  return findTeamInDetails(detailsData, teamName);
+}
+
+/**
+ * Synchronous getter for authentic team details (manager and stadium) if season details are cached.
+ * @param {string} teamName - Name of the team
+ * @param {string|number} season - Season identifier
+ * @returns {Object|null}
+ */
+export function getTeamDetailsSync(teamName, season) {
+  if (!teamName || !season) return null;
+  const year = normalizeSeasonYear(season);
+  const detailsData = seasonDetailsCache.get(year);
+  if (!detailsData) return null;
+  return findTeamInDetails(detailsData, teamName);
+}
+
+/**
+ * Calculates authentic match attendance based on stadium capacity and relative strength of opponent.
+ * Rule: Playing with stronger or equal teams => attendance nearly at max (95% - 99%).
+ *       Playing with weaker teams => attendance scales lower based on how weak the opponent is (55% - 92%).
+ * @param {Object} homeTeam - Home team object ({ attack, midfield, defense })
+ * @param {Object} awayTeam - Away team object ({ attack, midfield, defense })
+ * @param {number} stadiumCapacity - Max stadium capacity
+ * @param {string|number} matchSeed - Stable seed to prevent number jittering across simulation ticks
+ * @returns {{ attendance: number, capacity: number, percent: number }}
+ */
+export function calculateMatchAttendance(homeTeam, awayTeam, stadiumCapacity, matchSeed = null) {
+  const cap = Number(stadiumCapacity) || 45000;
+  if (!homeTeam || !awayTeam) {
+    return { attendance: Math.round(cap * 0.88), capacity: cap, percent: 88 };
   }
 
-  const lowerName = teamName.toLowerCase().trim();
-  for (const [key, details] of Object.entries(detailsData)) {
-    if (key.toLowerCase().trim() === lowerName) {
-      return details;
+  const homePower = (homeTeam.attack || 3) + (homeTeam.midfield || 3) + (homeTeam.defense || 3);
+  const awayPower = (awayTeam.attack || 3) + (awayTeam.midfield || 3) + (awayTeam.defense || 3);
+  const weakness = homePower - awayPower;
+
+  // Stable pseudo-random variation based on seed or deterministic numbers
+  let rand = 0.5;
+  if (typeof matchSeed === 'number') {
+    rand = Math.abs(Math.sin(matchSeed * 997)) % 1;
+  } else if (typeof matchSeed === 'string') {
+    let hash = 0;
+    for (let i = 0; i < matchSeed.length; i++) {
+      hash = (hash << 5) - hash + matchSeed.charCodeAt(i);
+      hash |= 0;
     }
+    rand = Math.abs((hash % 1000) / 1000);
+  } else {
+    rand = 0.5;
   }
 
-  return null;
+  let baseFill = 0.95;
+  if (weakness <= 0) {
+    // Away team is equal or stronger: nearly at max capacity (95% - 99%)
+    baseFill = 0.95 + (rand * 0.04);
+  } else if (weakness === 1) {
+    // Very competitive match (90% - 94%)
+    baseFill = 0.90 + (rand * 0.04);
+  } else if (weakness <= 3) {
+    // Moderately weaker (82% - 88%)
+    baseFill = 0.82 + (rand * 0.06);
+  } else if (weakness <= 5) {
+    // Clearly weaker (70% - 78%)
+    baseFill = 0.70 + (rand * 0.08);
+  } else {
+    // Much weaker / mismatch (55% - 66%)
+    baseFill = 0.55 + (rand * 0.11);
+  }
+
+  const clampedFill = Math.min(0.99, Math.max(0.45, baseFill));
+  const attendance = Math.round(cap * clampedFill);
+  const percent = Math.round(clampedFill * 100);
+
+  return {
+    attendance,
+    capacity: cap,
+    percent
+  };
 }
 
 /**

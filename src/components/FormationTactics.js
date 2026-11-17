@@ -11,6 +11,7 @@ import {
 export const FORMATIONS = {
   '4-4-2': {
     label: '4-4-2',
+    era: '1970s – Present',
     desc: 'Standard balanced formation',
     modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
@@ -22,6 +23,7 @@ export const FORMATIONS = {
   },
   '4-3-3': {
     label: '4-3-3',
+    era: '1970s – Present',
     desc: 'Attacking width with 3 forwards',
     modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
@@ -33,6 +35,7 @@ export const FORMATIONS = {
   },
   '4-5-1': {
     label: '4-5-1',
+    era: '1990s – 2010s',
     desc: 'Midfield dominance with lone striker',
     modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
@@ -44,6 +47,7 @@ export const FORMATIONS = {
   },
   '5-3-2': {
     label: '5-3-2',
+    era: '1980s – 1990s',
     desc: 'Defensive solidity with wing-backs',
     modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
@@ -55,6 +59,7 @@ export const FORMATIONS = {
   },
   '5-4-1': {
     label: '5-4-1',
+    era: '2000s – Present',
     desc: 'Ultra-defensive with packed backline',
     modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
@@ -66,6 +71,7 @@ export const FORMATIONS = {
   },
   '3-5-2': {
     label: '3-5-2',
+    era: '1986 – 2000s',
     desc: 'Midfield overload with two strikers',
     modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
@@ -77,6 +83,7 @@ export const FORMATIONS = {
   },
   '3-4-3': {
     label: '3-4-3',
+    era: '1990s – Present',
     desc: 'All-out attack with three in back',
     modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
@@ -88,6 +95,7 @@ export const FORMATIONS = {
   },
   '4-2-3-1': {
     label: '4-2-3-1',
+    era: '2000s – Present',
     desc: 'Modern tactical with double pivot',
     modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
@@ -99,6 +107,7 @@ export const FORMATIONS = {
   },
   '4-1-4-1': {
     label: '4-1-4-1',
+    era: '2010s – Present',
     desc: 'Midfield control with single defensive pivot',
     modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
@@ -110,6 +119,7 @@ export const FORMATIONS = {
   },
   '4-3-2-1': {
     label: '4-3-2-1',
+    era: '2000s',
     desc: 'Christmas Tree layout with dense midfield',
     modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
@@ -121,7 +131,8 @@ export const FORMATIONS = {
   },
   '4-1-2-1-2': {
     label: '4-1-2-1-2',
-    desc: 'Diamond midfield with wide protection gaps',
+    era: '1990s – 2000s',
+    desc: 'Diamond midfield with central playmaker',
     modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
       gk: [{ x: 50, y: 92 }],
@@ -132,6 +143,7 @@ export const FORMATIONS = {
   },
   '4-4-2 Diamond': {
     label: '4-4-2 Diamond',
+    era: '1990s – 2000s',
     desc: 'Wide diamond midfield with wingers near touchlines',
     modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
@@ -143,6 +155,7 @@ export const FORMATIONS = {
   },
   '3-3-1-3': {
     label: '3-3-1-3',
+    era: '1990s – 2000s',
     desc: 'Bielsa vertical high pressing system',
     modifiers: { attack: 0, midfield: 0, defense: 0 },
     positions: {
@@ -150,6 +163,90 @@ export const FORMATIONS = {
       def: [{ x: 25, y: 78 }, { x: 50, y: 80 }, { x: 75, y: 78 }],
       mid: [{ x: 50, y: 62 }, { x: 20, y: 54 }, { x: 80, y: 54 }, { x: 50, y: 38 }],
       att: [{ x: 20, y: 22 }, { x: 50, y: 16 }, { x: 80, y: 22 }]
+    }
+  },
+  '3-4-1-2': {
+    label: '3-4-1-2',
+    era: '1990s – 2000s',
+    desc: '3 center backs with wing-backs, dual CMs, trequartista and twin strikers',
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
+    positions: {
+      gk: [{ x: 50, y: 92 }],
+      def: [{ x: 25, y: 78 }, { x: 50, y: 80 }, { x: 75, y: 78 }],
+      mid: [{ x: 12, y: 52 }, { x: 38, y: 54 }, { x: 62, y: 54 }, { x: 88, y: 52 }, { x: 50, y: 38 }],
+      att: [{ x: 35, y: 20 }, { x: 65, y: 20 }]
+    }
+  },
+  '3-4-2-1': {
+    label: '3-4-2-1',
+    era: '2010s – Present',
+    desc: 'Three-man backline with wide wing-backs, double pivot, dual inside 10s and lone striker',
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
+    positions: {
+      gk: [{ x: 50, y: 92 }],
+      def: [{ x: 25, y: 78 }, { x: 50, y: 80 }, { x: 75, y: 78 }],
+      mid: [{ x: 12, y: 52 }, { x: 38, y: 58 }, { x: 62, y: 58 }, { x: 88, y: 52 }, { x: 35, y: 38 }, { x: 65, y: 38 }],
+      att: [{ x: 50, y: 18 }]
+    }
+  },
+  '4-1-3-2': {
+    label: '4-1-3-2',
+    era: 'Late 1990s – Mid 2000s',
+    desc: 'Defensive anchor pivot shielding a narrow central trio of 3 midfielders and twin strikers',
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
+    positions: {
+      gk: [{ x: 50, y: 92 }],
+      def: [{ x: 15, y: 75 }, { x: 38, y: 78 }, { x: 62, y: 78 }, { x: 85, y: 75 }],
+      mid: [{ x: 50, y: 64 }, { x: 30, y: 48 }, { x: 50, y: 48 }, { x: 70, y: 48 }],
+      att: [{ x: 35, y: 20 }, { x: 65, y: 20 }]
+    }
+  },
+  '4-3-1-2': {
+    label: '4-3-1-2',
+    era: '2000s – 2010s',
+    desc: 'Narrow diamond with deep playmaker, two shuttlers, pure number 10 and two strikers',
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
+    positions: {
+      gk: [{ x: 50, y: 92 }],
+      def: [{ x: 15, y: 75 }, { x: 38, y: 78 }, { x: 62, y: 78 }, { x: 85, y: 75 }],
+      mid: [{ x: 32, y: 53 }, { x: 50, y: 60 }, { x: 68, y: 53 }, { x: 50, y: 38 }],
+      att: [{ x: 35, y: 20 }, { x: 65, y: 20 }]
+    }
+  },
+  '4-2-2-2': {
+    label: '4-2-2-2',
+    era: '1980s – 2000s',
+    desc: 'Quadrado Mágico: twin defensive pivots behind two creative playmakers and strike pair',
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
+    positions: {
+      gk: [{ x: 50, y: 92 }],
+      def: [{ x: 15, y: 75 }, { x: 38, y: 78 }, { x: 62, y: 78 }, { x: 85, y: 75 }],
+      mid: [{ x: 38, y: 60 }, { x: 62, y: 60 }, { x: 22, y: 40 }, { x: 78, y: 40 }],
+      att: [{ x: 35, y: 20 }, { x: 65, y: 20 }]
+    }
+  },
+  '5-2-1-2': {
+    label: '5-2-1-2',
+    era: '1990s & 2014',
+    desc: 'Five-man defense with wing-backs, compact double midfield, attacking playmaker and counter duo',
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
+    positions: {
+      gk: [{ x: 50, y: 92 }],
+      def: [{ x: 10, y: 72 }, { x: 30, y: 78 }, { x: 50, y: 80 }, { x: 70, y: 78 }, { x: 90, y: 72 }],
+      mid: [{ x: 38, y: 54 }, { x: 62, y: 54 }, { x: 50, y: 38 }],
+      att: [{ x: 35, y: 20 }, { x: 65, y: 20 }]
+    }
+  },
+  '4-2-4': {
+    label: '4-2-4',
+    era: '1950s – 1970s',
+    desc: 'Legendary vintage Brazilian shape with four high forwards and two workhorse midfielders',
+    modifiers: { attack: 0, midfield: 0, defense: 0 },
+    positions: {
+      gk: [{ x: 50, y: 92 }],
+      def: [{ x: 15, y: 75 }, { x: 38, y: 78 }, { x: 62, y: 78 }, { x: 85, y: 75 }],
+      mid: [{ x: 38, y: 52 }, { x: 62, y: 52 }],
+      att: [{ x: 15, y: 22 }, { x: 38, y: 18 }, { x: 62, y: 18 }, { x: 85, y: 22 }]
     }
   }
 };
@@ -179,82 +276,119 @@ export const getCPUFormation = (team, opp, year) => {
   const midfield = team.midfield || 3;
   const defense = team.defense || 3;
   const oppMidfield = opp.midfield || 3;
+  const teamSeed = team.name ? (team.name.charCodeAt(0) + (team.name.length || 0)) : 0;
 
-  // 1990s Era (starts up to year 2000)
-  if (year < 2000) {
+  // Vintage Pre-1980s Era
+  if (year < 1980) {
+    if (diff >= 3 && attack >= midfield) {
+      return teamSeed % 2 === 0 ? '4-2-4' : '4-3-3';
+    }
     if (diff <= -3) {
-      return '5-3-2'; // defensive, weaker teams
+      return '5-3-2';
+    }
+    return teamSeed % 3 === 0 ? '4-3-3' : '4-4-2';
+  }
+
+  // 1980s Era (1980 to 1989)
+  if (year >= 1980 && year < 1990) {
+    if (diff <= -3) {
+      return teamSeed % 2 === 0 ? '5-3-2' : '4-4-2';
     }
     if (diff >= 3) {
       if (attack > midfield) {
-        return '4-3-3'; // stronger teams that want to play attacking
+        return '4-3-3';
+      }
+      return teamSeed % 2 === 0 ? '3-5-2' : '4-2-2-2';
+    }
+    if (oppMidfield > midfield) {
+      return '3-5-2';
+    }
+    return teamSeed % 2 === 0 ? '4-4-2' : '4-2-2-2';
+  }
+
+  // 1990s Era (1990 up to year 2000)
+  if (year >= 1990 && year < 2000) {
+    if (diff <= -3) {
+      return teamSeed % 2 === 0 ? '5-3-2' : '5-2-1-2'; // defensive counter-attack
+    }
+    if (diff >= 3) {
+      if (attack > midfield) {
+        return teamSeed % 2 === 0 ? '3-4-1-2' : '4-3-3'; // attacking width or trequartista
       } else {
-        return '3-5-2'; // stronger teams that want to hold the midfield
+        return teamSeed % 2 === 0 ? '3-5-2' : '4-1-2-1-2'; // midfield control
       }
     }
     // Balanced teams
     if (oppMidfield > midfield) {
-      return '3-5-2'; // match opponent midfield / hold midfield
+      return teamSeed % 2 === 0 ? '3-5-2' : '4-1-3-2'; // match opponent midfield
     }
-    return '4-4-2'; // balanced football
+    if (teamSeed % 3 === 0) {
+      return '3-4-1-2';
+    } else if (teamSeed % 3 === 1) {
+      return '4-4-2 Diamond';
+    }
+    return '4-4-2'; // balanced classic
   }
 
   // 2000s Era (2000 to 2015)
   if (year >= 2000 && year < 2015) {
     if (diff <= -3) {
-      return '5-4-1'; // weaker teams that want to play defensive
+      return teamSeed % 2 === 0 ? '5-4-1' : '4-5-1'; // defensive soak & counter
     }
     if (diff >= 3) {
       if (attack > midfield) {
         if (attack > defense) {
           return '3-3-1-3'; // Bielsa vertical high pressing system
         }
-        return '4-3-3'; // stronger teams that want to play attacking
+        return teamSeed % 2 === 0 ? '4-3-1-2' : '4-3-3'; // Ancelotti Milan diamond or 4-3-3
       } else {
         if (midfield > defense) {
-          return '4-1-2-1-2'; // Diamond midfield overload
+          return teamSeed % 2 === 0 ? '4-3-1-2' : '4-1-2-1-2'; // Milan or Boca diamond
         }
-        return team.name && team.name.length % 2 === 0 ? '4-1-4-1' : '4-2-3-1';
+        return teamSeed % 2 === 0 ? '4-2-3-1' : '4-3-2-1'; // double pivot or Christmas tree
       }
     }
     // Balanced teams
     if (midfield > attack && midfield > defense) {
       if (attack >= defense) {
-        return '4-1-2-1-2'; // Diamond for midfield dominance with attacking intent
+        return teamSeed % 2 === 0 ? '4-3-1-2' : '4-1-2-1-2';
       }
-      return team.name && team.name.length % 2 === 0 ? '4-1-4-1' : '4-5-1';
+      return teamSeed % 2 === 0 ? '4-2-2-2' : '4-1-3-2';
     }
     if (oppMidfield > midfield) {
-      if (attack >= defense) {
-        return '4-1-2-1-2'; // Diamond midfield overload
-      }
-      return team.name && team.name.length % 2 === 0 ? '4-1-4-1' : '4-5-1';
+      return teamSeed % 2 === 0 ? '4-2-3-1' : '4-5-1';
     }
-    if (team.name && team.name.length % 2 === 0) {
-      return '4-4-2 Diamond'; // balanced wide diamond football
+    if (teamSeed % 3 === 0) {
+      return '4-2-3-1';
+    } else if (teamSeed % 3 === 1) {
+      return '4-2-2-2';
     }
-    return '4-4-2'; // balanced football
+    return '4-4-2';
   }
 
   // 2010s & 2020s Era (2015 onwards)
   if (diff <= -3) {
-    return '5-3-2'; // weaker teams that want to play defensive
+    return teamSeed % 2 === 0 ? '5-4-1' : '5-3-2'; // low-block counter
   }
   if (diff >= 3) {
     if (attack > midfield) {
-      return '4-3-3'; // stronger teams that want to play attacking
+      return teamSeed % 2 === 0 ? '3-4-2-1' : '4-3-3'; // fluid Conte/Tuchel/Alonso 3-back or modern 4-3-3
     }
-    // hold midfield
     if (defense < midfield) {
-      return '3-5-2'; // stronger teams that want to hold midfield (3-5-2 version)
+      return teamSeed % 2 === 0 ? '3-4-2-1' : '3-5-2';
     }
-    return '4-2-3-1'; // stronger teams that want to hold midfield (4-2-3-1 version)
+    return teamSeed % 2 === 0 ? '4-2-3-1' : '4-1-4-1';
   }
   // Balanced teams
   if (attack > midfield) {
-    return '4-3-3'; // balanced attacking preference
+    return teamSeed % 2 === 0 ? '4-3-3' : '3-4-2-1';
   }
-  return '4-2-3-1'; // standard balanced/holding midfield
+  if (teamSeed % 3 === 0) {
+    return '3-4-2-1';
+  } else if (teamSeed % 3 === 1) {
+    return '4-1-4-1';
+  }
+  return '4-2-3-1';
 };
 
 // Mini pitch visualization component for formation display
@@ -1450,6 +1584,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
       setSelectedRosterPlayer(null);
       loadSquadAndLineup(teamInfo);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, inline, teamInfo]);
 
   if (!isOpen && !inline) return null;
@@ -1998,9 +2133,29 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                   fontWeight: 'bold',
                   color: '#00ff64',
                   textShadow: '0 0 10px rgba(0, 255, 100, 0.3)',
-                  letterSpacing: '2px'
+                  letterSpacing: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  flexWrap: 'wrap'
                 }}>
-                  {currentFormation.label}
+                  <span>{currentFormation.label}</span>
+                  {currentFormation.era && (
+                    <span style={{
+                      fontSize: '11px',
+                      color: '#ffd700',
+                      fontFamily: 'Orbitron',
+                      fontWeight: 'bold',
+                      background: 'rgba(255, 215, 0, 0.1)',
+                      border: '1px solid rgba(255, 215, 0, 0.3)',
+                      borderRadius: '6px',
+                      padding: '2px 8px',
+                      letterSpacing: '0.5px',
+                      textShadow: 'none'
+                    }}>
+                      ⏳ {currentFormation.era}
+                    </span>
+                  )}
                 </div>
                 <div style={{
                   fontSize: '11px',
@@ -2091,7 +2246,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
               gridTemplateColumns: 'repeat(4, 1fr)',
               gap: '10px',
               overflowY: 'auto',
-              maxHeight: '30vh',
+              maxHeight: '38vh',
               paddingRight: '4px'
             }}>
               {formationKeys.map(key => {
@@ -2134,12 +2289,29 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                       {fm.label}
                     </span>
 
+                    {fm.era && (
+                      <span style={{
+                        fontSize: '7.5px',
+                        color: '#ffd700',
+                        fontFamily: 'Orbitron',
+                        fontWeight: 'bold',
+                        background: 'rgba(255, 215, 0, 0.08)',
+                        border: '1px solid rgba(255, 215, 0, 0.25)',
+                        borderRadius: '4px',
+                        padding: '1px 5px',
+                        letterSpacing: '0.5px',
+                        textAlign: 'center'
+                      }}>
+                        ⏳ {fm.era}
+                      </span>
+                    )}
+
                     <span style={{
                       fontSize: '8px',
                       color: '#888',
                       textAlign: 'center',
                       lineHeight: '1.3',
-                      maxWidth: '110px'
+                      maxWidth: '120px'
                     }}>
                       {fm.desc}
                     </span>
@@ -2250,7 +2422,9 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                         }}
                       >
                         {formationKeys.map(k => (
-                          <option key={k} value={k} style={{ background: '#16161c', color: '#fff' }}>{k}</option>
+                          <option key={k} value={k} style={{ background: '#16161c', color: '#fff' }}>
+                            {k} {FORMATIONS[k]?.era ? `(${FORMATIONS[k].era})` : ''}
+                          </option>
                         ))}
                       </select>
                     </div>

@@ -4,7 +4,8 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: radial-gradient(circle at center, #1b3820 0%, #050c06 100%);
+  background: var(--app-bg-gradient, radial-gradient(circle at center, #1b3820 0%, #050c06 100%));
+  transition: background 0.6s ease;
   padding: 20px;
 }
 

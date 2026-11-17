@@ -1,0 +1,11 @@
+# Ignore large static roster files (hosted on Cloudflare R2)
+public/data/rosters
+public/data/r2_upload
+
+# Ignore scripts
+scripts/
+
+# Ignore build output and git
+build
+.git
+.cache

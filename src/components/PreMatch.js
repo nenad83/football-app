@@ -15,11 +15,11 @@ import {
   updateTeamStatsInStorage,
   getFormationSlots,
   getIdealSlotPosition,
-  getPositionPenalty,
   generateDefaultLineup
 } from './FormationTactics';
 import { calculateTeamTacticalStats, getRoleMetadata } from '../utils/tacticalRoleEngine';
 import { getCPUMatchLineupAndStats } from '../utils/cpuSquadManager';
+import { getTeamDetails, getTeamDetailsSync } from '../data/rosters/rosterRegistry';
 
 const getLastName = (name) => {
   if (!name) return "";
@@ -361,6 +361,61 @@ export default function PreMatch() {
   const homeFormationData = FORMATIONS[homeFormation];
   const awayFormationData = FORMATIONS[awayFormation];
 
+  const [homeDetails, setHomeDetails] = useState(() => getTeamDetailsSync(homeTeamRaw?.name, year));
+  const [awayDetails, setAwayDetails] = useState(() => getTeamDetailsSync(awayTeamRaw?.name, year));
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadDetails = async () => {
+      try {
+        if (homeTeamRaw?.name) {
+          const hDet = await getTeamDetails(homeTeamRaw.name, year);
+          if (isMounted && hDet) setHomeDetails(hDet);
+        }
+        if (awayTeamRaw?.name) {
+          const aDet = await getTeamDetails(awayTeamRaw.name, year);
+          if (isMounted && aDet) setAwayDetails(aDet);
+        }
+      } catch (err) {
+        console.warn("Error loading team details in PreMatch:", err);
+      }
+    };
+    loadDetails();
+    return () => { isMounted = false; };
+  }, [homeTeamRaw?.name, awayTeamRaw?.name, year]);
+
+  const isHomePlayer = playerTeamId !== null && teamonename === playerTeamId;
+  const isAwayPlayer = playerTeamId !== null && teamtwoname === playerTeamId;
+
+  const getPlayerCustomManager = () => {
+    try {
+      const profRaw = localStorage.getItem("retro_manager_profile");
+      if (profRaw) {
+        const p = JSON.parse(profRaw);
+        if (p?.name && p.name.trim()) return p.name.trim();
+      }
+    } catch (e) {}
+    if (leagueState?.managerName && leagueState.managerName.trim()) {
+      return leagueState.managerName.trim();
+    }
+    if (tournamentState?.managerName && tournamentState.managerName.trim()) {
+      return tournamentState.managerName.trim();
+    }
+    return "";
+  };
+
+  const customManager = getPlayerCustomManager();
+
+  const homeManagerName = isHomePlayer
+    ? (customManager || homeDetails?.manager?.name || "")
+    : (homeDetails?.manager?.name || "");
+
+  const awayManagerName = isAwayPlayer
+    ? (customManager || awayDetails?.manager?.name || "")
+    : (awayDetails?.manager?.name || "");
+
+  const stadiumName = homeDetails?.stadium?.name || "";
+
   useEffect(() => {
     let isMounted = true;
     const loadPreMatchSquads = async () => {
@@ -429,6 +484,7 @@ export default function PreMatch() {
 
     loadPreMatchSquads();
     return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamonename, teamtwoname, playerTeamId, year, homeFormation, awayFormation, cup, isEurope]);
 
   const homeResolvedLineup = teamonename === playerTeamId
@@ -483,6 +539,7 @@ export default function PreMatch() {
 
   const renderTeamSheetColumn = (team, isHome, formation, tactic, lineup, bench, roles) => {
     const slots = getFormationSlots(formation || '4-4-2');
+    const managerToShow = isHome ? homeManagerName : awayManagerName;
     return (
       <div style={{ flex: '1 1 480px', display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '320px' }}>
         {/* Team Header */}
@@ -507,9 +564,16 @@ export default function PreMatch() {
             }}>
               {isHome ? 'HOME' : 'AWAY'}
             </span>
-            <span style={{ fontFamily: 'Orbitron', fontSize: '15px', fontWeight: 'bold', color: '#fff' }}>
-              {team?.name}
-            </span>
+            <div>
+              <div style={{ fontFamily: 'Orbitron', fontSize: '15px', fontWeight: 'bold', color: '#fff' }}>
+                {team?.name}
+              </div>
+              {managerToShow && (
+                <div style={{ fontSize: '9.5px', color: isHome ? '#ffd700' : '#00e5ff', fontFamily: 'Orbitron', marginTop: '2px', opacity: 0.9 }}>
+                  👔 {managerToShow}
+                </div>
+              )}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <span style={{ fontSize: '11px', color: '#00ff64', fontFamily: 'Orbitron', fontWeight: 'bold' }}>
@@ -700,7 +764,26 @@ export default function PreMatch() {
     <div className="Match team-select-container pre-match-lobby" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <div className="matchheader selector-header" style={{ marginBottom: '30px', textAlign: 'center' }}>
         <h1 className="glowing-header-text" style={{ fontSize: '36px', letterSpacing: '2px', fontFamily: 'Orbitron' }}>PRE-MATCH ROOM</h1>
-        <p className="lobby-subtitle" style={{ fontSize: '12px', opacity: 0.7 }}>SET UP YOUR Mentality AND PLAYSTYLE BEFORE THE COMBAT</p>
+        <p className="lobby-subtitle" style={{ fontSize: '12px', opacity: 0.7 }}>SET UP YOUR MENTALITY AND PLAYSTYLE BEFORE THE COMBAT</p>
+        {stadiumName && (
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginTop: '8px',
+            padding: '4px 14px',
+            background: 'rgba(0, 0, 0, 0.45)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: '16px',
+            fontSize: '11px',
+            fontFamily: 'Orbitron',
+            color: '#ddd',
+            letterSpacing: '0.8px'
+          }}>
+            <span>🏟️</span>
+            <span>VENUE: <strong style={{ color: '#00ff64' }}>{stadiumName}</strong></span>
+          </div>
+        )}
       </div>
 
       <div className="match-arena-layout" style={{ display: 'flex', width: '100%', maxWidth: '1100px', justifyContent: 'space-between', gap: '20px', alignItems: 'stretch' }}>
@@ -711,12 +794,36 @@ export default function PreMatch() {
           <div className="kit-wrapper" style={{ margin: '10px 0' }}>
             {renderKit(homeTeam)}
           </div>
-          <h3 className="team-card-title" style={{ fontFamily: 'Orbitron', fontSize: '20px', marginBottom: '8px' }}>{homeTeam.name}</h3>
+          <h3 className="team-card-title" style={{ fontFamily: 'Orbitron', fontSize: '20px', marginBottom: '6px' }}>{homeTeam.name}</h3>
+          {homeManagerName && (
+            <div style={{
+              fontSize: '10.5px',
+              color: '#ffd700',
+              fontFamily: 'Orbitron',
+              letterSpacing: '0.5px',
+              marginBottom: '10px',
+              background: 'rgba(255, 215, 0, 0.08)',
+              border: '1px solid rgba(255, 215, 0, 0.22)',
+              borderRadius: '12px',
+              padding: '2px 10px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <span>👔</span>
+              <span>Manager: <strong>{homeManagerName}</strong></span>
+            </div>
+          )}
           {homeFormationData && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginBottom: '12px' }}>
               <span style={{ fontSize: '10px', color: '#00ff64', fontFamily: 'Orbitron', letterSpacing: '1px' }}>
                 ⚽ {homeFormation}
               </span>
+              {homeFormationData.era && (
+                <span style={{ fontSize: '8px', color: '#a3b3a7', fontFamily: 'Orbitron', letterSpacing: '0.5px' }}>
+                  ⏳ {homeFormationData.era}
+                </span>
+              )}
               <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
                 {homeFormationData.modifiers.attack !== 0 && (
                   <span style={{ fontSize: '8px', fontWeight: 'bold', color: homeFormationData.modifiers.attack > 0 ? '#00ff64' : '#ff3333', fontFamily: 'Orbitron' }}>
@@ -942,12 +1049,36 @@ export default function PreMatch() {
           <div className="kit-wrapper" style={{ margin: '10px 0' }}>
             {renderKit(awayTeam)}
           </div>
-          <h3 className="team-card-title" style={{ fontFamily: 'Orbitron', fontSize: '20px', marginBottom: '8px' }}>{awayTeam.name}</h3>
+          <h3 className="team-card-title" style={{ fontFamily: 'Orbitron', fontSize: '20px', marginBottom: '6px' }}>{awayTeam.name}</h3>
+          {awayManagerName && (
+            <div style={{
+              fontSize: '10.5px',
+              color: '#00e5ff',
+              fontFamily: 'Orbitron',
+              letterSpacing: '0.5px',
+              marginBottom: '10px',
+              background: 'rgba(0, 229, 255, 0.08)',
+              border: '1px solid rgba(0, 229, 255, 0.22)',
+              borderRadius: '12px',
+              padding: '2px 10px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <span>👔</span>
+              <span>Manager: <strong>{awayManagerName}</strong></span>
+            </div>
+          )}
           {awayFormationData && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginBottom: '12px' }}>
               <span style={{ fontSize: '10px', color: '#00ff64', fontFamily: 'Orbitron', letterSpacing: '1px' }}>
                 ⚽ {awayFormation}
               </span>
+              {awayFormationData.era && (
+                <span style={{ fontSize: '8px', color: '#a3b3a7', fontFamily: 'Orbitron', letterSpacing: '0.5px' }}>
+                  ⏳ {awayFormationData.era}
+                </span>
+              )}
               <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
                 {awayFormationData.modifiers.attack !== 0 && (
                   <span style={{ fontSize: '8px', fontWeight: 'bold', color: awayFormationData.modifiers.attack > 0 ? '#00ff64' : '#ff3333', fontFamily: 'Orbitron' }}>

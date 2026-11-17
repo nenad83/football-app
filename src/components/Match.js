@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import '../assets/styles/Match.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { clRules } from '../data/cl/clRules';
@@ -9,7 +9,7 @@ import { csudRules } from '../data/csud/csudRules';
 import { getModifiedStat as computeModifiedStat, adjustCPUTactic as runCPUTacticAdjustment, TacticsPanel } from './MatchTactics';
 import { getSubstitutionLimit, getStoppageLimit } from '../utils/matchRules';
 import { getSavedFormation, getCPUFormation, updateTeamStatsInStorage, getFormationSlots, getIdealSlotPosition, getPositionPenalty, generateDefaultLineup } from './FormationTactics';
-import { getPrebuiltRoster } from '../data/rosters/rosterRegistry';
+import { getPrebuiltRoster, getTeamDetails, getTeamDetailsSync, calculateMatchAttendance } from '../data/rosters/rosterRegistry';
 import { getCPUMatchLineupAndStats } from '../utils/cpuSquadManager';
 import {
   calculateTeamTacticalStats,
@@ -681,6 +681,7 @@ export default function Match() {
       initializeMatchSquad();
     }
     return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLeague, isEurope, isTournament, getPlayerTeamNameAndSeason]);
 
   const getPositionColor = (pos) => {
@@ -1219,6 +1220,69 @@ export default function Match() {
   const awayFormation = (playerTeamId !== null && teamtwoname === playerTeamId)
     ? playerFormation
     : getCPUFormation(teamid[teamtwoname], teamid[teamonename], year);
+
+  const [homeDetails, setHomeDetails] = useState(() => getTeamDetailsSync(teamid?.[teamonename]?.name, year));
+  const [awayDetails, setAwayDetails] = useState(() => getTeamDetailsSync(teamid?.[teamtwoname]?.name, year));
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadDetails = async () => {
+      try {
+        if (teamid?.[teamonename]?.name) {
+          const hDet = await getTeamDetails(teamid[teamonename].name, year);
+          if (isMounted && hDet) setHomeDetails(hDet);
+        }
+        if (teamid?.[teamtwoname]?.name) {
+          const aDet = await getTeamDetails(teamid[teamtwoname].name, year);
+          if (isMounted && aDet) setAwayDetails(aDet);
+        }
+      } catch (err) {
+        console.warn("Failed to load team details in Match:", err);
+      }
+    };
+    loadDetails();
+    return () => { isMounted = false; };
+  }, [teamid, teamonename, teamtwoname, year]);
+
+  const isHomePlayer = playerTeamId !== null && teamonename === playerTeamId;
+  const isAwayPlayer = playerTeamId !== null && teamtwoname === playerTeamId;
+
+  const getPlayerCustomManager = () => {
+    try {
+      const profRaw = localStorage.getItem("retro_manager_profile");
+      if (profRaw) {
+        const p = JSON.parse(profRaw);
+        if (p?.name && p.name.trim()) return p.name.trim();
+      }
+    } catch (e) {}
+    if (leagueState?.managerName && leagueState.managerName.trim()) {
+      return leagueState.managerName.trim();
+    }
+    if (tournamentState?.managerName && tournamentState.managerName.trim()) {
+      return tournamentState.managerName.trim();
+    }
+    return "";
+  };
+
+  const customManager = getPlayerCustomManager();
+
+  const homeManagerName = isHomePlayer
+    ? (customManager || homeDetails?.manager?.name || "")
+    : (homeDetails?.manager?.name || "");
+
+  const awayManagerName = isAwayPlayer
+    ? (customManager || awayDetails?.manager?.name || "")
+    : (awayDetails?.manager?.name || "");
+
+  const stadium = homeDetails?.stadium;
+  const stadiumName = stadium?.name || "";
+  const stadiumCapacity = stadium?.capacity || stadium?.seating || 0;
+
+  const attendanceInfo = useMemo(() => {
+    if (!stadiumCapacity || !teamid?.[teamonename] || !teamid?.[teamtwoname]) return null;
+    const seed = `${teamid[teamonename].name}_${teamid[teamtwoname].name}_${year}`;
+    return calculateMatchAttendance(teamid[teamonename], teamid[teamtwoname], stadiumCapacity, seed);
+  }, [stadiumCapacity, teamid, teamonename, teamtwoname, year]);
 
   const getBaseStat = (teamKey, statType) => {
     const isHome = teamKey === teamonename;
@@ -3588,6 +3652,44 @@ export default function Match() {
         </div>
       </div>
 
+      {/* Stadium & Attendance Info Strip */}
+      {stadiumName && (
+        <div
+          className="match-venue-strip"
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '16px',
+            padding: '5px 18px',
+            margin: '0 auto 14px',
+            maxWidth: '850px',
+            background: 'rgba(0, 0, 0, 0.45)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: '20px',
+            fontSize: '11px',
+            fontFamily: 'Orbitron',
+            color: '#ccc',
+            letterSpacing: '0.6px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+          }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <span>🏟️</span>
+            <strong style={{ color: '#fff' }}>{stadiumName}</strong>
+          </span>
+          {attendanceInfo && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#aaa' }}>
+              <span>👥</span>
+              <span>ATTENDANCE:</span>
+              <strong style={{ color: '#00ff64' }}>{attendanceInfo.attendance.toLocaleString()}</strong>
+              <span style={{ fontSize: '9.5px', opacity: 0.75 }}>({attendanceInfo.percent}%)</span>
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Main Grid: Home, Pitch, Away */}
       <div className="teams match-arena-layout">
 
@@ -3597,6 +3699,21 @@ export default function Match() {
             {renderKit(teamid[teamonename])}
           </div>
           <h3 className="team-card-title">{teamid[teamonename].name}</h3>
+          {homeManagerName && (
+            <div style={{
+              fontSize: '10px',
+              color: '#ffd700',
+              fontFamily: 'Orbitron',
+              letterSpacing: '0.5px',
+              marginBottom: '6px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <span>👔</span>
+              <span>{homeManagerName}</span>
+            </div>
+          )}
           {homeFormation && (
             <span style={{ fontSize: '9px', color: '#00ff64', fontFamily: 'Orbitron', letterSpacing: '1px', marginBottom: '4px', opacity: 0.8 }}>
               ⚽ {homeFormation}
@@ -4050,6 +4167,21 @@ export default function Match() {
             {renderKit(teamid[teamtwoname])}
           </div>
           <h3 className="team-card-title">{teamid[teamtwoname].name}</h3>
+          {awayManagerName && (
+            <div style={{
+              fontSize: '10px',
+              color: '#00e5ff',
+              fontFamily: 'Orbitron',
+              letterSpacing: '0.5px',
+              marginBottom: '6px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <span>👔</span>
+              <span>{awayManagerName}</span>
+            </div>
+          )}
           {awayFormation && (
             <span style={{ fontSize: '9px', color: '#00ff64', fontFamily: 'Orbitron', letterSpacing: '1px', marginBottom: '4px', opacity: 0.8 }}>
               ⚽ {awayFormation}
@@ -4550,10 +4682,26 @@ export default function Match() {
                 background: 'rgba(0,0,0,0.3)'
               }}>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <h2 style={{ margin: 0, fontFamily: 'Orbitron', color: '#00e5ff', fontSize: '18px', letterSpacing: '1px' }}>
                       {oppTeam?.name}
                     </h2>
+                    {(() => {
+                      const oppMgr = showOpponentModal === teamonename ? homeManagerName : awayManagerName;
+                      return oppMgr ? (
+                        <span style={{
+                          fontSize: '10px',
+                          color: '#ffd700',
+                          fontFamily: 'Orbitron',
+                          background: 'rgba(255, 215, 0, 0.1)',
+                          border: '1px solid rgba(255, 215, 0, 0.25)',
+                          borderRadius: '10px',
+                          padding: '2px 8px'
+                        }}>
+                          👔 {oppMgr}
+                        </span>
+                      ) : null;
+                    })()}
                     <span style={{
                       fontSize: '9px',
                       fontFamily: 'Orbitron',
