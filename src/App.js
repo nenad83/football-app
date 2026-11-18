@@ -13,9 +13,15 @@ import PreMatch from './components/PreMatch';
 import Fixtures from './components/Fixtures';
 import CMRetroHub from './cmRetro/components/CMRetroHub';
 import { applyTeamTheme, resetToDefaultTheme } from './utils/themeManager';
+import { cleanStale1To5Rosters } from './data/rosters/rosterRegistry';
 
 function App() {
   const location = useLocation();
+
+  useEffect(() => {
+    // Purge any stale 1-5 cached squads and upgrade career teams to 1-10
+    cleanStale1To5Rosters();
+  }, []);
 
   useEffect(() => {
     // When on home page or initial game mode select, use default retro green

@@ -6,15 +6,23 @@ import { generateTransferAnnouncementNews } from '../utils/newsGenerator';
 
 // Calculate player value based on rating, age, and era inflation
 export const calculatePlayerValue = (player, seasonStr) => {
-  const r = parseInt(player.rating) || 3;
-  const age = parseInt(player.age) || 25;
+  if (player && typeof player.value === 'number' && player.value > 0) {
+    return player.value;
+  }
+  const r = parseInt(player?.rating) || 3;
+  const age = parseInt(player?.age) || 25;
 
-  let baseVal = 0.5;
-  if (r === 1) baseVal = 0.3;
-  else if (r === 2) baseVal = 1.0;
-  else if (r === 3) baseVal = 3.0;
-  else if (r === 4) baseVal = 8.0;
-  else if (r === 5) baseVal = 22.0;
+  let baseVal = 2.0;
+  if (r >= 10) baseVal = 45.0;
+  else if (r === 9) baseVal = 30.0;
+  else if (r === 8) baseVal = 18.0;
+  else if (r === 7) baseVal = 10.0;
+  else if (r === 6) baseVal = 5.5;
+  else if (r === 5) baseVal = 3.0;
+  else if (r === 4) baseVal = 1.5;
+  else if (r === 3) baseVal = 0.8;
+  else if (r === 2) baseVal = 0.4;
+  else baseVal = 0.15;
 
   let ageMult = 1.0;
   if (age < 23) ageMult = 1.15;
@@ -399,7 +407,7 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
         const primaryPos = positionsPool[i % positionsPool.length];
         const firstName = FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
         const lastName = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
-        const rating = Math.max(1, Math.min(5, Math.round(clubRating + (Math.random() * 2 - 1))));
+        const rating = Math.max(1, Math.min(10, Math.round(clubRating + (Math.random() * 2 - 1))));
         const p = {
           name: `${firstName} ${lastName}`,
           position: primaryPos,

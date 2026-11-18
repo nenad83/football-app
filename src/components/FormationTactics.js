@@ -582,7 +582,7 @@ export const calibrateSquadRatings = (squad, stats) => {
     // If already matching, do nothing but clamp
     if (Math.round(currentAvg) === target) {
       players.forEach(p => {
-        p.rating = Math.max(1, Math.min(5, parseInt(p.rating, 10) || 3));
+        p.rating = Math.max(1, Math.min(10, parseInt(p.rating, 10) || 6));
       });
       return;
     }
@@ -590,9 +590,9 @@ export const calibrateSquadRatings = (squad, stats) => {
     // 2. Linear shift
     const diff = target - currentAvg;
     const floatRatings = players.map(p => {
-      const originalRating = parseInt(p.rating, 10) || 3;
+      const originalRating = parseInt(p.rating, 10) || 6;
       const shifted = originalRating + diff;
-      const clamped = Math.max(1, Math.min(5, shifted));
+      const clamped = Math.max(1, Math.min(10, shifted));
       return { p, originalRating, shifted, clamped, rounded: Math.round(clamped) };
     });
 
@@ -606,7 +606,7 @@ export const calibrateSquadRatings = (squad, stats) => {
       if (initialSum < targetSum) {
         // Increase ratings of the strongest players first to preserve star ranking order
         const candidates = floatRatings
-          .filter(item => item.rounded < 5)
+          .filter(item => item.rounded < 10)
           .sort((a, b) => b.shifted - a.shifted);
 
         if (candidates.length === 0) break;
@@ -737,7 +737,7 @@ export const getPositionPenalty = (playerPositions, idealSlotPos) => {
   const hasMatchingType = positions.some(pos => getPosType(pos) === slotType);
 
   if (hasMatchingType) {
-    return 1;
+    return 2;
   }
 
   const isAdjacent = (typeA, typeB) => {
@@ -750,10 +750,10 @@ export const getPositionPenalty = (playerPositions, idealSlotPos) => {
 
   const hasAdjacentType = positions.some(pos => isAdjacent(getPosType(pos), slotType));
   if (hasAdjacentType) {
-    return 1;
+    return 2;
   }
 
-  return 2;
+  return 4;
 };
 
 // Generates procedural squad as local fallback
@@ -781,8 +781,8 @@ export const generateProceduralSquad = (teamName, country, stats) => {
 
   const makePlayer = (position, baseStat) => {
     const name = createUniqueName();
-    // Generate a procedural rating between 1 and 5 matching the baseStat average with some deviation
-    const rating = Math.max(1, Math.min(5, Math.round(baseStat + Math.random() * 2 - 1)));
+    // Generate a procedural rating between 1 and 10 matching the baseStat average with some deviation
+    const rating = Math.max(1, Math.min(10, Math.round(baseStat + Math.random() * 2 - 1)));
     const age = 18 + Math.floor(Math.random() * 16);
     const positions = generatePlayerPositions(position);
     return { name, position, positions, rating, age, isProcedural: true, condition: 100, injuryMatchesLeft: 0, injury: null };
@@ -907,13 +907,8 @@ Requirements:
   }
 
   const formattedSquad = squad.map(p => {
-    let r = parseInt(p.rating, 10) || 3;
-    // Fallback: scale down and clamp if by any chance it falls outside [1, 5]
-    if (r > 5) {
-      r = Math.max(1, Math.min(5, Math.round(r / 20)));
-    } else {
-      r = Math.max(1, Math.min(5, r));
-    }
+    let r = parseInt(p.rating, 10) || 6;
+    r = Math.max(1, Math.min(10, r));
     return {
       ...p,
       rating: r,
@@ -952,10 +947,10 @@ export const getPreviousSeasonString = (seasonStr) => {
 export const updateSquadStatsFallback = (existingSquad, stats) => {
   const formatted = existingSquad.map(p => {
     const age = (parseInt(p.age) || 25) + 1;
-    let rating = parseInt(p.rating) || 3;
+    let rating = parseInt(p.rating) || 6;
     const rand = Math.random();
     if (rand < 0.15 && rating > 1) rating -= 1;
-    else if (rand > 0.85 && rating < 5) rating += 1;
+    else if (rand > 0.85 && rating < 10) rating += 1;
     return {
       ...p,
       age,
@@ -1062,8 +1057,8 @@ Return a JSON array containing the exact same players (same names and primary po
 
   const squad = JSON.parse(cleanText);
   const formattedSquad = squad.map(p => {
-    let r = parseInt(p.rating, 10) || 3;
-    r = Math.max(1, Math.min(5, r));
+    let r = parseInt(p.rating, 10) || 6;
+    r = Math.max(1, Math.min(10, r));
     return {
       ...p,
       rating: r,
@@ -1363,15 +1358,22 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
 
     const hasRealAI = activeRoster && activeRoster.length >= 11 && activeRoster.some(p => p.isAI || p.isHistorical);
     const hasDetailed = activeRoster && activeRoster.some(p => p.position !== "DF" && p.position !== "MF" && p.position !== "FW");
-    const hasLegacyRatings = activeRoster && activeRoster.some(p => p.rating > 5);
+    const isStale1To5 = activeRoster && activeRoster.length > 0 && (
+      !activeRoster.some(p => Number(p.rating) > 5) ||
+      !activeRoster.some(p => p.wage !== undefined)
+    );
+    const hasInvalidRatings = activeRoster && activeRoster.some(p => Number(p.rating) > 10);
 
-    // If the cache is empty, corrupted, lacks detailed positions, or has legacy ratings, load from database or Gemini
-    if (!activeRoster || activeRoster.length < 11 || !hasRealAI || !hasDetailed || hasLegacyRatings) {
+    // If the cache is empty, corrupted, lacks detailed positions, or has stale 1-5 ratings, load from database
+    if (!activeRoster || activeRoster.length < 11 || !hasRealAI || !hasDetailed || isStale1To5 || hasInvalidRatings) {
       // 1. Try to load authentic prebuilt squad from local database
       const prebuilt = await getPrebuiltRoster(info.name, info.season);
       if (prebuilt && prebuilt.length >= 11) {
         activeRoster = prebuilt;
         localStorage.setItem(rosterKey, JSON.stringify(activeRoster));
+        if (isStale1To5) {
+          localStorage.removeItem(lineupKey);
+        }
       } else {
         // 2. Try to load roster from the previous season to preserve players
         const prevSeason = getPreviousSeasonString(info.season);

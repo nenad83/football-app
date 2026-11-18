@@ -8,7 +8,7 @@ const seasonRosterCache = new Map();
 const seasonDetailsCache = new Map();
 const seasonTransferCache = new Map();
 
-const ROSTER_BASE_URL = (process.env.REACT_APP_ROSTER_DATA_URL || "https://pub-cec0cd09840f431988f02e47ba9fca96.r2.dev").replace(/\/+$/, "");
+const ROSTER_BASE_URL = (process.env.REACT_APP_ROSTER_DATA_URL || "https://pub-6fad1cd62b6f435eb0e2677d784e497c.r2.dev").replace(/\/+$/, "");
 
 async function fetchRosterData(filename) {
   // 1. Try remote Cloudflare R2
@@ -21,7 +21,15 @@ async function fetchRosterData(filename) {
     console.warn(`[rosterRegistry] Cloudflare R2 fetch failed for ${filename}:`, err);
   }
 
-  // 2. Fallback to local files if offline or network failure
+  // 2. Try local /data/rosters10/
+  try {
+    const res = await fetch(`/data/rosters10/${filename}`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {}
+
+  // 3. Fallback to local /data/rosters/
   try {
     const res = await fetch(`/data/rosters/${filename}`);
     if (res.ok) {
@@ -32,6 +40,36 @@ async function fetchRosterData(filename) {
   }
 
   return null;
+}
+
+/**
+ * Maps 0-200 Championship Manager Current Ability (CA) to a granular 1-10 Rating
+ */
+export function getRatingFromCA(ca) {
+  const c = parseInt(ca, 10) || 50;
+  if (c >= 170) return 10; // All-time peak legends / Ballon d'Or winners (Cantona, Henry, Owen, Ronaldo, Zidane)
+  if (c >= 155) return 9;  // World-class superstars (Bergkamp, Schmeichel, Adams, Shearer, Giggs, Beckham, Keane)
+  if (c >= 140) return 8;  // Elite top-flight stars / internationals (Seaman, Wright, Campbell, Fowler, Ince, Pallister)
+  if (c >= 125) return 7;  // Solid Premier League starters (Southall, Cottee, Dixon, Winterburn, Bould, Keown)
+  if (c >= 110) return 6;  // Mid Premier League / Top Championship starters (Watson, Hinchcliffe, Parlour)
+  if (c >= 95)  return 5;  // Lower Premier League squad / Championship regulars
+  if (c >= 80)  return 4;  // Solid Championship / League One starters
+  if (c >= 65)  return 3;  // League One / League Two regulars
+  if (c >= 50)  return 2;  // League Two / National League
+  return 1;                // Youth trainees / semi-pro
+}
+
+/**
+ * Calibrates a player's rating to the authentic 1-10 scale
+ */
+export function calibratePlayerRating(p) {
+  if (!p) return p;
+  if (p.currentAbility) {
+    p.rating = getRatingFromCA(p.currentAbility);
+  } else if (p.rating <= 5) {
+    p.rating = scaleStatTo10(p.rating);
+  }
+  return p;
 }
 
 export function normalizeSeasonYear(season) {
@@ -60,6 +98,11 @@ export async function loadSeasonRosters(season) {
 
   const data = await fetchRosterData(`rosters${year}.json`);
   if (data) {
+    for (const team in data) {
+      if (Array.isArray(data[team])) {
+        data[team].forEach(p => calibratePlayerRating(p));
+      }
+    }
     seasonRosterCache.set(year, data);
     return data;
   }
@@ -280,6 +323,173 @@ export async function getTransferMarketPool(season) {
   }
 
   return [];
+}
+
+/**
+ * Scale a rating from 1-5 scale up to 1-10 scale if needed.
+ * 5 -> 10, 4 -> 8, 3 -> 6, 2 -> 4, 1 -> 2
+ */
+export function scaleStatTo10(val) {
+  const num = Number(val) || 3;
+  if (num > 5) return Math.min(10, Math.max(1, num));
+  return Math.min(10, Math.max(1, Math.round(num * 2)));
+}
+
+/**
+ * Finds a team's squad array inside a season's full rosters object.
+ */
+export function findSquadForTeam(seasonData, teamName) {
+  if (!seasonData || !teamName) return null;
+  if (seasonData[teamName]) return seasonData[teamName];
+  const lower = teamName.toLowerCase().trim();
+  for (const [key, squad] of Object.entries(seasonData)) {
+    if (key.toLowerCase().trim() === lower) return squad;
+  }
+  for (const [key, squad] of Object.entries(seasonData)) {
+    const k = key.toLowerCase().trim();
+    if (k.includes(lower) || lower.includes(k)) return squad;
+  }
+  return null;
+}
+
+/**
+ * Computes authentic 1-10 tactical ratings (defense, midfield, attack)
+ * from a team's squad of players (top 4 defenders, top 4 midfielders, top 2 forwards).
+ */
+export function calculateSquadTacticalAverages(squad) {
+  if (!Array.isArray(squad) || squad.length === 0) return null;
+  const def = squad.filter(p => ['GK','DC','DL','DR','SW','LWB','RWB'].includes(p.position))
+                   .map(p => Number(p.rating) || 6).sort((a,b) => b - a).slice(0, 4);
+  const mid = squad.filter(p => ['MC','ML','MR','DMC','AMC','CM','DM','AM'].includes(p.position))
+                   .map(p => Number(p.rating) || 6).sort((a,b) => b - a).slice(0, 4);
+  const att = squad.filter(p => ['ST','CF','LW','RW','FC','SC'].includes(p.position))
+                   .map(p => Number(p.rating) || 6).sort((a,b) => b - a).slice(0, 2);
+
+  const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 6;
+  return {
+    defense: Math.min(10, Math.max(1, avg(def))),
+    midfield: Math.min(10, Math.max(1, avg(mid))),
+    attack: Math.min(10, Math.max(1, avg(att)))
+  };
+}
+
+/**
+ * Automatically purges stale 1-5 roster and lineup caches from localStorage
+ * and updates any saved career teams to the 1-10 scale.
+ */
+export function cleanStale1To5Rosters() {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key.startsWith('retro_roster_')) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const data = JSON.parse(raw);
+            if (Array.isArray(data) && data.length > 0) {
+              let updated = false;
+              data.forEach(p => {
+                const prev = p.rating;
+                calibratePlayerRating(p);
+                if (p.rating !== prev) updated = true;
+              });
+              // If still entirely <= 5 (no high rated players), purge to fetch authentic prebuilt squad
+              const hasHighRating = data.some(p => Number(p.rating) >= 7);
+              if (!hasHighRating) {
+                keysToRemove.push(key);
+              } else if (updated) {
+                localStorage.setItem(key, JSON.stringify(data));
+              }
+            }
+          }
+        } catch (e) {
+          keysToRemove.push(key);
+        }
+      } else if (key.startsWith('retro_lineup_')) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const data = JSON.parse(raw);
+            if (typeof data === 'object' && data !== null) {
+              const players = Object.values(data).filter(Boolean);
+              let updated = false;
+              players.forEach(p => {
+                const prev = p.rating;
+                calibratePlayerRating(p);
+                if (p.rating !== prev) updated = true;
+              });
+              const hasHighRating = players.some(p => Number(p.rating) >= 7);
+              if (!hasHighRating) {
+                keysToRemove.push(key);
+              } else if (updated) {
+                localStorage.setItem(key, JSON.stringify(data));
+              }
+            }
+          }
+        } catch (e) {
+          keysToRemove.push(key);
+        }
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    if (keysToRemove.length > 0) {
+      console.log(`[rosterRegistry] Purged ${keysToRemove.length} stale roster/lineup caches.`);
+    }
+
+    // Check retro_league_career to ensure career teams are on 1-10 scale
+    const careerRaw = localStorage.getItem('retro_league_career');
+    if (careerRaw) {
+      try {
+        const career = JSON.parse(careerRaw);
+        if (career && Array.isArray(career.teams) && career.teams.length > 0) {
+          let updated = false;
+          career.teams = career.teams.map(t => {
+            const att = Number(t.attack) || 6;
+            const mid = Number(t.midfield) || 6;
+            const def = Number(t.defense) || 6;
+            if (att <= 5 || mid <= 5 || def <= 5) {
+              updated = true;
+              return {
+                ...t,
+                attack: scaleStatTo10(att),
+                midfield: scaleStatTo10(mid),
+                defense: scaleStatTo10(def)
+              };
+            }
+            return t;
+          });
+
+          if (career.europeanCupState && Array.isArray(career.europeanCupState.teams)) {
+            career.europeanCupState.teams = career.europeanCupState.teams.map(t => {
+              const att = Number(t.attack) || 6;
+              const mid = Number(t.midfield) || 6;
+              const def = Number(t.defense) || 6;
+              if (att <= 5 || mid <= 5 || def <= 5) {
+                updated = true;
+                return {
+                  ...t,
+                  attack: scaleStatTo10(att),
+                  midfield: scaleStatTo10(mid),
+                  defense: scaleStatTo10(def)
+                };
+              }
+              return t;
+            });
+          }
+
+          if (updated) {
+            localStorage.setItem('retro_league_career', JSON.stringify(career));
+            console.log('[rosterRegistry] Upgraded career team stats to 1-10 scale.');
+          }
+        }
+      } catch (e) {}
+    }
+  } catch (e) {
+    console.warn('[rosterRegistry] Error running cleanStale1To5Rosters:', e);
+  }
 }
 
 export default getPrebuiltRoster;

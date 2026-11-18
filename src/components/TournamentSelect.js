@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import '../assets/styles/Match.css';
 import { applyTeamTheme } from '../utils/themeManager';
+import { scaleStatTo10 } from '../data/rosters/rosterRegistry';
 
 // Import Compile-time Databases
 import mex86Data from '../data/cups/wc/mex86.json';
@@ -1125,6 +1126,9 @@ export default function TournamentSelect() {
     }
     return {
       ...team,
+      attack: scaleStatTo10(team.attack),
+      midfield: scaleStatTo10(team.midfield),
+      defense: scaleStatTo10(team.defense),
       group,
       played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0
     };
@@ -1418,18 +1422,18 @@ export default function TournamentSelect() {
                   <div className="stats-box" style={{ width: '90%', padding: '8px 12px' }}>
                     <div className="stat-row">
                       <span className="stat-label">Attack</span>
-                      <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${activeTeamObj.attack * 20}%` }}></div></div>
-                      <span className="stat-val">{activeTeamObj.attack}</span>
+                      <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, (activeTeamObj.attack / 10) * 100)}%` }}></div></div>
+                      <span className="stat-val">{activeTeamObj.attack}/10</span>
                     </div>
                     <div className="stat-row">
                       <span className="stat-label">Midfield</span>
-                      <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${activeTeamObj.midfield * 20}%` }}></div></div>
-                      <span className="stat-val">{activeTeamObj.midfield}</span>
+                      <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, (activeTeamObj.midfield / 10) * 100)}%` }}></div></div>
+                      <span className="stat-val">{activeTeamObj.midfield}/10</span>
                     </div>
                     <div className="stat-row">
                       <span className="stat-label">Defense</span>
-                      <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${activeTeamObj.defense * 20}%` }}></div></div>
-                      <span className="stat-val">{activeTeamObj.defense}</span>
+                      <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, (activeTeamObj.defense / 10) * 100)}%` }}></div></div>
+                      <span className="stat-val">{activeTeamObj.defense}/10</span>
                     </div>
                   </div>
 

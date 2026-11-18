@@ -8,6 +8,8 @@ import { sortGroupTable, initializeKnockouts } from "../utils/tournamentRules";
 import NewsFeed from './NewsFeed';
 import Fixtures from './Fixtures';
 import { generateInitialNews } from '../utils/newsGenerator';
+import { simulateFixture as simulateFixtureEngine } from '../utils/matchEngine';
+import { scaleStatTo10 } from '../data/rosters/rosterRegistry';
 
 // Reuse our TeamFlag component
 const TeamFlag = ({ primaryColor, secondaryColor, size = 32 }) => {
@@ -53,28 +55,7 @@ const calculateManagerPrestige = (profile) => {
 
 // Unified Match Simulation Helper
 const simulateFixture = (h, a) => {
-  const midDiff = h.midfield - a.midfield;
-  const homeChancesExp = Math.max(1, Math.min(6, 3.8 + midDiff * 0.4));
-  const randomShift = (Math.random() - 0.5) * 2;
-  const homeChances = Math.round(homeChancesExp + randomShift);
-  const awayChances = 7 - homeChances;
-
-  const homeConv = Math.max(0.1, Math.min(0.65, 0.3 + (h.attack - a.defense) * 0.05));
-  const awayConv = Math.max(0.1, Math.min(0.65, 0.3 + (a.attack - h.defense) * 0.05));
-
-  let homeGoals = 0;
-  for (let i = 0; i < homeChances; i++) {
-    if (Math.random() < homeConv) homeGoals++;
-  }
-  let awayGoals = 0;
-  for (let i = 0; i < awayChances; i++) {
-    if (Math.random() < awayConv) awayGoals++;
-  }
-
-  if (Math.random() < 0.12) homeGoals++;
-  if (Math.random() < 0.12) awayGoals++;
-
-  return { homeGoals, awayGoals };
+  return simulateFixtureEngine(h, a);
 };
 
 export default function TournamentDashboard() {
@@ -153,6 +134,29 @@ export default function TournamentDashboard() {
       return;
     }
     const parsedState = JSON.parse(raw);
+
+    // Auto-upgrade tournament teams to 1-10 scale if needed
+    if (parsedState.teams && Array.isArray(parsedState.teams)) {
+      let upgraded = false;
+      parsedState.teams = parsedState.teams.map(t => {
+        const att = Number(t.attack) || 6;
+        const mid = Number(t.midfield) || 6;
+        const def = Number(t.defense) || 6;
+        if (att <= 5 || mid <= 5 || def <= 5) {
+          upgraded = true;
+          return {
+            ...t,
+            attack: scaleStatTo10(att),
+            midfield: scaleStatTo10(mid),
+            defense: scaleStatTo10(def)
+          };
+        }
+        return t;
+      });
+      if (upgraded) {
+        localStorage.setItem("retro_tournament_state", JSON.stringify(parsedState));
+      }
+    }
 
     // Seed initial news feed if empty or missing
     if (!parsedState.newsFeed || parsedState.newsFeed.length === 0) {

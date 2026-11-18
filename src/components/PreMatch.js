@@ -342,12 +342,26 @@ export default function PreMatch() {
     ? playerFormation
     : getCPUFormation(awayTeamRaw, homeTeamRaw, year);
 
+  const ensureTeam10Stats = (t) => {
+    if (!t) return t;
+    const att = Number(t.attack) || 6;
+    const mid = Number(t.midfield) || 6;
+    const def = Number(t.defense) || 6;
+    if (att > 5 || mid > 5 || def > 5) return t;
+    return {
+      ...t,
+      attack: Math.min(10, Math.max(1, Math.round(att * 2))),
+      midfield: Math.min(10, Math.max(1, Math.round(mid * 2))),
+      defense: Math.min(10, Math.max(1, Math.round(def * 2)))
+    };
+  };
+
   const homeTeam = (() => {
     if (playerTeamId !== null && teamonename === playerTeamId && playerLineup && Object.keys(playerLineup).filter(k => playerLineup[k]).length >= 7) {
       const calc = calculateTeamTacticalStats(playerLineup, homeFormation, playerRoles, homeTactic);
       return { ...homeTeamRaw, attack: calc.attack, midfield: calc.midfield, defense: calc.defense };
     }
-    return homeTeamRaw;
+    return ensureTeam10Stats(homeTeamRaw);
   })();
 
   const awayTeam = (() => {
@@ -355,7 +369,7 @@ export default function PreMatch() {
       const calc = calculateTeamTacticalStats(playerLineup, awayFormation, playerRoles, awayTactic);
       return { ...awayTeamRaw, attack: calc.attack, midfield: calc.midfield, defense: calc.defense };
     }
-    return awayTeamRaw;
+    return ensureTeam10Stats(awayTeamRaw);
   })();
 
   const homeFormationData = FORMATIONS[homeFormation];
@@ -873,20 +887,25 @@ export default function PreMatch() {
             </div>
           )}
 
-          <div className="team-card-bars" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div className="rpg-bar">
-              <span className="rpg-label">ATTACK: {homeTeam.attack}</span>
-              <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, homeTeam.attack * 20)}%` }}></div></div>
-            </div>
-            <div className="rpg-bar">
-              <span className="rpg-label">MIDFIELD: {homeTeam.midfield}</span>
-              <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, homeTeam.midfield * 20)}%` }}></div></div>
-            </div>
-            <div className="rpg-bar">
-              <span className="rpg-label">DEFENSE: {homeTeam.defense}</span>
-              <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, homeTeam.defense * 20)}%` }}></div></div>
-            </div>
-          </div>
+          {(() => {
+            const statScale = (homeTeam.attack > 5 || homeTeam.midfield > 5 || homeTeam.defense > 5) ? 10 : 20;
+            return (
+              <div className="team-card-bars" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div className="rpg-bar">
+                  <span className="rpg-label">ATTACK: {homeTeam.attack}{statScale === 10 ? '/10' : '/5'}</span>
+                  <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, homeTeam.attack * statScale)}%` }}></div></div>
+                </div>
+                <div className="rpg-bar">
+                  <span className="rpg-label">MIDFIELD: {homeTeam.midfield}{statScale === 10 ? '/10' : '/5'}</span>
+                  <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, homeTeam.midfield * statScale)}%` }}></div></div>
+                </div>
+                <div className="rpg-bar">
+                  <span className="rpg-label">DEFENSE: {homeTeam.defense}{statScale === 10 ? '/10' : '/5'}</span>
+                  <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, homeTeam.defense * statScale)}%` }}></div></div>
+                </div>
+              </div>
+            );
+          })()}
 
           <TacticsPanel
             disabled={isHomeDisabled}
@@ -1128,20 +1147,25 @@ export default function PreMatch() {
             </div>
           )}
 
-          <div className="team-card-bars" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div className="rpg-bar">
-              <span className="rpg-label">ATTACK: {awayTeam.attack}</span>
-              <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, awayTeam.attack * 20)}%` }}></div></div>
-            </div>
-            <div className="rpg-bar">
-              <span className="rpg-label">MIDFIELD: {awayTeam.midfield}</span>
-              <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, awayTeam.midfield * 20)}%` }}></div></div>
-            </div>
-            <div className="rpg-bar">
-              <span className="rpg-label">DEFENSE: {awayTeam.defense}</span>
-              <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, awayTeam.defense * 20)}%` }}></div></div>
-            </div>
-          </div>
+          {(() => {
+            const statScale = (awayTeam.attack > 5 || awayTeam.midfield > 5 || awayTeam.defense > 5) ? 10 : 20;
+            return (
+              <div className="team-card-bars" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div className="rpg-bar">
+                  <span className="rpg-label">ATTACK: {awayTeam.attack}{statScale === 10 ? '/10' : '/5'}</span>
+                  <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, awayTeam.attack * statScale)}%` }}></div></div>
+                </div>
+                <div className="rpg-bar">
+                  <span className="rpg-label">MIDFIELD: {awayTeam.midfield}{statScale === 10 ? '/10' : '/5'}</span>
+                  <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, awayTeam.midfield * statScale)}%` }}></div></div>
+                </div>
+                <div className="rpg-bar">
+                  <span className="rpg-label">DEFENSE: {awayTeam.defense}{statScale === 10 ? '/10' : '/5'}</span>
+                  <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, awayTeam.defense * statScale)}%` }}></div></div>
+                </div>
+              </div>
+            );
+          })()}
 
           <TacticsPanel
             disabled={isAwayDisabled}

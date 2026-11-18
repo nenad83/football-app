@@ -126,7 +126,10 @@ export async function getOrLoadCPUSquad(teamName, season) {
     if (cached) {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length >= 11) {
-        return parsed;
+        const isStale1To5 = !parsed.some(p => Number(p.rating) > 5) && !parsed.some(p => p.wage !== undefined);
+        if (!isStale1To5) {
+          return parsed;
+        }
       }
     }
   } catch (err) {

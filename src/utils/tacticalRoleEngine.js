@@ -7,30 +7,30 @@
  * 1. Player Tactical Roles (Duties):
  *    - DR / DL:
  *      • Full Back ('normal'): Full skill to Defense.
- *      • Wing Back ('support_mid'): -2 skill to Defense, Full skill to Midfield.
+ *      • Wing Back ('support_mid'): -4 skill to Defense, Full skill to Midfield.
  *    - DC:
  *      • Defender ('normal'): Full skill to Defense.
- *      • Support Midfield ('support_mid'): -2 skill to Defense, Full skill to Midfield.
+ *      • Support Midfield ('support_mid'): -4 skill to Defense, Full skill to Midfield.
  *    - DMC:
  *      • Midfield ('normal'): Full skill to Midfield.
- *      • Support Defense ('support_def'): -1 skill to Midfield, Full skill to Defense.
+ *      • Support Defense ('support_def'): -2 skill to Midfield, Full skill to Defense.
  *    - MC:
  *      • Midfield ('normal'): Full skill to Midfield.
- *      • Support Defense ('support_def'): -2 skill to Midfield (-1 if natural DMC), Full skill to Defense.
- *      • Support Attack ('support_att'): -2 skill to Midfield, Full skill to Attack.
+ *      • Support Defense ('support_def'): -4 skill to Midfield (-2 if natural DMC), Full skill to Defense.
+ *      • Support Attack ('support_att'): -4 skill to Midfield, Full skill to Attack.
  *    - MR / ML:
  *      • Midfield ('normal'): Full skill to Midfield.
- *      • Support Attack ('support_att'): -2 skill to Midfield, Full skill to Attack.
- *      • Support Defense ('support_def'): -2 skill to Midfield, Full skill to Defense.
+ *      • Support Attack ('support_att'): -4 skill to Midfield, Full skill to Attack.
+ *      • Support Defense ('support_def'): -4 skill to Midfield, Full skill to Defense.
  *    - AMC:
  *      • Midfield ('normal'): Full skill to Midfield.
- *      • Support Attack ('support_att'): -1 skill to Midfield (if natural AMC in AMC slot; -2 otherwise), Full skill to Attack.
+ *      • Support Attack ('support_att'): -2 skill to Midfield (if natural AMC in AMC slot; -4 otherwise), Full skill to Attack.
  *    - AMR / AML:
  *      • Midfield ('normal'): Full skill to Midfield.
- *      • Support Attack ('support_att'): -2 skill to Midfield, Full skill to Attack.
+ *      • Support Attack ('support_att'): -4 skill to Midfield, Full skill to Attack.
  *    - ST / CF / FC / SC / LW / RW:
  *      • Attack ('normal'): Full skill to Attack.
- *      • Support Midfield ('support_mid'): -1 skill to Attack, Full skill to Midfield.
+ *      • Support Midfield ('support_mid'): -2 skill to Attack, Full skill to Midfield.
  *
  * 2. Department Rating Calculation:
  *    - Defense = Math.floor(totalDefenseContribution / 4) (always divided by 4)
@@ -117,7 +117,7 @@ export function getAvailableRolesForSlot(slot, player = null) {
           label: 'Wing Back (+Midfield)',
           shortLabel: 'WB (+MID)',
           color: '#00ff64',
-          desc: '-2 in Defense, Full rating in Midfield'
+          desc: '-4 in Defense, Full rating in Midfield'
         }
       ];
     }
@@ -135,7 +135,7 @@ export function getAvailableRolesForSlot(slot, player = null) {
         label: 'Support Midfield (+MID)',
         shortLabel: 'SUP (+MID)',
         color: '#00ff64',
-        desc: '-2 in Defense, Full rating in Midfield'
+        desc: '-4 in Defense, Full rating in Midfield'
       }
     ];
   }
@@ -153,18 +153,18 @@ export function getAvailableRolesForSlot(slot, player = null) {
         {
           id: 'support_def',
           label: 'Support Defense (+DEF)',
-          shortLabel: 'DEF (-1M)',
+          shortLabel: 'DEF (-2M)',
           color: '#00e5ff',
-          desc: '-1 in Midfield, Full rating in Defense'
+          desc: '-2 in Midfield, Full rating in Defense'
         }
       ];
     }
 
     if (idealPos === 'AMC') {
-      const attPenaltyLabel = isEligibleAMC ? '-1M' : '-2M';
+      const attPenaltyLabel = isEligibleAMC ? '-2M' : '-4M';
       const attPenaltyDesc = isEligibleAMC
-        ? '-1 in Midfield (AMC), Full rating in Attack'
-        : '-2 in Midfield, Full rating in Attack';
+        ? '-2 in Midfield (AMC), Full rating in Attack'
+        : '-4 in Midfield, Full rating in Attack';
 
       return [
         {
@@ -196,9 +196,9 @@ export function getAvailableRolesForSlot(slot, player = null) {
         {
           id: 'support_att',
           label: 'Support Attack (+ATT)',
-          shortLabel: 'ATT (-2M)',
+          shortLabel: 'ATT (-4M)',
           color: '#ff4500',
-          desc: '-2 in Midfield, Full rating in Attack'
+          desc: '-4 in Midfield, Full rating in Attack'
         }
       ];
     }
@@ -215,25 +215,25 @@ export function getAvailableRolesForSlot(slot, player = null) {
         {
           id: 'support_att',
           label: 'Support Attack (+ATT)',
-          shortLabel: 'ATT (-2M)',
+          shortLabel: 'ATT (-4M)',
           color: '#ff4500',
-          desc: '-2 in Midfield, Full rating in Attack'
+          desc: '-4 in Midfield, Full rating in Attack'
         },
         {
           id: 'support_def',
           label: 'Support Defense (+DEF)',
-          shortLabel: 'DEF (-2M)',
+          shortLabel: 'DEF (-4M)',
           color: '#00e5ff',
-          desc: '-2 in Midfield, Full rating in Defense'
+          desc: '-4 in Midfield, Full rating in Defense'
         }
       ];
     }
 
     // MC
-    const defPenaltyLabel = isDMCPlayer ? '-1M' : '-2M';
+    const defPenaltyLabel = isDMCPlayer ? '-2M' : '-4M';
     const defPenaltyDesc = isDMCPlayer
-      ? '-1 in Midfield (DMC), Full rating in Defense'
-      : '-2 in Midfield, Full rating in Defense';
+      ? '-2 in Midfield (DMC), Full rating in Defense'
+      : '-4 in Midfield, Full rating in Defense';
 
     return [
       {
@@ -253,9 +253,9 @@ export function getAvailableRolesForSlot(slot, player = null) {
       {
         id: 'support_att',
         label: 'Support Attack (+ATT)',
-        shortLabel: 'ATT (-2M)',
+        shortLabel: 'ATT (-4M)',
         color: '#ff4500',
-        desc: '-2 in Midfield, Full rating in Attack'
+        desc: '-4 in Midfield, Full rating in Attack'
       }
     ];
   }
@@ -272,9 +272,9 @@ export function getAvailableRolesForSlot(slot, player = null) {
       {
         id: 'support_mid',
         label: 'Support Midfield (+MID)',
-        shortLabel: 'SUP (-1A)',
+        shortLabel: 'SUP (-2A)',
         color: '#00ff64',
-        desc: '-1 in Attack, Full rating in Midfield'
+        desc: '-2 in Attack, Full rating in Midfield'
       }
     ];
   }
@@ -352,8 +352,8 @@ export function calculatePlayerContribution(player, slot, roleId = 'normal', men
 
   if (slot.role === 'def') {
     if (validRole === 'support_mid') {
-      // Wing Back (DR/DL) or Ball-Playing DC supporting midfield: -2 in defense, full in midfield
-      def = Math.max(0, (eff - 2) + defMentalityBonus);
+      // Wing Back (DR/DL) or Ball-Playing DC supporting midfield: -4 in defense, full in midfield
+      def = Math.max(0, (eff - 4) + defMentalityBonus);
       mid = eff;
     } else {
       // Full Back / Defender: full in defense
@@ -361,13 +361,13 @@ export function calculatePlayerContribution(player, slot, roleId = 'normal', men
     }
   } else if (slot.role === 'mid') {
     if (validRole === 'support_def') {
-      // Supporting defense: DMC loses only 1 in midfield; MC/MR/ML loses 2 in midfield. Full to defense + mentality bonus.
-      const midLoss = isDMC ? 1 : 2;
+      // Supporting defense: DMC loses only 2 in midfield; MC/MR/ML loses 4 in midfield. Full to defense + mentality bonus.
+      const midLoss = isDMC ? 2 : 4;
       mid = Math.max(0, eff - midLoss);
       def = Math.max(0, eff + defMentalityBonus);
     } else if (validRole === 'support_att') {
-      // Supporting attack: Specialist AMC in AMC slot loses only 1 in midfield; others lose 2. Full to attack + mentality bonus.
-      const midLoss = isEligibleAMC ? 1 : 2;
+      // Supporting attack: Specialist AMC in AMC slot loses only 2 in midfield; others lose 4. Full to attack + mentality bonus.
+      const midLoss = isEligibleAMC ? 2 : 4;
       mid = Math.max(0, eff - midLoss);
       att = Math.max(0, eff + attMentalityBonus);
     } else {
@@ -376,8 +376,8 @@ export function calculatePlayerContribution(player, slot, roleId = 'normal', men
     }
   } else if (slot.role === 'att') {
     if (validRole === 'support_mid') {
-      // Supporting midfield: -1 in attack, full to midfield
-      att = Math.max(0, (eff - 1) + attMentalityBonus);
+      // Supporting midfield: -2 in attack, full to midfield
+      att = Math.max(0, (eff - 2) + attMentalityBonus);
       mid = eff;
     } else {
       // Normal forward
@@ -400,13 +400,13 @@ export function calculatePlayerContribution(player, slot, roleId = 'normal', men
 export function calculateTeamTacticalStats(lineup, formationKey = '4-4-2', playerRoles = {}, mentality = 'balanced') {
   if (!lineup || Object.keys(lineup).length === 0) {
     return {
-      defense: 3,
-      midfield: 3,
-      attack: 3,
-      defSum: 12,
-      midSum: 12,
-      attSum: 6,
-      rawTotalSkill: 30
+      defense: 6,
+      midfield: 6,
+      attack: 6,
+      defSum: 24,
+      midSum: 24,
+      attSum: 12,
+      rawTotalSkill: 60
     };
   }
 
@@ -723,7 +723,7 @@ export function computeCPUTacticalPlan({
     }
   } else if (posture === 'balanced') {
     // Evenly matched: smart threshold optimization!
-    // 1. If we have a natural DMC (only -1 to mid) and Defense can gain a point without losing Midfield, use DMC on support_def
+    // 1. If we have a natural DMC (only -2 to mid) and Defense can gain a point without losing Midfield, use DMC on support_def
     if (dmcs.length > 0) {
       const testRoles = { ...roles, [dmcs[0].id]: 'support_def' };
       const before = calculateTeamTacticalStats(lineup, formationKey, roles, targetMentality);

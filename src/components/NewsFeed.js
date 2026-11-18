@@ -562,8 +562,8 @@ export default function NewsFeed({
                             <span style={{ fontSize: '9px', background: 'rgba(255,255,255,0.1)', padding: '1px 4px', borderRadius: '3px', color: '#ffd700' }}>
                               {kp.position}
                             </span>
-                            <span style={{ fontSize: '10px', color: '#00ff64' }}>
-                              {"⭐".repeat(kp.rating || 3)}
+                            <span style={{ fontSize: '10px', color: '#ffd700', fontWeight: 'bold' }}>
+                              {kp.rating > 5 ? `★${kp.rating}` : "⭐".repeat(kp.rating || 3)}
                             </span>
                           </div>
                         ))}

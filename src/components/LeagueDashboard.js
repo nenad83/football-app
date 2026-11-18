@@ -21,53 +21,32 @@ import Fixtures from './Fixtures';
 import { createDomesticCup, advanceDomesticCup, getDomesticCupExpectation, CUP_STAGE_NAMES } from '../utils/domesticCupGenerator';
 import { generateInitialNews, generateMatchdayNews, generateDomesticCupDrawNews, generateDomesticCupMatchNews, generateMonthlyAwardsNews, generateYearlyAwardsNews } from '../utils/newsGenerator';
 import { checkMonthConclusion, generateMatchEvents, recordMatchEventsInStats, calculateMonthlyAwards, calculateYearlyAwards, awardManagerTitle } from '../utils/awardsManager';
-import { loadSeasonRosters } from '../data/rosters/rosterRegistry';
+import { loadSeasonRosters, cleanStale1To5Rosters, scaleStatTo10 } from '../data/rosters/rosterRegistry';
 import { applyTeamTheme } from '../utils/themeManager';
-
-
-
+import { simulateFixture as simulateFixtureEngine } from '../utils/matchEngine';
 
 const SA_COUNTRIES = new Set(["argentina", "brazil", "colombia"]);
 
 // Unified Match Simulation Helper
 const simulateFixture = (h, a) => {
-  const midDiff = h.midfield - a.midfield;
-  const homeChancesExp = Math.max(1, Math.min(6, 3.8 + midDiff * 0.4));
-  const randomShift = (Math.random() - 0.5) * 2;
-  const homeChances = Math.round(homeChancesExp + randomShift);
-  const awayChances = 7 - homeChances;
-
-  const homeConv = Math.max(0.1, Math.min(0.65, 0.3 + (h.attack - a.defense) * 0.05));
-  const awayConv = Math.max(0.1, Math.min(0.65, 0.3 + (a.attack - h.defense) * 0.05));
-
-  let homeGoals = 0;
-  for (let i = 0; i < homeChances; i++) {
-    if (Math.random() < homeConv) homeGoals++;
-  }
-  let awayGoals = 0;
-  for (let i = 0; i < awayChances; i++) {
-    if (Math.random() < awayConv) awayGoals++;
-  }
-
-  if (Math.random() < 0.12) homeGoals++;
-  if (Math.random() < 0.12) awayGoals++;
-
-  return { homeGoals, awayGoals };
+  return simulateFixtureEngine(h, a);
 };
 
 const updateFanConfidence = (currentConfidence, playerTeam, opponentTeam, playerGoals, opponentGoals) => {
   const pRating = playerTeam ? (playerTeam.attack + playerTeam.midfield + playerTeam.defense) / 3 : 3.0;
   const oRating = opponentTeam ? (opponentTeam.attack + opponentTeam.midfield + opponentTeam.defense) / 3 : 3.0;
+  const is10 = (pRating > 5 || oRating > 5);
+  const factor = is10 ? 0.5 : 1.0;
 
   let change = 0;
   if (playerGoals > opponentGoals) {
-    change = 6 + Math.round((oRating - pRating) * 4.5);
+    change = 6 + Math.round((oRating - pRating) * 4.5 * factor);
     change = Math.max(3, change);
   } else if (playerGoals < opponentGoals) {
-    change = -6 + Math.round((oRating - pRating) * 4.5);
+    change = -6 + Math.round((oRating - pRating) * 4.5 * factor);
     change = Math.min(-3, change);
   } else {
-    change = -2 + Math.round((oRating - pRating) * 5);
+    change = -2 + Math.round((oRating - pRating) * 5 * factor);
     change = Math.max(-8, Math.min(8, change));
   }
 
@@ -880,7 +859,7 @@ export default function LeagueDashboard() {
     try {
       const saved = localStorage.getItem("retro_manager_profile");
       if (saved) return JSON.parse(saved);
-    } catch (e) {}
+    } catch (e) { }
     return {
       name: "Sir Alex",
       photo: null,
@@ -901,14 +880,14 @@ export default function LeagueDashboard() {
     try {
       const saved = localStorage.getItem("retro_manager_profile");
       if (saved) return JSON.parse(saved).name || "Sir Alex";
-    } catch (e) {}
+    } catch (e) { }
     return "Sir Alex";
   });
   const [editPhoto, setEditPhoto] = useState(() => {
     try {
       const saved = localStorage.getItem("retro_manager_profile");
       if (saved) return JSON.parse(saved).photo || null;
-    } catch (e) {}
+    } catch (e) { }
     return null;
   });
   const [nextSeasonTeams, setNextSeasonTeams] = useState([]);
@@ -937,6 +916,7 @@ export default function LeagueDashboard() {
   };
 
   useEffect(() => {
+    cleanStale1To5Rosters();
     const raw = localStorage.getItem("retro_league_career");
     if (!raw) {
       navigate("/league");
@@ -945,6 +925,29 @@ export default function LeagueDashboard() {
     const parsedCareer = JSON.parse(raw);
     if (parsedCareer.season) {
       loadSeasonRosters(parsedCareer.season).catch(() => { });
+    }
+
+    // Auto-upgrade teams to 1-10 scale if needed
+    if (parsedCareer.teams && Array.isArray(parsedCareer.teams)) {
+      let upgraded = false;
+      parsedCareer.teams = parsedCareer.teams.map(t => {
+        const att = Number(t.attack) || 6;
+        const mid = Number(t.midfield) || 6;
+        const def = Number(t.defense) || 6;
+        if (att <= 5 || mid <= 5 || def <= 5) {
+          upgraded = true;
+          return {
+            ...t,
+            attack: scaleStatTo10(att),
+            midfield: scaleStatTo10(mid),
+            defense: scaleStatTo10(def)
+          };
+        }
+        return t;
+      });
+      if (upgraded) {
+        localStorage.setItem("retro_league_career", JSON.stringify(parsedCareer));
+      }
     }
 
     // Auto-initialize budget for pre-existing saves if undefined

@@ -30,6 +30,17 @@ import {
 } from './MatchCommentary';
 import { initializeKnockouts } from "../utils/tournamentRules";
 import { advanceDomesticCup } from "../utils/domesticCupGenerator";
+import {
+  getEngineMode,
+  setEngineMode,
+  rollMidfield,
+  rollAttackDef,
+  rollShotOnGoal,
+  rollPenalty,
+  simulateFixture as simulateFixtureEngine,
+  ENGINE_MODE_D10,
+  ENGINE_MODE_CLASSIC_D6
+} from '../utils/matchEngine';
 
 const MATCH_REFEREES = [
   'Pierluigi Collina',
@@ -90,43 +101,24 @@ const TeamFlag = ({ primaryColor, secondaryColor, size = 120 }) => {
 
 // Unified Match Simulation Helper
 const simulateFixture = (h, a) => {
-  const midDiff = h.midfield - a.midfield;
-  const homeChancesExp = Math.max(1, Math.min(6, 3.8 + midDiff * 0.4));
-  const randomShift = (Math.random() - 0.5) * 2;
-  const homeChances = Math.round(homeChancesExp + randomShift);
-  const awayChances = 7 - homeChances;
-
-  const homeConv = Math.max(0.1, Math.min(0.65, 0.3 + (h.attack - a.defense) * 0.05));
-  const awayConv = Math.max(0.1, Math.min(0.65, 0.3 + (a.attack - h.defense) * 0.05));
-
-  let homeGoals = 0;
-  for (let i = 0; i < homeChances; i++) {
-    if (Math.random() < homeConv) homeGoals++;
-  }
-  let awayGoals = 0;
-  for (let i = 0; i < awayChances; i++) {
-    if (Math.random() < awayConv) awayGoals++;
-  }
-
-  if (Math.random() < 0.12) homeGoals++;
-  if (Math.random() < 0.12) awayGoals++;
-
-  return { homeGoals, awayGoals };
+  return simulateFixtureEngine(h, a);
 };
 
 const updateFanConfidence = (currentConfidence, playerTeam, opponentTeam, playerGoals, opponentGoals) => {
   const pRating = playerTeam ? (playerTeam.attack + playerTeam.midfield + playerTeam.defense) / 3 : 3.0;
   const oRating = opponentTeam ? (opponentTeam.attack + opponentTeam.midfield + opponentTeam.defense) / 3 : 3.0;
+  const is10 = (pRating > 5 || oRating > 5);
+  const factor = is10 ? 0.5 : 1.0;
 
   let change = 0;
   if (playerGoals > opponentGoals) {
-    change = 6 + Math.round((oRating - pRating) * 4.5);
+    change = 6 + Math.round((oRating - pRating) * 4.5 * factor);
     change = Math.max(3, change);
   } else if (playerGoals < opponentGoals) {
-    change = -6 + Math.round((oRating - pRating) * 4.5);
+    change = -6 + Math.round((oRating - pRating) * 4.5 * factor);
     change = Math.min(-3, change);
   } else {
-    change = -2 + Math.round((oRating - pRating) * 5);
+    change = -2 + Math.round((oRating - pRating) * 5 * factor);
     change = Math.max(-8, Math.min(8, change));
   }
 
@@ -481,6 +473,13 @@ export default function Match() {
   const [playMode] = useState(startingTactics.playMode || "manual");
   const [isPlaying, setIsPlaying] = useState(false);
   const [simSpeed, setSimSpeed] = useState(2200);
+  const [engineMode, setEngineModeState] = useState(() => getEngineMode());
+
+  const toggleEngineMode = useCallback(() => {
+    const nextMode = engineMode === ENGINE_MODE_D10 ? ENGINE_MODE_CLASSIC_D6 : ENGINE_MODE_D10;
+    setEngineMode(nextMode);
+    setEngineModeState(nextMode);
+  }, [engineMode]);
 
   // Tactical choices: balanced, attack, defense
   const [homeTactic, setHomeTactic] = useState(() => {
@@ -491,9 +490,11 @@ export default function Match() {
       const team = teamid[teamonename];
       const opp = teamid[teamtwoname];
       if (team && opp) {
+        const is10 = (team.attack > 5 || opp.attack > 5);
+        const threshold = is10 ? 6 : 3;
         const diff = (team.attack + team.midfield + team.defense) - (opp.attack + opp.midfield + opp.defense);
-        if (diff <= -3) return "defense";
-        if (diff >= 3) return "attack";
+        if (diff <= -threshold) return "defense";
+        if (diff >= threshold) return "attack";
       }
     }
     return "balanced";
@@ -506,9 +507,11 @@ export default function Match() {
       const team = teamid[teamtwoname];
       const opp = teamid[teamonename];
       if (team && opp) {
+        const is10 = (team.attack > 5 || opp.attack > 5);
+        const threshold = is10 ? 6 : 3;
         const diff = (team.attack + team.midfield + team.defense) - (opp.attack + opp.midfield + opp.defense);
-        if (diff <= -3) return "defense";
-        if (diff >= 3) return "attack";
+        if (diff <= -threshold) return "defense";
+        if (diff >= threshold) return "attack";
       }
     }
     return "balanced";
@@ -589,6 +592,14 @@ export default function Match() {
 
       let loadedSquad = cachedRoster ? JSON.parse(cachedRoster) : [];
       let loadedLineup = cachedLineup ? JSON.parse(cachedLineup) : {};
+      const isStale1To5 = loadedSquad.length > 0 && (
+        !loadedSquad.some(p => Number(p.rating) > 5) &&
+        !loadedSquad.some(p => p.wage !== undefined)
+      );
+      if (isStale1To5) {
+        loadedSquad = [];
+        loadedLineup = {};
+      }
       let loadedRoles = {};
       if (cachedRoles) {
         try {
@@ -1254,7 +1265,7 @@ export default function Match() {
         const p = JSON.parse(profRaw);
         if (p?.name && p.name.trim()) return p.name.trim();
       }
-    } catch (e) {}
+    } catch (e) { }
     if (leagueState?.managerName && leagueState.managerName.trim()) {
       return leagueState.managerName.trim();
     }
@@ -1882,8 +1893,12 @@ export default function Match() {
 
     // Midfield calculations
     if (time > 0 && !isGameOver && !isPenaltyShootout) {
-      const r1 = Math.floor(Math.random() * 6) + 1 + getModifiedStat(teamonename, "midfield");
-      const r2 = Math.floor(Math.random() * 6) + 1 + getModifiedStat(teamtwoname, "midfield");
+      const m1 = getModifiedStat(teamonename, "midfield");
+      const m2 = getModifiedStat(teamtwoname, "midfield");
+      const roll1Result = rollMidfield(m1, engineMode);
+      const roll2Result = rollMidfield(m2, engineMode);
+      const r1 = roll1Result.total;
+      const r2 = roll2Result.total;
       setrollOne(r1);
       setRollTwo(r2);
 
@@ -1911,8 +1926,12 @@ export default function Match() {
   // Home Attacks
   function handleHomeChance() {
     setHasHomeChance(false);
-    const homeattack = Math.floor(Math.random() * 6) + 1 + getModifiedStat(teamonename, "attack");
-    const awaydefense = Math.floor(Math.random() * 6) + 1 + getModifiedStat(teamtwoname, "defense");
+    const homeAttStat = getModifiedStat(teamonename, "attack");
+    const awayDefStat = getModifiedStat(teamtwoname, "defense");
+    const homeAttRes = rollAttackDef(homeAttStat, engineMode);
+    const awayDefRes = rollAttackDef(awayDefStat, engineMode);
+    const homeattack = homeAttRes.total;
+    const awaydefense = awayDefRes.total;
 
     setrollOne(homeattack);
     setRollTwo(awaydefense);
@@ -1933,8 +1952,9 @@ export default function Match() {
 
   function handleHomeScoreChance() {
     setHasHomeScoreChance(false);
-    const homescore = Math.floor(Math.random() * 6) + 1;
-    const awaysave = Math.floor(Math.random() * 6) + 1;
+    // Shooting before goal: unassisted d6 vs d6
+    const homescore = rollShotOnGoal().roll;
+    const awaysave = rollShotOnGoal().roll;
     setrollOne(homescore);
     setRollTwo(awaysave);
 
@@ -1957,8 +1977,12 @@ export default function Match() {
   // Away Attacks
   function handleAwayChance() {
     setHasAwayChance(false);
-    const awayattack = Math.floor(Math.random() * 6) + 1 + getModifiedStat(teamtwoname, "attack");
-    const homedefense = Math.floor(Math.random() * 6) + 1 + getModifiedStat(teamonename, "defense");
+    const awayAttStat = getModifiedStat(teamtwoname, "attack");
+    const homeDefStat = getModifiedStat(teamonename, "defense");
+    const awayAttRes = rollAttackDef(awayAttStat, engineMode);
+    const homeDefRes = rollAttackDef(homeDefStat, engineMode);
+    const awayattack = awayAttRes.total;
+    const homedefense = homeDefRes.total;
 
     setrollOne(homedefense);
     setRollTwo(awayattack);
@@ -1979,8 +2003,9 @@ export default function Match() {
 
   function handleAwayScoreChance() {
     setHasAwayScoreChance(false);
-    const awayscore = Math.floor(Math.random() * 6) + 1;
-    const homesave = Math.floor(Math.random() * 6) + 1;
+    // Shooting before goal: unassisted d6 vs d6
+    const awayscore = rollShotOnGoal().roll;
+    const homesave = rollShotOnGoal().roll;
     setrollOne(homesave);
     setRollTwo(awayscore);
 
@@ -2028,17 +2053,19 @@ export default function Match() {
     const attackerName = teamid[attackerTeamKey].name;
     const defenderName = teamid[defenderTeamKey].name;
 
-    const r = Math.floor(Math.random() * 6) + 1 + teamid[attackerTeamKey].attack;
+    const penRes = rollPenalty(teamid[attackerTeamKey].attack, engineMode);
+    const r = penRes.total;
+    const target = penRes.targetThreshold;
 
     if (isHome) {
       setrollOne(r);
-      setRollTwo(7);
+      setRollTwo(target);
     } else {
-      setrollOne(7);
+      setrollOne(target);
       setRollTwo(r);
     }
 
-    let isGoal = false;
+    let isGoal = penRes.isGoal;
     if (r > 7) {
       logEvent(getPenaltyGoalCommentary(attackerName, defenderName, attackerLineup, defenderLineup), "goal", isHome ? "home" : "away");
       triggerGoalFlash(teamid[attackerTeamKey]);
@@ -3652,43 +3679,66 @@ export default function Match() {
         </div>
       </div>
 
-      {/* Stadium & Attendance Info Strip */}
-      {stadiumName && (
-        <div
-          className="match-venue-strip"
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '16px',
-            padding: '5px 18px',
-            margin: '0 auto 14px',
-            maxWidth: '850px',
-            background: 'rgba(0, 0, 0, 0.45)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            borderRadius: '20px',
-            fontSize: '11px',
-            fontFamily: 'Orbitron',
-            color: '#ccc',
-            letterSpacing: '0.6px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
-          }}
-        >
+      {/* Stadium & Attendance Info Strip + Match Engine Badge */}
+      <div
+        className="match-venue-strip"
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '14px',
+          padding: '6px 18px',
+          margin: '0 auto 14px',
+          maxWidth: '880px',
+          background: 'rgba(0, 0, 0, 0.45)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          borderRadius: '20px',
+          fontSize: '11px',
+          fontFamily: 'Orbitron',
+          color: '#ccc',
+          letterSpacing: '0.6px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+        }}
+      >
+        {stadiumName && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             <span>🏟️</span>
             <strong style={{ color: '#fff' }}>{stadiumName}</strong>
           </span>
-          {attendanceInfo && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#aaa' }}>
-              <span>👥</span>
-              <span>ATTENDANCE:</span>
-              <strong style={{ color: '#00ff64' }}>{attendanceInfo.attendance.toLocaleString()}</strong>
-              <span style={{ fontSize: '9.5px', opacity: 0.75 }}>({attendanceInfo.percent}%)</span>
-            </span>
-          )}
-        </div>
-      )}
+        )}
+        {attendanceInfo && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#aaa' }}>
+            <span>👥</span>
+            <span>ATTENDANCE:</span>
+            <strong style={{ color: '#00ff64' }}>{attendanceInfo.attendance.toLocaleString()}</strong>
+            <span style={{ fontSize: '9.5px', opacity: 0.75 }}>({attendanceInfo.percent}%)</span>
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={toggleEngineMode}
+          title="Click to toggle Match Engine between d10 (1-10) and classic d6 (1-5)"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            background: engineMode === 'd10' ? 'rgba(0, 229, 255, 0.15)' : 'rgba(255, 215, 0, 0.15)',
+            border: engineMode === 'd10' ? '1px solid rgba(0, 229, 255, 0.6)' : '1px solid rgba(255, 215, 0, 0.6)',
+            color: engineMode === 'd10' ? '#00e5ff' : '#ffd700',
+            borderRadius: '12px',
+            padding: '2px 9px',
+            fontSize: '10px',
+            fontFamily: 'Orbitron',
+            cursor: 'pointer',
+            letterSpacing: '0.5px',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <span>🎲</span>
+          <span>{engineMode === 'd10' ? 'ENGINE: d10 (1-10 scale)' : 'ENGINE: d6 (1-5 classic)'}</span>
+        </button>
+      </div>
 
       {/* Main Grid: Home, Pitch, Away */}
       <div className="teams match-arena-layout">
@@ -3757,19 +3807,21 @@ export default function Match() {
               const diffDef = modDef - baseDef;
               const defSpan = diffDef > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffDef}</span> : (diffDef < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffDef}</span> : null);
 
+              const statScale = (baseAtt > 5 || baseMid > 5 || baseDef > 5 || engineMode === 'd10') ? 10 : 20;
+
               return (
                 <>
                   <div className="rpg-bar">
                     <span className="rpg-label">ATT: {baseAtt}{attSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, modAtt * 20)}%`, transition: 'width 0.4s ease' }}></div></div>
+                    <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, modAtt * statScale)}%`, transition: 'width 0.4s ease' }}></div></div>
                   </div>
                   <div className="rpg-bar">
                     <span className="rpg-label">MID: {baseMid}{midSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, modMid * 20)}%`, transition: 'width 0.4s ease' }}></div></div>
+                    <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, modMid * statScale)}%`, transition: 'width 0.4s ease' }}></div></div>
                   </div>
                   <div className="rpg-bar">
                     <span className="rpg-label">DEF: {baseDef}{defSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, modDef * 20)}%`, transition: 'width 0.4s ease' }}></div></div>
+                    <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, modDef * statScale)}%`, transition: 'width 0.4s ease' }}></div></div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', width: '100%' }}>
                     <span style={{ fontSize: '9px', color: '#888', fontFamily: 'Orbitron' }}>
@@ -3818,7 +3870,7 @@ export default function Match() {
           </div>
 
           <div className="dice-roll-container">
-            <span className="roll-label">MIDFIELD ROLL</span>
+            <span className="roll-label">{engineMode === 'd10' ? 'MIDFIELD ROLL (d10)' : 'MIDFIELD ROLL (d6)'}</span>
             <div className="roll-number-glowing">{rollone}</div>
           </div>
 
@@ -3858,7 +3910,7 @@ export default function Match() {
             <span className="momentum-title">MIDFIELD MOMENTUM</span>
             <div className="momentum-gauge">
               <div className="momentum-gauge-fill" style={{
-                left: `${50 + ((rollone - rolltwo) * 6)}%`,
+                left: `${Math.max(5, Math.min(95, 50 + ((rollone - rolltwo) * (engineMode === 'd10' ? 3.5 : 6))))}%`,
                 width: '12px'
               }}></div>
             </div>
@@ -3886,25 +3938,25 @@ export default function Match() {
             {/* Active RPG Play buttons */}
             {playMode === "manual" && hasHomeChance && (
               <button className="match-control-btn active-attack-btn glowing-btn pulse" onClick={handleHomeChance}>
-                🔥 {teamid[teamonename].name} Chance! Press Forward
+                🔥 {teamid[teamonename].name} Attack! ({engineMode === 'd10' ? 'd10' : 'd6'})
               </button>
             )}
 
             {playMode === "manual" && hasHomeScoreChance && (
               <button className="match-control-btn score-shoot-btn glowing-btn pulse-glow" onClick={handleHomeScoreChance}>
-                🎯 {teamid[teamonename].name} Shooting Chance! Shoot!
+                🎯 {teamid[teamonename].name} Shooting Chance! Shoot on Goal (d6)
               </button>
             )}
 
             {playMode === "manual" && hasAwayChance && (
               <button className="match-control-btn active-attack-btn glowing-btn pulse" onClick={handleAwayChance}>
-                🔥 {teamid[teamtwoname].name} Chance! Press Forward
+                🔥 {teamid[teamtwoname].name} Attack! ({engineMode === 'd10' ? 'd10' : 'd6'})
               </button>
             )}
 
             {playMode === "manual" && hasAwayScoreChance && (
               <button className="match-control-btn score-shoot-btn glowing-btn pulse-glow" onClick={handleAwayScoreChance}>
-                🎯 {teamid[teamtwoname].name} Shooting Chance! Shoot!
+                🎯 {teamid[teamtwoname].name} Shooting Chance! Shoot on Goal (d6)
               </button>
             )}
 
@@ -4225,19 +4277,21 @@ export default function Match() {
               const diffDef = modDef - baseDef;
               const defSpan = diffDef > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffDef}</span> : (diffDef < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffDef}</span> : null);
 
+              const statScale = (baseAtt > 5 || baseMid > 5 || baseDef > 5 || engineMode === 'd10') ? 10 : 20;
+
               return (
                 <>
                   <div className="rpg-bar">
                     <span className="rpg-label">ATT: {baseAtt}{attSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, modAtt * 20)}%`, transition: 'width 0.4s ease' }}></div></div>
+                    <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, modAtt * statScale)}%`, transition: 'width 0.4s ease' }}></div></div>
                   </div>
                   <div className="rpg-bar">
                     <span className="rpg-label">MID: {baseMid}{midSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, modMid * 20)}%`, transition: 'width 0.4s ease' }}></div></div>
+                    <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, modMid * statScale)}%`, transition: 'width 0.4s ease' }}></div></div>
                   </div>
                   <div className="rpg-bar">
                     <span className="rpg-label">DEF: {baseDef}{defSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, modDef * 20)}%`, transition: 'width 0.4s ease' }}></div></div>
+                    <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, modDef * statScale)}%`, transition: 'width 0.4s ease' }}></div></div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', width: '100%' }}>
                     <span style={{ fontSize: '9px', color: '#888', fontFamily: 'Orbitron' }}>
@@ -4286,7 +4340,7 @@ export default function Match() {
           </div>
 
           <div className="dice-roll-container">
-            <span className="roll-label">MIDFIELD ROLL</span>
+            <span className="roll-label">{engineMode === 'd10' ? 'MIDFIELD ROLL (d10)' : 'MIDFIELD ROLL (d6)'}</span>
             <div className="roll-number-glowing">{rolltwo}</div>
           </div>
 

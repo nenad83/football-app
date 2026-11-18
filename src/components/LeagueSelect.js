@@ -11,7 +11,14 @@ import { ueclRules } from '../data/uecl/ueclRules';
 import { clibRules } from '../data/clib/clibRules';
 import { csudRules } from '../data/csud/csudRules'; import CountryFlag from './CountryFlag';
 import { createDomesticCup, getDomesticCupExpectation } from '../utils/domesticCupGenerator';
-import { loadSeasonRosters } from '../data/rosters/rosterRegistry';
+import {
+  loadSeasonRosters,
+  getTeamDetails,
+  cleanStale1To5Rosters,
+  scaleStatTo10,
+  calculateSquadTacticalAverages,
+  findSquadForTeam
+} from '../data/rosters/rosterRegistry';
 import { applyTeamTheme } from '../utils/themeManager';
 
 
@@ -192,13 +199,31 @@ export default function LeagueSelect() {
   const [managerName, setManagerName] = useState("Sir Alex");
   const [division, setDivision] = useState(1); // 1 = D1, 2 = D2
   const [isStarting, setIsStarting] = useState(false);
+  const [seasonRosters, setSeasonRosters] = useState(null);
+  const [activeDetails, setActiveDetails] = useState(null);
 
+  // Auto clean any stale 1-5 caches on mount
+  React.useEffect(() => {
+    cleanStale1To5Rosters();
+  }, []);
+
+  // Preload season rosters when season changes
+  React.useEffect(() => {
+    let isMounted = true;
+    loadSeasonRosters(season).then(data => {
+      if (isMounted && data) {
+        setSeasonRosters(data);
+      }
+    });
+    return () => { isMounted = false; };
+  }, [season]);
 
   const navigate = useNavigate();
 
   const getExpectation = (team, allTeams = null) => {
     if (!team) return null;
-    const avg = (team.attack + team.midfield + team.defense) / 3;
+    const rawAvg = (team.attack + team.midfield + team.defense) / 3;
+    const avg = rawAvg > 5 ? rawAvg / 2 : rawAvg;
     const isSA = country === "argentina" || country === "brazil" || country === "colombia";
 
     if (division === 2) {
@@ -320,12 +345,31 @@ export default function LeagueSelect() {
     );
 
 
-  const roster = selectedData.map(team => ({
-    ...team,
-    played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0
-  }));
+  const roster = selectedData.map(team => {
+    const squad = seasonRosters ? findSquadForTeam(seasonRosters, team.name) : null;
+    const comp = squad ? calculateSquadTacticalAverages(squad) : null;
+    return {
+      ...team,
+      attack: comp ? comp.attack : scaleStatTo10(team.attack),
+      midfield: comp ? comp.midfield : scaleStatTo10(team.midfield),
+      defense: comp ? comp.defense : scaleStatTo10(team.defense),
+      played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0
+    };
+  });
 
   const activeTeamObj = roster.find(t => t.idnum === selectedTeamId);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    if (activeTeamObj?.name) {
+      getTeamDetails(activeTeamObj.name, season).then(det => {
+        if (isMounted) setActiveDetails(det);
+      });
+    } else {
+      setActiveDetails(null);
+    }
+    return () => { isMounted = false; };
+  }, [activeTeamObj?.name, season]);
 
   // Validate step transitions
   const handleValidateConfig = () => {
@@ -466,65 +510,70 @@ export default function LeagueSelect() {
     // Clear all previous rosters and lineups from localStorage to start fresh
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith("retro_roster_") || key.startsWith("retro_lineup_"))) {
+      if (key && (key.startsWith("retro_roster_") || key.startsWith("retro_lineup_") || key.startsWith("retro_roles_"))) {
         localStorage.removeItem(key);
       }
     }
 
     let startingBudget = 10.0;
     try {
-      const prompt = `You are a football finance historian. What was the approximate transfer budget in USD (in millions, e.g. 5.5 for $5.5M) for the club "${activeTeamObj.name}" in the "${season}" season? 
+      const details = await getTeamDetails(activeTeamObj.name, season);
+      if (details && details.finances && typeof details.finances.transferBudget === 'number') {
+        startingBudget = details.finances.transferBudget;
+      } else {
+        const prompt = `You are a football finance historian. What was the approximate transfer budget in USD (in millions, e.g. 5.5 for $5.5M) for the club "${activeTeamObj.name}" in the "${season}" season? 
 Provide a single JSON object with the key "budget". The value must be a number (float or int) representing USD in millions. E.g. {"budget": 12.5}.
 Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $2.0M), while Manchester United has a large budget ($30M - $40M). Adjust for the era's financial scaling (e.g. 1980s budgets are much smaller).`;
 
-      const requestBody = {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              budget: { type: "NUMBER" }
-            },
-            required: ["budget"]
+        const requestBody = {
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                budget: { type: "NUMBER" }
+              },
+              required: ["budget"]
+            }
           }
-        }
-      };
+        };
 
-      const apiKey = process.env.REACT_APP_GEMINI_API_KEY || "";
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey
-          },
-          body: JSON.stringify(requestBody)
-        }
-      );
+        const apiKey = process.env.REACT_APP_GEMINI_API_KEY || "";
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey
+            },
+            body: JSON.stringify(requestBody)
+          }
+        );
 
-      if (response.ok) {
-        const resData = await response.json();
-        const text = resData.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) {
-          const parsed = JSON.parse(text.trim());
-          if (parsed && typeof parsed.budget === 'number') {
-            startingBudget = Math.max(0.2, parseFloat(parsed.budget.toFixed(1)));
+        if (response.ok) {
+          const resData = await response.json();
+          const text = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            const parsed = JSON.parse(text.trim());
+            if (parsed && typeof parsed.budget === 'number') {
+              startingBudget = Math.max(0.2, parseFloat(parsed.budget.toFixed(1)));
+            }
           }
         }
       }
     } catch (e) {
       console.warn("Failed to fetch authentic budget, falling back to formula", e);
       const stats = {
-        attack: activeTeamObj.attack || 3,
-        midfield: activeTeamObj.midfield || 3,
-        defense: activeTeamObj.defense || 3
+        attack: activeTeamObj.attack || 7,
+        midfield: activeTeamObj.midfield || 7,
+        defense: activeTeamObj.defense || 7
       };
       const avgRating = (stats.attack + stats.midfield + stats.defense) / 3;
       const divisionMultiplier = division === 2 ? 0.3 : 1.2;
       const eraMultiplier = 1 + (parseInt(season) - 1980) * 0.04;
-      startingBudget = Math.max(0.5, parseFloat((Math.pow(avgRating, 2.2) * divisionMultiplier * eraMultiplier).toFixed(1)));
+      startingBudget = Math.max(0.5, parseFloat((Math.pow(avgRating / 2, 2.2) * divisionMultiplier * eraMultiplier).toFixed(1)));
     }
 
     window.lastFetchedStartingBudget = startingBudget;
@@ -974,8 +1023,28 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
 
     const rawDiv1 = (leagueDataMap[season] && leagueDataMap[season][country]) || roster;
     const rawDiv2 = (leagueDataMapD2[season] && leagueDataMapD2[season][country]) || [];
-    const div1Roster = rawDiv1.map(t => ({ ...t, division: 1 }));
-    const div2Roster = rawDiv2.map(t => ({ ...t, division: 2 }));
+    const div1Roster = rawDiv1.map(t => {
+      const sq = seasonRosters ? findSquadForTeam(seasonRosters, t.name) : null;
+      const comp = sq ? calculateSquadTacticalAverages(sq) : null;
+      return {
+        ...t,
+        attack: comp ? comp.attack : scaleStatTo10(t.attack),
+        midfield: comp ? comp.midfield : scaleStatTo10(t.midfield),
+        defense: comp ? comp.defense : scaleStatTo10(t.defense),
+        division: 1
+      };
+    });
+    const div2Roster = rawDiv2.map(t => {
+      const sq = seasonRosters ? findSquadForTeam(seasonRosters, t.name) : null;
+      const comp = sq ? calculateSquadTacticalAverages(sq) : null;
+      return {
+        ...t,
+        attack: comp ? comp.attack : scaleStatTo10(t.attack),
+        midfield: comp ? comp.midfield : scaleStatTo10(t.midfield),
+        defense: comp ? comp.defense : scaleStatTo10(t.defense),
+        division: 2
+      };
+    });
     const fullRoster = [...div1Roster, ...div2Roster];
     const domesticCupState = createDomesticCup(fullRoster, totalDomesticRounds, country, selectedTeamId);
     const pTeam = roster.find(t => t.idnum === selectedTeamId);
@@ -1253,20 +1322,55 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                   <div className="stats-box" style={{ width: '90%', padding: '8px 12px' }}>
                     <div className="stat-row">
                       <span className="stat-label">Attack</span>
-                      <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${activeTeamObj.attack * 20}%` }}></div></div>
-                      <span className="stat-val">{activeTeamObj.attack}</span>
+                      <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, (activeTeamObj.attack / 10) * 100)}%` }}></div></div>
+                      <span className="stat-val">{activeTeamObj.attack}/10</span>
                     </div>
                     <div className="stat-row">
                       <span className="stat-label">Midfield</span>
-                      <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${activeTeamObj.midfield * 20}%` }}></div></div>
-                      <span className="stat-val">{activeTeamObj.midfield}</span>
+                      <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, (activeTeamObj.midfield / 10) * 100)}%` }}></div></div>
+                      <span className="stat-val">{activeTeamObj.midfield}/10</span>
                     </div>
                     <div className="stat-row">
                       <span className="stat-label">Defense</span>
-                      <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${activeTeamObj.defense * 20}%` }}></div></div>
-                      <span className="stat-val">{activeTeamObj.defense}</span>
+                      <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, (activeTeamObj.defense / 10) * 100)}%` }}></div></div>
+                      <span className="stat-val">{activeTeamObj.defense}/10</span>
                     </div>
                   </div>
+
+                  {/* Authentic CM Finances & Stadium */}
+                  {activeDetails && activeDetails.finances && (
+                    <div style={{
+                      width: '90%',
+                      padding: '8px 12px',
+                      background: 'rgba(0, 229, 255, 0.05)',
+                      border: '1px solid rgba(0, 229, 255, 0.2)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      fontSize: '11px',
+                      boxSizing: 'border-box'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ccc' }}>
+                        <span>Transfer Budget:</span>
+                        <span style={{ color: '#00ff64', fontWeight: 'bold' }}>
+                          £{activeDetails.finances.transferBudget}M
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ccc' }}>
+                        <span>Weekly Wage Cap:</span>
+                        <span style={{ color: '#00e5ff', fontWeight: 'bold' }}>
+                          £{activeDetails.finances.weeklyWageCap?.toLocaleString()}/wk
+                        </span>
+                      </div>
+                      {activeDetails.stadium && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888', fontSize: '10px' }}>
+                          <span>Stadium:</span>
+                          <span>{activeDetails.stadium.name} ({activeDetails.stadium.capacity?.toLocaleString()})</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Manager Name Input */}
                   <div style={{ width: '90%', display: 'flex', flexDirection: 'column', gap: '4px' }}>

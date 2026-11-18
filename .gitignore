@@ -26,4 +26,5 @@ yarn-error.log*
 
 # Roster database files (hosted remotely on Cloudflare R2)
 /public/data/rosters/
+/public/data/rosters10/
 /public/data/r2_upload/
