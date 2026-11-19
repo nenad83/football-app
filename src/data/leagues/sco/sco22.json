@@ -1,0 +1,134 @@
+[
+  {
+    "idnum": 0,
+    "id": "sco22",
+    "name": "Celtic",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "sco22",
+    "name": "Rangers",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "sco22",
+    "name": "Aberdeen",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#DD0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "sco22",
+    "name": "Hearts",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/4.png",
+    "primaryColor": "#800000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "sco22",
+    "name": "Hibernian",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "sco22",
+    "name": "St Mirren",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/3.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "sco22",
+    "name": "Motherwell",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/4.png",
+    "primaryColor": "#800020",
+    "secondaryColor": "#FFD700"
+  },
+  {
+    "idnum": 7,
+    "id": "sco22",
+    "name": "Livingston",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 8,
+    "id": "sco22",
+    "name": "St Johnstone",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "sco22",
+    "name": "Kilmarnock",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/5.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "sco22",
+    "name": "Ross County",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#001F3F",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "sco22",
+    "name": "Dundee United",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#FF8C00",
+    "secondaryColor": "#000000"
+  }
+]

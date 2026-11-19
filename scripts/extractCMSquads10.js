@@ -296,6 +296,8 @@ const COUNTRY_MAP = {
   ned: "netherlands",
   por: "portugal",
   rus: "russia",
+  sco: "scotland",
+  ukr: "ukraine",
   cl: "europe_cl",
   uefa: "europe_el",
   uecl: "europe_uecl",
@@ -1060,16 +1062,30 @@ async function main() {
     console.log("");
   }
 
-  // 4. Save Consolidated Indexes & Transfer Market
+  // 4. Save Consolidated Indexes & Transfer Market (Smart Merge with existing teams)
   if (!isDryRun && Object.keys(consolidatedMap).length > 0) {
     fs.mkdirSync(OUTPUT_BASE_DIR, { recursive: true });
     const consolidatedPath = path.join(OUTPUT_BASE_DIR, `rosters${seasonFullYear}.json`);
-    fs.writeFileSync(consolidatedPath, JSON.stringify(consolidatedMap, null, 2), 'utf8');
-    console.log(`📦 Consolidated squads saved: ${path.relative(ROOT_DIR, consolidatedPath)} (${Object.keys(consolidatedMap).length} clubs)`);
+    let finalConsolidated = consolidatedMap;
+    if (fs.existsSync(consolidatedPath)) {
+      try {
+        const existingRosters = JSON.parse(fs.readFileSync(consolidatedPath, 'utf8'));
+        finalConsolidated = { ...existingRosters, ...consolidatedMap };
+      } catch (e) {}
+    }
+    fs.writeFileSync(consolidatedPath, JSON.stringify(finalConsolidated, null, 2), 'utf8');
+    console.log(`📦 Consolidated squads saved: ${path.relative(ROOT_DIR, consolidatedPath)} (${Object.keys(finalConsolidated).length} clubs total)`);
 
     const detailsPath = path.join(OUTPUT_BASE_DIR, `teamDetails${seasonFullYear}.json`);
-    fs.writeFileSync(detailsPath, JSON.stringify(teamDetailsMap, null, 2), 'utf8');
-    console.log(`📦 Team metadata & finances saved: ${path.relative(ROOT_DIR, detailsPath)} (${Object.keys(teamDetailsMap).length} clubs)`);
+    let finalDetails = teamDetailsMap;
+    if (fs.existsSync(detailsPath)) {
+      try {
+        const existingDetails = JSON.parse(fs.readFileSync(detailsPath, 'utf8'));
+        finalDetails = { ...existingDetails, ...teamDetailsMap };
+      } catch (e) {}
+    }
+    fs.writeFileSync(detailsPath, JSON.stringify(finalDetails, null, 2), 'utf8');
+    console.log(`📦 Team metadata & finances saved: ${path.relative(ROOT_DIR, detailsPath)} (${Object.keys(finalDetails).length} clubs total)`);
 
     const transferPath = path.join(OUTPUT_BASE_DIR, `transferMarket${seasonFullYear}.json`);
     fs.writeFileSync(transferPath, JSON.stringify(finalTransferPool, null, 2), 'utf8');

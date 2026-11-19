@@ -420,7 +420,12 @@ export default function LeagueSelect() {
     const colombiaSeasons = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
     const isValidSA = (saSeasons.has(season) && (country === "argentina" || country === "brazil")) || (colombiaSeasons.has(season) && country === "colombia");
 
-    if (isValid1985 || isValid1987 || isValid1988 || isValid1989 || isValid1990 || isValid1991 || isValid1992 || isValid1993 || isValid1994 || isValid1995 || isValid1996 || isValid1997 || isValid1998 || isValid1999 || isValid2000 || isValid2001 || isValid2002 || isValid2003 || isValid2004 || isValid2005 || isValid2006 || isValid2007 || isValid2008 || isValid2009 || isValid2010 || isValid2011 || isValid2012 || isValid2013 || isValid2014 || isValid2015 || isValid2016 || isValid2017 || isValid2018 || isValid2019 || isValid2020 || isValid2021 || isValid2022 || isValid2023 || isValid2024 || isValid2025 || isValid2026 || isValidSA) {
+    const scotlandSeasons = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
+    const ukraineSeasons = new Set(["1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
+    const isValidScotland = country === "scotland" && scotlandSeasons.has(season);
+    const isValidUkraine = country === "ukraine" && ukraineSeasons.has(season);
+
+    if (isValid1985 || isValid1987 || isValid1988 || isValid1989 || isValid1990 || isValid1991 || isValid1992 || isValid1993 || isValid1994 || isValid1995 || isValid1996 || isValid1997 || isValid1998 || isValid1999 || isValid2000 || isValid2001 || isValid2002 || isValid2003 || isValid2004 || isValid2005 || isValid2006 || isValid2007 || isValid2008 || isValid2009 || isValid2010 || isValid2011 || isValid2012 || isValid2013 || isValid2014 || isValid2015 || isValid2016 || isValid2017 || isValid2018 || isValid2019 || isValid2020 || isValid2021 || isValid2022 || isValid2023 || isValid2024 || isValid2025 || isValid2026 || isValidSA || isValidScotland || isValidUkraine) {
       setSelectedTeamId(null); // Reset team selection when changing league!
       setDivision(1); // Default to division 1
       setStep(2);
@@ -516,10 +521,20 @@ export default function LeagueSelect() {
     }
 
     let startingBudget = 10.0;
+    let startingPayrollBudget = null;
+    let startingWageCap = null;
     try {
       const details = await getTeamDetails(activeTeamObj.name, season);
-      if (details && details.finances && typeof details.finances.transferBudget === 'number') {
-        startingBudget = details.finances.transferBudget;
+      if (details && details.finances) {
+        if (typeof details.finances.transferBudget === 'number') {
+          startingBudget = details.finances.transferBudget;
+        }
+        if (typeof details.finances.estimatedWeeklyPayroll === 'number') {
+          startingPayrollBudget = Math.round(details.finances.estimatedWeeklyPayroll * 1.12);
+        }
+        if (typeof details.finances.weeklyWageCap === 'number') {
+          startingWageCap = details.finances.weeklyWageCap;
+        }
       } else {
         const prompt = `You are a football finance historian. What was the approximate transfer budget in USD (in millions, e.g. 5.5 for $5.5M) for the club "${activeTeamObj.name}" in the "${season}" season? 
 Provide a single JSON object with the key "budget". The value must be a number (float or int) representing USD in millions. E.g. {"budget": 12.5}.
@@ -781,7 +796,9 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                 ...(cupQualifiers.france || []),
                 ...(cupQualifiers.russia || []),
                 ...(cupQualifiers.portugal || []),
-                ...(cupQualifiers.netherlands || [])
+                ...(cupQualifiers.netherlands || []),
+                ...(cupQualifiers.scotland || []),
+                ...(cupQualifiers.ukraine || [])
               ];
               indexToReplace = clTeams.findIndex(t => !mainPlayableClTeams.includes(t.name));
               if (indexToReplace === -1) {
@@ -887,7 +904,9 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                 ...(cupQualifiers.france || []),
                 ...(cupQualifiers.russia || []),
                 ...(cupQualifiers.portugal || []),
-                ...(cupQualifiers.netherlands || [])
+                ...(cupQualifiers.netherlands || []),
+                ...(cupQualifiers.scotland || []),
+                ...(cupQualifiers.ukraine || [])
               ];
               indexToReplace = clTeams.findIndex(t => !mainPlayableClTeams.includes(t.name));
               if (indexToReplace === -1) {
@@ -955,7 +974,9 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                 ...(activeQualifiersUefa.france || activeQualifiersCl.france || []),
                 ...(activeQualifiersUefa.russia || activeQualifiersCl.russia || []),
                 ...(activeQualifiersUefa.portugal || activeQualifiersCl.portugal || []),
-                ...(activeQualifiersUefa.netherlands || activeQualifiersCl.netherlands || [])
+                ...(activeQualifiersUefa.netherlands || activeQualifiersCl.netherlands || []),
+                ...(activeQualifiersUefa.scotland || activeQualifiersCl.scotland || []),
+                ...(activeQualifiersUefa.ukraine || activeQualifiersCl.ukraine || [])
               ];
               indexToReplace = teams.findIndex(t => !mainPlayableTeams.includes(t.name));
               if (indexToReplace === -1) {
@@ -1083,6 +1104,8 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
       clausuraChampion: null,
       division: division,
       budget: window.lastFetchedStartingBudget || 10.0,
+      payrollBudget: startingPayrollBudget || undefined,
+      weeklyWageCap: startingWageCap || undefined,
       lastTransferWindow: ""
     };
 
@@ -1103,11 +1126,19 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
   const availableSeasons = new Set(["1985", "1987", "1988", "1989", "1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
   const russiaSeasons = new Set(["1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
   const portugalNetherlandsSeasons = new Set(["1987", "1988", "1989", "1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
+  const scotlandSeasonsList = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
+  const ukraineSeasonsList = new Set(["1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
 
   const saSeasonsList = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
   const colombiaSeasonsList = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
 
   const hasData = (yr) => {
+    if (country === "scotland") {
+      return scotlandSeasonsList.has(`${yr}`);
+    }
+    if (country === "ukraine") {
+      return ukraineSeasonsList.has(`${yr}`);
+    }
     if (country === "colombia") {
       return colombiaSeasonsList.has(`${yr}`);
     }
@@ -1165,6 +1196,8 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                   <option value="russia">Russia</option>
                   <option value="portugal">Portugal</option>
                   <option value="netherlands">Netherlands</option>
+                  <option value="scotland">Scotland</option>
+                  <option value="ukraine">Ukraine</option>
                   <option disabled style={{ color: '#888', fontSize: '10px' }}>─── South America ───</option>
                   <option value="argentina">Argentina</option>
                   <option value="brazil">Brazil</option>

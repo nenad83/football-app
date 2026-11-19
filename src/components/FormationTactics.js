@@ -510,6 +510,14 @@ const nameDatabase = {
   colombia: {
     first: ["Carlos", "Faustino", "Rene", "Freddy", "Adolfo", "Radamel", "James", "Mario", "Ivan", "Faryd", "Luis", "Victor", "Teofilo", "Juan"],
     last: ["Valderrama", "Asprilla", "Higuita", "Rincon", "Valencia", "Falcao", "Rodriguez", "Yepes", "Cordoba", "Mondragon", "Muriel", "Aristizabal", "Torres", "Cuadrado"]
+  },
+  scotland: {
+    first: ["Ally", "Kenny", "Colin", "Gordon", "Darren", "Scott", "John", "Barry", "Craig", "James", "Graeme", "Paul", "Andy", "Neil", "Billy", "Duncan", "Gary"],
+    last: ["McCoist", "Dalglish", "Hendry", "Strachan", "Fletcher", "Brown", "McGinn", "Ferguson", "Lambert", "Boyd", "Souness", "McStay", "Robertson", "Gallacher", "Durie", "Ferguson", "Naismith"]
+  },
+  ukraine: {
+    first: ["Andriy", "Serhiy", "Oleksandr", "Anatoliy", "Taras", "Ruslan", "Viktor", "Artem", "Vitaliy", "Mykola", "Yevhen", "Dmytro", "Ihor", "Vladyslav", "Roman"],
+    last: ["Shevchenko", "Rebrov", "Voronin", "Tymoshchuk", "Yarmolenko", "Konoplyanka", "Zinchenko", "Mudryk", "Shovkovskyi", "Milevskyi", "Stepanenko", "Rotan", "Malinovskyi", "Tsygankov", "Pyatov"]
   }
 };
 

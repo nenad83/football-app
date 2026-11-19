@@ -1,0 +1,156 @@
+[
+  {
+    "idnum": 0,
+    "id": "ukr20",
+    "name": "Dynamo Kyiv",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005BAA",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "ukr20",
+    "name": "Shakhtar Donetsk",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#FF8C00",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 2,
+    "id": "ukr20",
+    "name": "Zorya Luhansk",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 3,
+    "id": "ukr20",
+    "name": "Kolos Kovalivka",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/5.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "ukr20",
+    "name": "Vorskla Poltava",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "ukr20",
+    "name": "Desna Chernihiv",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005BAA",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "ukr20",
+    "name": "Dnipro-1",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#003366",
+    "secondaryColor": "#FFCC00"
+  },
+  {
+    "idnum": 7,
+    "id": "ukr20",
+    "name": "FC Lviv",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#003399",
+    "secondaryColor": "#FFCC00"
+  },
+  {
+    "idnum": 8,
+    "id": "ukr20",
+    "name": "FC Oleksandriya",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#008000"
+  },
+  {
+    "idnum": 9,
+    "id": "ukr20",
+    "name": "Inhulets Petrove",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#CC0000"
+  },
+  {
+    "idnum": 10,
+    "id": "ukr20",
+    "name": "Mariupol",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#FF8C00",
+    "secondaryColor": "#005BAA"
+  },
+  {
+    "idnum": 11,
+    "id": "ukr20",
+    "name": "Rukh Lviv",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 12,
+    "id": "ukr20",
+    "name": "Olimpik Donetsk",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005BAA",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "ukr20",
+    "name": "FC Mynai",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#003366",
+    "secondaryColor": "#00CCFF"
+  }
+]

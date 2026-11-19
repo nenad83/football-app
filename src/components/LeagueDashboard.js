@@ -21,7 +21,7 @@ import Fixtures from './Fixtures';
 import { createDomesticCup, advanceDomesticCup, getDomesticCupExpectation, CUP_STAGE_NAMES } from '../utils/domesticCupGenerator';
 import { generateInitialNews, generateMatchdayNews, generateDomesticCupDrawNews, generateDomesticCupMatchNews, generateMonthlyAwardsNews, generateYearlyAwardsNews } from '../utils/newsGenerator';
 import { checkMonthConclusion, generateMatchEvents, recordMatchEventsInStats, calculateMonthlyAwards, calculateYearlyAwards, awardManagerTitle } from '../utils/awardsManager';
-import { loadSeasonRosters, cleanStale1To5Rosters, scaleStatTo10 } from '../data/rosters/rosterRegistry';
+import { loadSeasonRosters, cleanStale1To5Rosters, scaleStatTo10, getTeamDetailsSync } from '../data/rosters/rosterRegistry';
 import { applyTeamTheme } from '../utils/themeManager';
 import { simulateFixture as simulateFixtureEngine } from '../utils/matchEngine';
 
@@ -175,6 +175,28 @@ const countryBackupTeams = {
     { name: "Cambuur", primaryColor: "#FFFF00", secondaryColor: "#0000FF", kit: "mex86/3.png" },
     { name: "NAC Breda", primaryColor: "#FFFF00", secondaryColor: "#000000", kit: "mex86/3.png" },
     { name: "De Graafschap", primaryColor: "#0000FF", secondaryColor: "#FFFFFF", kit: "swe92/5.png" }
+  ],
+  scotland: [
+    { name: "Partick Thistle", primaryColor: "#E51E25", secondaryColor: "#FFD700", kit: "ger88/4.png" },
+    { name: "Falkirk", primaryColor: "#00205B", secondaryColor: "#FFFFFF", kit: "swe92/0.png" },
+    { name: "Livingston", primaryColor: "#FFD700", secondaryColor: "#000000", kit: "mex86/3.png" },
+    { name: "Inverness Caledonian Thistle", primaryColor: "#00205B", secondaryColor: "#E51E25", kit: "swe92/2.png" },
+    { name: "Raith Rovers", primaryColor: "#00205B", secondaryColor: "#FFFFFF", kit: "swe92/0.png" },
+    { name: "Dunfermline Athletic", primaryColor: "#000000", secondaryColor: "#FFFFFF", kit: "swe92/3.png" },
+    { name: "Ayr United", primaryColor: "#FFFFFF", secondaryColor: "#000000", kit: "swe92/0.png" },
+    { name: "Greenock Morton", primaryColor: "#0000FF", secondaryColor: "#FFFFFF", kit: "swe92/5.png" },
+    { name: "Airdrieonians", primaryColor: "#CC0000", secondaryColor: "#FFFFFF", kit: "fra84/1.png" }
+  ],
+  ukraine: [
+    { name: "Metalist 1925 Kharkiv", primaryColor: "#FFD700", secondaryColor: "#003399", kit: "mex86/3.png" },
+    { name: "FC Mynai", primaryColor: "#003366", secondaryColor: "#00CCFF", kit: "swe92/0.png" },
+    { name: "Inhulets Petrove", primaryColor: "#FFD700", secondaryColor: "#CC0000", kit: "mex86/3.png" },
+    { name: "FC Lviv", primaryColor: "#003399", secondaryColor: "#FFCC00", kit: "swe92/0.png" },
+    { name: "Olimpik Donetsk", primaryColor: "#005BAA", secondaryColor: "#FFFFFF", kit: "swe92/0.png" },
+    { name: "Desna Chernihiv", primaryColor: "#005BAA", secondaryColor: "#FFFFFF", kit: "swe92/0.png" },
+    { name: "Mariupol", primaryColor: "#FF8C00", secondaryColor: "#005BAA", kit: "ecu93/1.png" },
+    { name: "Volyn Lutsk", primaryColor: "#CC0000", secondaryColor: "#FFFFFF", kit: "ger88/1.png" },
+    { name: "Bukovyna Chernivtsi", primaryColor: "#FFFF00", secondaryColor: "#000000", kit: "mex86/3.png" }
   ]
 };
 
@@ -2207,12 +2229,19 @@ export default function LeagueDashboard() {
 
     // Compute budget for next season
     const avgRating = (selectedTeamObj.attack + selectedTeamObj.midfield + selectedTeamObj.defense) / 3;
+    const normRating5 = avgRating > 5 ? avgRating / 2 : avgRating;
     const divisionMultiplier = nextDivision === 2 ? 0.3 : 1.2;
     const eraMultiplier = 1 + (parseInt(nextSeasonStr.split("/")[0]) - 1980) * 0.04;
-    const newClubBaseBudget = Math.max(0.5, parseFloat((Math.pow(avgRating, 2.2) * divisionMultiplier * eraMultiplier).toFixed(1)));
+    const nextDetails = getTeamDetailsSync(selectedTeamObj.name, nextSeasonStr.split("/")[0]);
+    const newClubBaseBudget = (nextDetails && nextDetails.finances && typeof nextDetails.finances.transferBudget === 'number')
+      ? nextDetails.finances.transferBudget
+      : Math.max(0.5, parseFloat((Math.pow(normRating5, 2.2) * divisionMultiplier * eraMultiplier).toFixed(1)));
     const isPlayerRenewing = selectedTeamId === playerTeamId || selectedTeamObj.name.toLowerCase() === playerTeamObj.name.toLowerCase();
 
     let nextBudget = newClubBaseBudget;
+    let nextPayrollBudget = (nextDetails && nextDetails.finances && typeof nextDetails.finances.estimatedWeeklyPayroll === 'number')
+      ? Math.round(nextDetails.finances.estimatedWeeklyPayroll * 1.12)
+      : undefined;
     if (isPlayerRenewing) {
       const finalConfidence = getBoardConfidence(leagueState, currentStandings, pPos, isSA);
       const remainingBudget = leagueState.budget || 0;
@@ -2222,6 +2251,9 @@ export default function LeagueDashboard() {
       } else {
         // Expectations not met: carry over remaining budget + only 20% slice of base funding
         nextBudget = parseFloat((remainingBudget + newClubBaseBudget * 0.2).toFixed(1));
+      }
+      if (leagueState.payrollBudget && (!nextPayrollBudget || leagueState.payrollBudget > nextPayrollBudget)) {
+        nextPayrollBudget = Math.round(leagueState.payrollBudget * 1.05);
       }
     }
 
@@ -2269,6 +2301,7 @@ export default function LeagueDashboard() {
       clausuraChampion: null,
       division: nextDivision,
       budget: nextBudget,
+      payrollBudget: nextPayrollBudget,
       lastTransferWindow: ""
     };
 

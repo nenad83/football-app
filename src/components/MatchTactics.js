@@ -45,7 +45,7 @@ export const getModifiedStat = (
   if (lineup && Object.keys(lineup).filter(k => lineup[k]).length >= 7) {
     const calc = calculateTeamTacticalStats(lineup, formation || '4-4-2', playerRoles || {}, normMentality);
     const rawStat = calc[statType] !== undefined ? calc[statType] : baseValue;
-    return Math.max(1, rawStat);
+    return Math.min(10, Math.max(1, rawStat));
   }
 
   // Fallback for teams without a squad lineup

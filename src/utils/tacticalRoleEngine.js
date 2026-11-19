@@ -435,9 +435,9 @@ export function calculateTeamTacticalStats(lineup, formationKey = '4-4-2', playe
     rawTotalSkill += contrib.effectiveSkill;
   });
 
-  const defense = Math.max(1, Math.floor(defSum / 4));
-  const midfield = Math.max(1, Math.floor(midSum / 4));
-  const attack = Math.max(1, Math.floor(attSum / 2));
+  const defense = Math.min(10, Math.max(1, Math.floor(defSum / 4)));
+  const midfield = Math.min(10, Math.max(1, Math.floor(midSum / 4)));
+  const attack = Math.min(10, Math.max(1, Math.floor(attSum / 2)));
 
   return {
     defense,

@@ -361,6 +361,14 @@ export default function PreMatch() {
       const calc = calculateTeamTacticalStats(playerLineup, homeFormation, playerRoles, homeTactic);
       return { ...homeTeamRaw, attack: calc.attack, midfield: calc.midfield, defense: calc.defense };
     }
+    if (cpuHomeData?.stats) {
+      return {
+        ...homeTeamRaw,
+        attack: cpuHomeData.stats.attack,
+        midfield: cpuHomeData.stats.midfield,
+        defense: cpuHomeData.stats.defense
+      };
+    }
     return ensureTeam10Stats(homeTeamRaw);
   })();
 
@@ -368,6 +376,14 @@ export default function PreMatch() {
     if (playerTeamId !== null && teamtwoname === playerTeamId && playerLineup && Object.keys(playerLineup).filter(k => playerLineup[k]).length >= 7) {
       const calc = calculateTeamTacticalStats(playerLineup, awayFormation, playerRoles, awayTactic);
       return { ...awayTeamRaw, attack: calc.attack, midfield: calc.midfield, defense: calc.defense };
+    }
+    if (cpuAwayData?.stats) {
+      return {
+        ...awayTeamRaw,
+        attack: cpuAwayData.stats.attack,
+        midfield: cpuAwayData.stats.midfield,
+        defense: cpuAwayData.stats.defense
+      };
     }
     return ensureTeam10Stats(awayTeamRaw);
   })();

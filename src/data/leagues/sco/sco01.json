@@ -1,0 +1,134 @@
+[
+  {
+    "idnum": 0,
+    "id": "sco01",
+    "name": "Celtic",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "sco01",
+    "name": "Rangers",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "sco01",
+    "name": "Livingston",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 3,
+    "id": "sco01",
+    "name": "Aberdeen",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#DD0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "sco01",
+    "name": "Hearts",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/4.png",
+    "primaryColor": "#800000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "sco01",
+    "name": "Dunfermline Athletic",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/3.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "sco01",
+    "name": "Kilmarnock",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/5.png",
+    "primaryColor": "#0000FF",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "sco01",
+    "name": "Dundee United",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#FF8C00",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 8,
+    "id": "sco01",
+    "name": "Dundee",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#001B44",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "sco01",
+    "name": "Hibernian",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "sco01",
+    "name": "Motherwell",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/4.png",
+    "primaryColor": "#800020",
+    "secondaryColor": "#FFD700"
+  },
+  {
+    "idnum": 11,
+    "id": "sco01",
+    "name": "St Johnstone",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#FFFFFF"
+  }
+]

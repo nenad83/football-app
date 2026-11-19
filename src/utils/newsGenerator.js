@@ -27,59 +27,86 @@ export const RIVALRIES = [
   { teams: ["everton", "liverpool"], name: "Merseyside Derby", desc: "The pride of Merseyside is at stake in this historic cross-park clash." },
   { teams: ["manchester city", "manchester united"], name: "Manchester Derby", desc: "A fierce battle for municipal bragging rights and league supremacy." },
   { teams: ["arsenal", "tottenham"], name: "North London Derby", desc: "North London divides as two eternal neighbors lock horns in an intense showdown." },
+  { teams: ["arsenal", "manchester united"], name: "Premier League Classic", desc: "Two of English football's defining empires locked in a generational title rivalry." },
   { teams: ["arsenal", "chelsea"], name: "London Derby", desc: "Capital pride on the line in this high-stakes London heavyweight showdown." },
   { teams: ["chelsea", "tottenham"], name: "Battle of London", desc: "Fierce London rivals clash in a fixture renowned for high drama and bad blood." },
+  { teams: ["chelsea", "liverpool"], name: "Modern Heavyweight Rivalry", desc: "High-stakes domestic and European history fuels this intense modern rivalry." },
+  { teams: ["liverpool", "manchester city"], name: "Modern Title Rivalry", desc: "Two heavyweights contesting the pinnacle of modern English football." },
   { teams: ["newcastle", "sunderland"], name: "Tyne-Wear Derby", desc: "The passionate North East comes to a complete standstill." },
   { teams: ["aston villa", "birmingham"], name: "Second City Derby", desc: "Raw Birmingham passion ignites in this ferocious rivalry." },
   { teams: ["leeds", "manchester united"], name: "Roses Rivalry", desc: "Historic regional enmity reignites in a fast and furious contest." },
+  { teams: ["chelsea", "manchester united"], name: "Title Contenders Clash", desc: "Two English powerhouses with no love lost between them." },
+  { teams: ["millwall", "west ham"], name: "Dockers Derby", desc: "One of East London's oldest and most fiercely contested rivalries." },
 
   // Spain
   { teams: ["barcelona", "real madrid"], name: "El Clásico", desc: "The biggest and most prestigious match in club football history." },
-  { teams: ["atletico madrid", "real madrid"], name: "El Derbi Madrileño", desc: "A clash of styles, pride, and silverware in the Spanish capital." },
+  { teams: ["atletico", "real madrid"], name: "El Derbi Madrileño", desc: "A clash of styles, pride, and silverware in the Spanish capital." },
+  { teams: ["atletico", "barcelona"], name: "La Liga Titan Clash", desc: "High-intensity battles for Spanish supremacy." },
   { teams: ["betis", "sevilla"], name: "El Gran Derbi", desc: "Seville boils over with pure Spanish passion and intense municipal bragging rights." },
   { teams: ["athletic", "sociedad"], name: "Basque Derby", desc: "Pride and heritage meet in the fiery traditional Basque encounter." },
   { teams: ["barcelona", "espanyol"], name: "Derbi Barceloní", desc: "Catalan bragging rights on the line in the battle for Barcelona." },
   { teams: ["valencia", "villarreal"], name: "Derbi de la Comunitat", desc: "Valencian community supremacy is fiercely contested." },
+  { teams: ["real madrid", "valencia"], name: "Spanish Heavyweight Rivalry", desc: "Fierce hostility whenever the capital giants face Valencia." },
   { teams: ["celta", "deportivo"], name: "O Noso Derbi", desc: "Galician supremacy contested between Vigo and A Coruña." },
 
   // Italy
   { teams: ["inter", "juventus"], name: "Derby d'Italia", desc: "Italian football's headline fixture brimming with bad blood, controversy, and title stakes." },
   { teams: ["milan", "inter"], name: "Derby della Madonnina", desc: "The shared cathedral of San Siro rocks in the clash of the Milanese giants." },
+  { teams: ["juventus", "milan"], name: "Scudetto Rivalry", desc: "Italy's two most successful clubs battle for domestic and continental glory." },
   { teams: ["lazio", "roma"], name: "Derby della Capitale", desc: "The eternal city boils over in one of the most hostile, emotional derbies on earth." },
+  { teams: ["juventus", "roma"], name: "Serie A Grudge Match", desc: "Decades of bitter title battles separate Turin and Rome." },
   { teams: ["juventus", "torino"], name: "Derby della Mole", desc: "Turin divides between the aristocrats and the working-class soul of Il Toro." },
   { teams: ["genoa", "sampdoria"], name: "Derby della Lanterna", desc: "Genoa's historic maritime rivals battle under the shadow of the Lanterna." },
   { teams: ["napoli", "roma"], name: "Derby del Sole", desc: "Southern fire meets capital pride in this electrifying Italian clash." },
+  { teams: ["juventus", "napoli"], name: "North-South Rivalry", desc: "Historic regional tension between Turin's establishment and Naples' passion." },
   { teams: ["fiorentina", "juventus"], name: "Rivalry of the Century", desc: "Florence rises in hostile fury against their black-and-white arch-enemies." },
 
   // Germany
   { teams: ["dortmund", "schalke"], name: "Revierderby", desc: "The mother of all German derbies: Ruhr valley passion and industrial grit." },
   { teams: ["bayern", "dortmund"], name: "Der Klassiker", desc: "Germany's modern titans collide in a match that often crowns champions." },
+  { teams: ["bayern", "leverkusen"], name: "Bundesliga Power Clash", desc: "Fierce competition at the summit of German football." },
+  { teams: ["bayern", "schalke"], name: "Bundesliga Grudge Match", desc: "Intense rivalry between Gelsenkirchen and Munich." },
   { teams: ["hamburg", "bremen"], name: "Nordderby", desc: "The fight for supremacy in northern Germany." },
   { teams: ["koln", "monchengladbach"], name: "Rheinderby", desc: "Rhineland pride is on the line in this heated regional contest." },
+  { teams: ["koln", "leverkusen"], name: "Rhine Neighbours Rivalry", desc: "Local Rhine rivals battle for regional dominance." },
   { teams: ["bayern", "1860"], name: "Münchner Stadtderby", desc: "Historic Munich neighbors collide for Bavarian city bragging rights." },
 
   // France
   { teams: ["marseille", "paris"], name: "Le Classique", desc: "France's fiercest grudge match: Capital glamour meets Mediterranean fire." },
   { teams: ["lyon", "saint-etienne"], name: "Derby Rhône-Alpes", desc: "Historic hostility in eastern France between two proud institutions." },
+  { teams: ["lyon", "marseille"], name: "Choc des Olympiques", desc: "France's two great Olympiques battle for prestige." },
+  { teams: ["lyon", "paris"], name: "Ligue 1 Summit Rivalry", desc: "Modern French heavyweights clash for domestic dominance." },
   { teams: ["lens", "lille"], name: "Derby du Nord", desc: "Passionate northern French rivalry fought with unrelenting intensity." },
   { teams: ["monaco", "nice"], name: "Derby de la Côte d'Azur", desc: "French Riviera pride and prestige contested on the Mediterranean coast." },
 
-  // Scotland
+  // Scotland, Netherlands, Portugal, Russia
   { teams: ["celtic", "rangers"], name: "Old Firm Derby", desc: "One of the most intense, politically and culturally charged rivalries in all of sport." },
   { teams: ["hearts", "hibernian"], name: "Edinburgh Derby", desc: "Scotland's historic capital divides between maroon and green." },
+  { teams: ["ajax", "feyenoord"], name: "De Klassieker", desc: "Amsterdam vs Rotterdam: the cultural and footballing war for the Netherlands." },
+  { teams: ["ajax", "psv"], name: "De Topper", desc: "The two dominant titans of Dutch football battle for the Eredivisie crown." },
+  { teams: ["feyenoord", "psv"], name: "Dutch Heavyweight Clash", desc: "Rotterdam grit meets Eindhoven power." },
+  { teams: ["benfica", "porto"], name: "O Clássico", desc: "Lisbon capital pedigree meets the unyielding dragon spirit of the north." },
+  { teams: ["benfica", "sporting"], name: "Derbi de Lisboa", desc: "The capital derby that has divided Lisbon for over a century." },
+  { teams: ["porto", "sporting"], name: "Clássico dos Dragões e Leões", desc: "Fierce Portuguese rivalry between North and South." },
+  { teams: ["cska moscow", "spartak moscow"], name: "Main Moscow Derby", desc: "Russia's fiercest and most historic capital rivalry." },
+  { teams: ["spartak moscow", "zenit"], name: "Two Capitals Derby", desc: "Moscow and St. Petersburg clash for Russian football supremacy." },
+  { teams: ["dynamo moscow", "spartak moscow"], name: "Oldest Moscow Derby", desc: "Decades of history divide Moscow's oldest rivals." },
 
-  // South America & Others
+  // South America
   { teams: ["boca", "river"], name: "Superclásico", desc: "A visceral, unforgettable football carnival of pure Argentine devotion." },
   { teams: ["independiente", "racing"], name: "Clásico de Avellaneda", desc: "Two stadiums separated by only a few hundred meters, locked in fierce rivalry." },
+  { teams: ["boca", "independiente"], name: "Clásico Grande", desc: "Two Argentine giants with legendary continental pedigrees." },
+  { teams: ["huracan", "san lorenzo"], name: "Clásico Porteño", desc: "Neighborhood passion and lifelong rivalry in Buenos Aires." },
   { teams: ["flamengo", "fluminense"], name: "Fla-Flu", desc: "The poetic, legendary Rio de Janeiro spectacle inside the Maracanã." },
+  { teams: ["flamengo", "vasco"], name: "Clássico dos Milhões", desc: "Rio de Janeiro's most populous rivalry." },
   { teams: ["corinthians", "palmeiras"], name: "Derby Paulista", desc: "São Paulo's historic, pulse-pounding derby." },
+  { teams: ["corinthians", "sao paulo"], name: "Clássico Majestoso", desc: "Fierce São Paulo city supremacy on the line." },
   { teams: ["sao paulo", "santos"], name: "San-São", desc: "Two of Brazil's most celebrated footballing institutions collide." },
   { teams: ["gremio", "internacional"], name: "Grenal", desc: "Porto Alegre's bone-crunching, impassioned southern Brazilian clash." },
   { teams: ["atletico mineiro", "cruzeiro"], name: "Clássico Mineiro", desc: "Belo Horizonte explodes with emotion as rivals clash at the Mineirão." },
-  { teams: ["ajax", "feyenoord"], name: "De Klassieker", desc: "Amsterdam vs Rotterdam: the cultural and footballing war for the Netherlands." },
-  { teams: ["ajax", "psv"], name: "De Topper", desc: "The two dominant titans of Dutch football battle for the Eredivisie crown." },
-  { teams: ["benfica", "porto"], name: "O Clássico", desc: "Lisbon capital pedigree meets the unyielding dragon spirit of the north." },
-  { teams: ["benfica", "sporting"], name: "Derbi de Lisboa", desc: "The capital derby that has divided Lisbon for over a century." }
+  { teams: ["america", "deportivo cali"], name: "Clásico Vallecaucano", desc: "Cali divides in red and green for Colombia's fiercest regional derby." },
+  { teams: ["millonarios", "nacional"], name: "Superclásico Colombiano", desc: "Bogotá and Medellín's giants clash in Colombia's biggest rivalry." },
+  { teams: ["millonarios", "santa fe"], name: "Clásico Capitalino", desc: "The battle for Bogotá at El Campín." }
 ];
 
 /**
@@ -209,32 +236,59 @@ export const generateTransferAnnouncementNews = ({
   fromClub,
   toClub,
   fee,
+  wage,
+  contractYears,
+  isRival = false,
+  isFirstTeam = false,
+  rivalryName = "",
   isBuy,
   managerName,
   season
 }) => {
   const timestamp = Date.now();
-  const feeStr = fee ? `$${Number(fee).toFixed(1)}M` : "Free Transfer";
+  const feeStr = fee && Number(fee) > 0 ? `$${Number(fee).toFixed(1)}M` : "Free Transfer";
+  const wageStr = wage ? `$${Number(wage).toLocaleString()}/wk` : null;
+  const contractStr = contractYears ? `${contractYears}-year contract` : null;
   let title = "";
   let summary = "";
   let body = "";
 
   if (isBuy) {
-    title = `⚽ DONE DEAL: ${toClub} Complete Signing of ${playerName}!`;
-    summary = `${playerName} joins ${toClub} from ${fromClub || 'Free Agency'} for a fee of ${feeStr}.`;
+    if (isRival) {
+      title = `🔥 SHOCK RIVAL RAID: ${toClub} Poach ${playerName} from Arch-Rivals ${fromClub}!`;
+    } else if (isFirstTeam) {
+      title = `🌟 MARQUEE SIGNING: ${toClub} Land First-XI Star ${playerName} from ${fromClub}!`;
+    } else {
+      title = `⚽ DONE DEAL: ${toClub} Complete Signing of ${playerName}!`;
+    }
+
+    const contractSummary = contractStr && wageStr
+      ? ` on a ${contractStr} worth ${wageStr}`
+      : (wageStr ? ` on wages of ${wageStr}` : "");
+
+    summary = `${playerName} joins ${toClub} from ${fromClub || 'Free Agency'} for ${feeStr}${contractSummary}.`;
+
+    const rivalParagraph = isRival
+      ? `\n\nThe controversial move across the ${rivalryName || 'rivalry'} divide has sent shockwaves through both sets of supporters, with ${toClub} paying a substantial rival premium to force the deal over the line.`
+      : (isFirstTeam ? `\n\nPrying a regular starting XI centerpiece away from ${fromClub} required determined negotiation from the ${toClub} boardroom.` : "");
+
+    const contractParagraph = contractStr && wageStr
+      ? `\n\nFollowing a successful medical, ${playerName} put pen to paper on a ${contractStr} worth ${wageStr}, immediately joining ${toClub}'s payroll.`
+      : "";
+
     body = `Official Club Announcement: ${toClub} have formally completed the acquisition of ${playerName} (${playerPosition || 'Player'}${playerAge ? `, age ${playerAge}` : ''}) from ${fromClub || 'Free Agency'}.
 
-The deal was ratified today for an agreed transfer fee of ${feeStr}. Manager ${managerName || 'The manager'} spoke glowingly of the new signing at the official unveiling press conference: "${playerName} brings quality, technical ability, and valuable depth to our squad. We are delighted to welcome them to the club."
+The deal was ratified today for an agreed transfer fee of ${feeStr}.${rivalParagraph}${contractParagraph}
 
-The player is expected to join the squad immediately for training ahead of the upcoming fixtures.`;
+Manager ${managerName || 'The manager'} spoke glowingly of the new signing at the official unveiling press conference: "${playerName} brings immense quality, technical ability, and proven pedigree to our squad. We are delighted to welcome them to the club."`;
   } else {
     title = `🤝 OFFICIAL: ${playerName} Departs ${fromClub} to Join ${toClub}`;
-    summary = `${toClub} agree deal to sign ${playerName} from ${fromClub} for a fee of ${feeStr}.`;
+    summary = `${toClub} agree deal to sign ${playerName} from ${fromClub} for a fee of ${feeStr}${wageStr ? ` (freeing ${wageStr} in payroll)` : ''}.`;
     body = `Club Announcement: ${fromClub} have confirmed the departure of ${playerName} to ${toClub} in a transfer valued at ${feeStr}.
 
 Manager ${managerName || 'The manager'} thanked the player for their service and professionalism during their time at the club: "We thank ${playerName} for their contributions and wish them every success in the next chapter of their career at ${toClub}."
 
-The incoming funds will be reinvested into the club's transfer budget to strengthen targets identified by the scouting team.`;
+The incoming ${feeStr} fee has been added to the club's transfer budget${wageStr ? `, while ${wageStr} has been freed from the weekly wage bill` : ''}.`;
   }
 
   return {
@@ -252,7 +306,269 @@ The incoming funds will be reinvested into the club's transfer budget to strengt
       fromClub: fromClub || "Free Agent",
       toClub: toClub || "Club",
       fee: feeStr,
+      wage: wageStr,
+      contractYears: contractYears || null,
+      isRival,
+      isFirstTeam,
       type: isBuy ? "signing" : "departure"
+    },
+    isRead: false,
+    timestamp,
+    actionTab: "transfers"
+  };
+};
+
+/**
+ * Generate Transfer Bid Rejected News (Club rejects bid due to rival tax, First 11 status, or valuation)
+ */
+export const generateTransferRejectedNews = ({
+  playerName,
+  playerPosition,
+  playerAge,
+  fromClub,
+  toClub,
+  fee,
+  isRival = false,
+  isFirstTeam = false,
+  rivalryName = "",
+  reason = "valuation", // "rival", "first11", "refusal", "valuation"
+  round = 0
+}) => {
+  const timestamp = Date.now();
+  const feeStr = `$${Number(fee || 0).toFixed(1)}M`;
+  let title = "";
+  let summary = "";
+  let body = "";
+
+  if (reason === "refusal") {
+    title = `🚫 SNUBBED: ${playerName} Refuses to Enter Talks with ${toClub}`;
+    summary = `${fromClub} star ${playerName} has no interest in a move to ${toClub} at this stage of his career.`;
+    body = `Transfer Desk Report: ${toClub}'s ambitious pursuit of ${playerName} (${playerPosition}, age ${playerAge || 25}) has hit an immediate brick wall.
+
+Representatives for the ${fromClub} standout informed ${toClub} officials that their client has no desire to step down from his current level unless the club significantly improves its standing and silverware credentials.`;
+  } else if (isRival) {
+    title = `⚔️ BITTER RIVALS STAND FIRM: ${fromClub} Reject ${toClub}'s ${feeStr} Bid for ${playerName}`;
+    summary = `Arch-rivals ${fromClub} refuse to do business with ${toClub} over ${playerName} at ${feeStr}.`;
+    body = `Transfer Desk Report: ${fromClub} have swiftly rejected a ${feeStr} transfer approach from ${rivalryName || 'bitter'} rivals ${toClub} for ${playerName} (${playerPosition}).
+
+Sources inside ${fromClub}'s boardroom state the club has zero appetite to strengthen a direct rival unless an astronomical, above-market "rival premium" offer is placed on the table.`;
+  } else if (isFirstTeam) {
+    title = `🛡️ HANDS-OFF WARNING: ${fromClub} Turn Down ${feeStr} Bid for First-XI Star ${playerName}`;
+    summary = `${fromClub} insist key starter ${playerName} is indispensable after rebuffing ${toClub}'s ${feeStr} offer.`;
+    body = `Transfer Desk Report: ${fromClub} have rebuffed an official ${feeStr} bid from ${toClub} for first-team regular ${playerName} (${playerPosition}).
+
+Because ${playerName} is a cornerstone of ${fromClub}'s starting XI, club hierarchy made it clear that only an extraordinary offer well above market valuation would tempt them to part ways with a key starter.`;
+  } else {
+    title = `❌ BID REJECTED: ${fromClub} Rebuff ${toClub}'s ${feeStr} Offer for ${playerName}`;
+    summary = `Negotiations stall as ${fromClub} deem ${toClub}'s ${feeStr} bid for ${playerName} insufficient.`;
+    body = `Transfer Desk Report: ${fromClub} have formally turned down a ${feeStr} transfer bid from ${toClub} for ${playerName} (${playerPosition}).
+
+While ${fromClub} have not completely ruled out a sale during the current transfer window, club directors reportedly value the player higher and will require an improved financial package to sanction a move.`;
+  }
+
+  return {
+    id: `news_transfer_rej_${timestamp}_${Math.floor(Math.random() * 1000)}`,
+    round,
+    dateStr: "Transfer Desk",
+    category: "transfer",
+    categoryLabel: CATEGORY_CONFIG.transfer.label,
+    title,
+    summary,
+    body,
+    transferWidget: {
+      playerName,
+      playerPosition: playerPosition || "Player",
+      fromClub: fromClub || "Club",
+      toClub: toClub || "Club",
+      fee: feeStr,
+      isRival,
+      isFirstTeam,
+      type: "rejected"
+    },
+    isRead: false,
+    timestamp,
+    actionTab: "transfers"
+  };
+};
+
+/**
+ * Generate Contract Talks Collapsed News (Club accepted fee, but player rejected wage/contract years)
+ */
+export const generateContractCollapsedNews = ({
+  playerName,
+  playerPosition,
+  fromClub,
+  toClub,
+  fee,
+  offeredWage,
+  demandedWage,
+  offeredYears,
+  round = 0
+}) => {
+  const timestamp = Date.now();
+  const feeStr = fee && Number(fee) > 0 ? `$${Number(fee).toFixed(1)}M` : "Free Transfer";
+  const offWageStr = `$${Number(offeredWage || 0).toLocaleString()}/wk`;
+  const demWageStr = `$${Number(demandedWage || 0).toLocaleString()}/wk`;
+
+  const title = `🚧 DEAL COLLAPSES: Personal Terms Breakdown Halts ${playerName} Move to ${toClub}!`;
+  const summary = `Despite ${fromClub} accepting a ${feeStr} fee, ${playerName} walked away over wage demands (${offWageStr} vs ${demWageStr}).`;
+  const body = `Transfer Desk Exclusive: ${toClub}'s proposed signing of ${playerName} (${playerPosition}) from ${fromClub} has dramatically collapsed at the final hurdle following a breakdown in personal terms negotiations.
+
+Although ${toClub} had already reached an agreement with ${fromClub} over a ${feeStr} transfer fee, talks with the player's agent broke down in the boardroom. ${toClub} tabled a ${offeredYears}-year contract worth ${offWageStr}, which fell short of the player's valuation of roughly ${demWageStr}.
+
+Unless ${toClub} free up additional payroll budget and return with an improved contract package, ${playerName} will remain at ${fromClub}.`;
+
+  return {
+    id: `news_contract_col_${timestamp}_${Math.floor(Math.random() * 1000)}`,
+    round,
+    dateStr: "Transfer Desk",
+    category: "transfer",
+    categoryLabel: CATEGORY_CONFIG.transfer.label,
+    title,
+    summary,
+    body,
+    transferWidget: {
+      playerName,
+      playerPosition: playerPosition || "Player",
+      fromClub: fromClub || "Free Agent",
+      toClub: toClub || "Club",
+      fee: feeStr,
+      wage: `${offWageStr} (Offered)`,
+      contractYears: offeredYears,
+      type: "collapsed"
+    },
+    isRead: false,
+    timestamp,
+    actionTab: "transfers"
+  };
+};
+
+/**
+ * Generate Incoming Offer Rejected News (When user turns down a bid from another club)
+ */
+export const generateIncomingOfferRejectedNews = ({
+  playerName,
+  playerPosition,
+  fromClub,
+  buyerClub,
+  fee,
+  round = 0
+}) => {
+  const timestamp = Date.now();
+  const feeStr = `$${Number(fee || 0).toFixed(1)}M`;
+  const title = `🛡️ OFFER REBUFFED: ${fromClub} Turn Down ${feeStr} Bid from ${buyerClub} for ${playerName}`;
+  const summary = `${fromClub} management reject ${buyerClub}'s ${feeStr} approach for ${playerName}.`;
+  const body = `Transfer Desk Report: ${fromClub} have officially rejected a ${feeStr} transfer offer from ${buyerClub} for ${playerName} (${playerPosition || 'Player'}).
+
+Club sources indicate that the manager considers ${playerName} an important part of the squad setup and was unimpressed by ${buyerClub}'s valuation.`;
+
+  return {
+    id: `news_in_rej_${timestamp}_${Math.floor(Math.random() * 1000)}`,
+    round,
+    dateStr: "Transfer Desk",
+    category: "transfer",
+    categoryLabel: CATEGORY_CONFIG.transfer.label,
+    title,
+    summary,
+    body,
+    transferWidget: {
+      playerName,
+      playerPosition: playerPosition || "Player",
+      fromClub,
+      toClub: buyerClub,
+      fee: feeStr,
+      type: "rejected"
+    },
+    isRead: false,
+    timestamp,
+    actionTab: "transfers"
+  };
+};
+
+/**
+ * Generate Dynamic Transfer Rumors & Media Gossip Column
+ */
+export const generateTransferRumorNews = ({
+  playerTeamName,
+  teams = [],
+  transferTargets = [],
+  shortlist = [],
+  round = 1,
+  season = "2001/02"
+}) => {
+  const timestamp = Date.now();
+  const otherClubs = teams.filter(t => t.name && t.name !== playerTeamName).map(t => t.name);
+  const randomOtherClub = otherClubs.length > 0
+    ? otherClubs[Math.floor(Math.random() * otherClubs.length)]
+    : "European Giants";
+
+  // Pick a target from shortlist first (if any), else from high-rated transferTargets
+  let subjectPlayer = null;
+  let isShortlistedTarget = false;
+
+  const availableShortlist = (shortlist || []).filter(p => p.bidStatus !== 'accepted');
+  if (availableShortlist.length > 0 && Math.random() < 0.65) {
+    subjectPlayer = availableShortlist[Math.floor(Math.random() * availableShortlist.length)];
+    isShortlistedTarget = true;
+  } else if (Array.isArray(transferTargets) && transferTargets.length > 0) {
+    const highProfile = transferTargets.filter(p => !p.bidStatus && (p.rating >= 7 || p.value >= 8));
+    const pool = highProfile.length > 0 ? highProfile : transferTargets;
+    subjectPlayer = pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  if (!subjectPlayer) return null;
+
+  const pName = subjectPlayer.name;
+  const pPos = (Array.isArray(subjectPlayer.positions) && subjectPlayer.positions.length > 0)
+    ? subjectPlayer.positions.join(", ")
+    : (subjectPlayer.position || "Player");
+  const pClub = subjectPlayer.currentClub || subjectPlayer.club || "Free Agent";
+  const estVal = subjectPlayer.value ? `$${Number(subjectPlayer.value).toFixed(1)}M` : "$10.0M";
+  const derby = checkDerby(playerTeamName, pClub);
+
+  const rumorTemplates = [
+    {
+      title: `🕵️ TRANSFER GOSSIP: ${playerTeamName} Scouts Spotted Monitoring ${pName}`,
+      summary: `Media reports link ${playerTeamName} with a potential ${estVal} move for ${pClub}'s ${pName}.`,
+      body: `Transfer Rumor Mill: Speculation is mounting in the press that ${playerTeamName} are preparing a formal move for ${pClub} standout ${pName} (${pPos}).
+
+Scouts from ${playerTeamName} were reportedly in the stands this week compiling a dossier on the player, who is valued at around ${estVal}.${derby ? ` However, given the fierce ${derby.name} rivalry between ${playerTeamName} and ${pClub}, any official approach would likely require a huge premium.` : `\n\nSources close to the player suggest he would be open to discussing personal terms if the two clubs can agree on a fee.`}`
+    },
+    {
+      title: `🗞️ RUMOR MILL: ${randomOtherClub} Weighing Up Rival Bid for ${pName}`,
+      summary: `${pClub}'s ${pName} is attracting heavy interest across the division with a valuation near ${estVal}.`,
+      body: `Transfer Gossip Column: ${pName} (${pPos}, ${pClub}) has emerged as one of the hottest properties of the ${season} transfer window.
+
+Reports indicate that ${randomOtherClub} are considering a ${estVal} swoop, while ${isShortlistedTarget ? `${playerTeamName} are also known to have the player high on their shortlist` : `several top-flight clubs are monitoring his contract situation closely`}. Managers hoping to secure his signature may need to act quickly before the window closes.`
+    },
+    {
+      title: `💬 AGENT WHISPERS: ${pName} Mulling Over Future Amid ${playerTeamName} Links`,
+      summary: `Representatives of ${pClub}'s ${pName} hint at possible transfer activity if wage demands are met.`,
+      body: `Media Spotlight: The future of ${pName} (${pPos}) at ${pClub} is dominating back-page headlines today following cryptic comments from his representative.
+
+Linked with a ${estVal} move to ${playerTeamName}, the player's camp hinted that an ambitious contract offer and competitive weekly wages could persuade him to make a switch during the transfer window.`
+    }
+  ];
+
+  const chosen = rumorTemplates[Math.floor(Math.random() * rumorTemplates.length)];
+
+  return {
+    id: `news_rumor_${timestamp}_${Math.floor(Math.random() * 1000)}`,
+    round,
+    dateStr: `Round ${round} Rumors`,
+    category: "transfer",
+    categoryLabel: "TRANSFER RUMORS",
+    title: chosen.title,
+    summary: chosen.summary,
+    body: chosen.body,
+    transferWidget: {
+      playerName: pName,
+      playerPosition: pPos,
+      fromClub: pClub,
+      toClub: `${playerTeamName} / ${randomOtherClub}`,
+      fee: `Est. ${estVal}`,
+      isRival: !!derby,
+      type: "rumor"
     },
     isRead: false,
     timestamp,

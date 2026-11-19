@@ -222,6 +222,8 @@ const COUNTRY_MAP = {
   ned: "netherlands",
   por: "portugal",
   rus: "russia",
+  sco: "scotland",
+  ukr: "ukraine",
   cl: "europe_cl",
   uefa: "europe_el",
   uecl: "europe_uecl",

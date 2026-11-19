@@ -457,40 +457,78 @@ export default function NewsFeed({
               )}
 
               {/* Transfer Deal Widget if available */}
-              {activeNews.transferWidget && (
-                <div style={{
-                  background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(0, 0, 0, 0.5))',
-                  border: '1px solid rgba(255, 215, 0, 0.35)',
-                  borderRadius: '10px',
-                  padding: '14px 18px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'Orbitron', fontSize: '12px', fontWeight: 'bold', color: '#ffd700' }}>
-                      {activeNews.transferWidget.type === 'signing' ? '✅ COMPLETED SIGNING' : '🤝 SQUAD DEPARTURE'}
-                    </span>
-                    <span style={{ fontSize: '11px', background: 'rgba(255,215,0,0.15)', color: '#ffd700', padding: '3px 8px', borderRadius: '4px', fontFamily: 'Orbitron', fontWeight: 'bold' }}>
-                      {activeNews.transferWidget.fee}
-                    </span>
+              {activeNews.transferWidget && (() => {
+                const tw = activeNews.transferWidget;
+                const isRej = tw.type === 'rejected' || tw.type === 'collapsed';
+                const isRum = tw.type === 'rumor';
+                const borderCol = isRej ? 'rgba(255, 51, 81, 0.45)' : (isRum ? 'rgba(0, 229, 255, 0.4)' : 'rgba(255, 215, 0, 0.35)');
+                const accentCol = isRej ? '#ff3351' : (isRum ? '#00e5ff' : '#ffd700');
+                const headerText = tw.type === 'signing' ? '✅ COMPLETED SIGNING'
+                  : tw.type === 'departure' ? '🤝 SQUAD DEPARTURE'
+                  : tw.type === 'rejected' ? '❌ TRANSFER BID REJECTED'
+                  : tw.type === 'collapsed' ? '🚧 CONTRACT TALKS COLLAPSED'
+                  : tw.type === 'rumor' ? '🕵️ TRANSFER RUMOR & SCOUT REPORT'
+                  : '💰 TRANSFER DESK';
+
+                return (
+                  <div style={{
+                    background: `linear-gradient(135deg, ${ isRej ? 'rgba(255, 51, 81, 0.08)' : (isRum ? 'rgba(0, 229, 255, 0.08)' : 'rgba(255, 215, 0, 0.08)') }, rgba(0, 0, 0, 0.5))`,
+                    border: `1px solid ${borderCol}`,
+                    borderRadius: '10px',
+                    padding: '14px 18px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'Orbitron', fontSize: '12px', fontWeight: 'bold', color: accentCol }}>
+                          {headerText}
+                        </span>
+                        {tw.isRival && (
+                          <span style={{ fontSize: '9px', background: 'rgba(255, 51, 68, 0.2)', border: '1px solid #ff3344', color: '#ff3344', padding: '1px 6px', borderRadius: '4px', fontFamily: 'Orbitron', fontWeight: 'bold' }}>
+                            ⚔️ RIVAL CLUB
+                          </span>
+                        )}
+                        {tw.isFirstTeam && (
+                          <span style={{ fontSize: '9px', background: 'rgba(0, 229, 255, 0.15)', border: '1px solid #00e5ff', color: '#00e5ff', padding: '1px 6px', borderRadius: '4px', fontFamily: 'Orbitron', fontWeight: 'bold' }}>
+                            🛡️ FIRST XI STAR
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.08)', color: accentCol, padding: '3px 8px', borderRadius: '4px', fontFamily: 'Orbitron', fontWeight: 'bold' }}>
+                        {tw.fee}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))', gap: '8px', fontSize: '12px' }}>
+                      <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '5px' }}>
+                        <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>PLAYER</span>
+                        <strong style={{ color: '#fff' }}>{tw.playerName}</strong> ({tw.playerPosition})
+                      </div>
+                      <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '5px' }}>
+                        <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>FROM</span>
+                        <strong style={{ color: '#ccc' }}>{tw.fromClub}</strong>
+                      </div>
+                      <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '5px' }}>
+                        <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>TO / INTERESTED</span>
+                        <strong style={{ color: isRej ? '#ff3351' : '#00ff64' }}>{tw.toClub}</strong>
+                      </div>
+                      {tw.wage && (
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '5px' }}>
+                          <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>WEEKLY WAGE</span>
+                          <strong style={{ color: '#00e5ff' }}>{tw.wage}</strong>
+                        </div>
+                      )}
+                      {tw.contractYears && (
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '5px' }}>
+                          <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>CONTRACT</span>
+                          <strong style={{ color: '#ffd700' }}>{tw.contractYears} {tw.contractYears === 1 ? 'Year' : 'Years'}</strong>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px', fontSize: '12px' }}>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '5px' }}>
-                      <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>PLAYER</span>
-                      <strong style={{ color: '#fff' }}>{activeNews.transferWidget.playerName}</strong> ({activeNews.transferWidget.playerPosition})
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '5px' }}>
-                      <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>FROM</span>
-                      <strong style={{ color: '#ccc' }}>{activeNews.transferWidget.fromClub}</strong>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '5px' }}>
-                      <span style={{ color: '#888', fontSize: '9px', display: 'block' }}>TO</span>
-                      <strong style={{ color: '#00ff64' }}>{activeNews.transferWidget.toClub}</strong>
-                    </div>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Medical Injured List Widget if available */}
               {activeNews.medicalWidget && activeNews.medicalWidget.length > 0 && (
