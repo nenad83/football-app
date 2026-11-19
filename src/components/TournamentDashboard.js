@@ -58,6 +58,16 @@ const simulateFixture = (h, a) => {
   return simulateFixtureEngine(h, a);
 };
 
+const formatOrdinal = (num) => {
+  const n = parseInt(num, 10);
+  if (!n || n <= 0) return "—";
+  const j = n % 10, k = n % 100;
+  if (j === 1 && k !== 11) return `${n}st`;
+  if (j === 2 && k !== 12) return `${n}nd`;
+  if (j === 3 && k !== 13) return `${n}rd`;
+  return `${n}th`;
+};
+
 export default function TournamentDashboard() {
   const [tournamentState, setTournamentState] = useState(null);
   const [officeTab, setOfficeTab] = useState("home"); // "news" | "home" | "tactics" | "transfers" | "board" | "manager"
@@ -970,7 +980,7 @@ export default function TournamentDashboard() {
             color: '#00e5ff'
           },
           { id: 'home', label: '🏠 HOME', color: '#00ff64' },
-          { id: 'tactics', label: '📋 FORMATIONS & TACTICS', color: '#ffd700' },
+          { id: 'tactics', label: '📋 TACTICS', color: '#ffd700' },
           { id: 'matches', label: '⚽ MATCHES', color: '#00e5ff' },
           { id: 'transfers', label: '🔄 TRANSFERS', color: '#ff4500' },
           { id: 'board', label: '📊 BOARD', color: '#e040fb' },
@@ -1606,23 +1616,51 @@ export default function TournamentDashboard() {
                         </div>
                       </div>
 
-                      <div className="stats-box" style={{ width: '95%', padding: '10px 15px', gap: '8px', fontSize: '12px', display: 'flex', flexDirection: 'column', margin: '0 auto' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                          <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{isHome ? playerTeamObj.attack : (opponentObj ? opponentObj.attack : 3)}</span>
-                          <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>ATTACK</span>
-                          <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{isHome ? (opponentObj ? opponentObj.attack : 3) : playerTeamObj.attack}</span>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                          <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{isHome ? playerTeamObj.midfield : (opponentObj ? opponentObj.midfield : 3)}</span>
-                          <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>MIDFIELD</span>
-                          <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{isHome ? (opponentObj ? opponentObj.midfield : 3) : playerTeamObj.midfield}</span>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                          <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{isHome ? playerTeamObj.defense : (opponentObj ? opponentObj.defense : 3)}</span>
-                          <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>DEFENSE</span>
-                          <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{isHome ? (opponentObj ? opponentObj.defense : 3) : playerTeamObj.defense}</span>
-                        </div>
-                      </div>
+                      {(() => {
+                        const isGroupStage = stage === "groups" || stage === "finalGroup";
+                        let tourHomePos = null;
+                        let tourAwayPos = null;
+                        if (isGroupStage && playerTeamObj?.group) {
+                          const gTeams = standings.filter(t => t.group === playerTeamObj.group);
+                          const sortedG = sortGroupTable(gTeams);
+                          const pPos = sortedG.findIndex(t => t.idnum === playerTeamId) + 1;
+                          const oppPos = opponentObj ? (sortedG.findIndex(t => t.idnum === opponentObj.idnum) + 1) : 0;
+                          tourHomePos = isHome ? pPos : oppPos;
+                          tourAwayPos = isHome ? oppPos : pPos;
+                        }
+
+                        return (
+                          <div className="stats-box" style={{ width: '95%', padding: '12px 16px', fontSize: '12px', display: 'flex', flexDirection: 'column', margin: '0 auto', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', alignItems: 'center', textAlign: 'center', width: '100%' }}>
+                              {isGroupStage && tourHomePos > 0 && tourAwayPos > 0 ? (
+                                <>
+                                  <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#ffd700', fontSize: '15px', fontFamily: 'Orbitron' }}>
+                                    {`${formatOrdinal(tourHomePos)} Place`}
+                                  </span>
+                                  <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                                    {`GROUP ${playerTeamObj.group} TABLE`}
+                                  </span>
+                                  <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#ffd700', fontSize: '15px', fontFamily: 'Orbitron' }}>
+                                    {`${formatOrdinal(tourAwayPos)} Place`}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#ffd700', fontSize: '13px', fontFamily: 'Orbitron' }}>
+                                    KNOCKOUT
+                                  </span>
+                                  <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                                    {stage ? stage.toUpperCase().replace(/_/g, " ") : "KNOCKOUT MATCH"}
+                                  </span>
+                                  <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#ffd700', fontSize: '13px', fontFamily: 'Orbitron' }}>
+                                    KNOCKOUT
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       <div style={{ display: 'flex', width: '100%', gap: '10px', justifyContent: 'center' }}>
                         <button className="match-control-btn kickoff-theme-btn glowing-btn pulse" style={{ width: '95%' }} onClick={handleKickOff}>

@@ -182,14 +182,14 @@ export const calculateTeamStreak = (fixtures, pId, teamName) => {
 };
 
 /**
- * Convert numeric rating (1-5) into a qualitative tactical label
+ * Convert numeric rating (1-10) into a qualitative tactical label
  */
 export const getQualitativeRating = (val) => {
-  const num = Math.round(Number(val) || 3);
-  if (num >= 5) return "Very Strong";
-  if (num === 4) return "Strong";
-  if (num === 3) return "Solid";
-  if (num === 2) return "Vulnerable";
+  const num = Math.round(Number(val) || 5);
+  if (num >= 9) return "Very Strong";
+  if (num >= 7) return "Strong";
+  if (num >= 5) return "Solid";
+  if (num >= 3) return "Vulnerable";
   return "Poor";
 };
 

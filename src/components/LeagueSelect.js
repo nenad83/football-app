@@ -191,10 +191,32 @@ const generateDynamicSchedules = (totalRounds, rules) => {
   return result;
 };
 
+const formatSeasonLabel = (yr) => `${yr}/${String((parseInt(yr, 10) + 1) % 100).padStart(2, '0')}`;
+
+const EUROPE_LEAGUES = [
+  { id: 'england', name: 'England', getTitle: (yr) => (parseInt(yr, 10) < 1992 ? 'First Division' : 'Premier League') },
+  { id: 'italy', name: 'Italy', getTitle: () => 'Serie A' },
+  { id: 'spain', name: 'Spain', getTitle: () => 'La Liga' },
+  { id: 'germany', name: 'Germany', getTitle: () => 'Bundesliga' },
+  { id: 'france', name: 'France', getTitle: () => 'Ligue 1' },
+  { id: 'netherlands', name: 'Netherlands', getTitle: () => 'Eredivisie' },
+  { id: 'portugal', name: 'Portugal', getTitle: () => 'Primeira Liga' },
+  { id: 'scotland', name: 'Scotland', getTitle: () => 'Scottish Premier' },
+  { id: 'russia', name: 'Russia', getTitle: () => 'Russian Premier' },
+  { id: 'ukraine', name: 'Ukraine', getTitle: () => 'Ukrainian Premier' }
+];
+
+const SOUTH_AMERICA_LEAGUES = [
+  { id: 'argentina', name: 'Argentina', getTitle: () => 'Primera División' },
+  { id: 'brazil', name: 'Brazil', getTitle: () => 'Brasileirão Série A' },
+  { id: 'colombia', name: 'Colombia', getTitle: () => 'Categoría Primera A' }
+];
+
 export default function LeagueSelect() {
   const [season, setSeason] = useState("1993");
   const [country, setCountry] = useState("england");
-  const [step, setStep] = useState(1); // 1 = Setup selectors, 2 = Team Select (for eng93), 3 = Coming Soon Warning
+  const [regionTab, setRegionTab] = useState("europe"); // "europe" | "south_america"
+  const [step, setStep] = useState("season"); // "season" | "league" | "teams"
   const [selectedTeamId, setSelectedTeamId] = useState(null);
   const [managerName, setManagerName] = useState("Sir Alex");
   const [division, setDivision] = useState(1); // 1 = D1, 2 = D2
@@ -371,67 +393,19 @@ export default function LeagueSelect() {
     return () => { isMounted = false; };
   }, [activeTeamObj?.name, season]);
 
-  // Validate step transitions
-  const handleValidateConfig = () => {
-    const isValid1985 = season === "1985" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france");
-    const isValid1987 = season === "1987" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "portugal" || country === "netherlands");
-    const isValid1988 = season === "1988" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "portugal" || country === "netherlands");
-    const isValid1989 = season === "1989" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "portugal" || country === "netherlands");
-    const isValid1990 = season === "1990" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "portugal" || country === "netherlands");
-    const isValid1991 = season === "1991" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "portugal" || country === "netherlands");
-    const isValid1992 = season === "1992" && (country === "england" || country === "germany" || country === "italy" || country === "spain" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid1993 = season === "1993" && (country === "england" || country === "germany" || country === "italy" || country === "spain" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid1994 = season === "1994" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2000 = season === "2000" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2001 = season === "2001" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2003 = season === "2003" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2004 = season === "2004" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2005 = season === "2005" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2008 = season === "2008" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2007 = season === "2007" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid1995 = season === "1995" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid1996 = season === "1996" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid1997 = season === "1997" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid1998 = season === "1998" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid1999 = season === "1999" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2002 = season === "2002" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2006 = season === "2006" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2009 = season === "2009" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2010 = season === "2010" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2011 = season === "2011" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2012 = season === "2012" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2013 = season === "2013" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2014 = season === "2014" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2015 = season === "2015" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2016 = season === "2016" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2017 = season === "2017" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2018 = season === "2018" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2019 = season === "2019" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2020 = season === "2020" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2021 = season === "2021" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2022 = season === "2022" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2023 = season === "2023" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2024 = season === "2024" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2025 = season === "2025" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
-    const isValid2026 = season === "2026" && (country === "england" || country === "germany" || country === "spain" || country === "italy" || country === "france" || country === "russia" || country === "portugal" || country === "netherlands");
+  // Step transition handlers
+  const handleSelectSeason = (yr) => {
+    setSeason(yr);
+    setSelectedTeamId(null);
+    setDivision(1);
+    setStep("league");
+  };
 
-    // SA seasons validation (1990-2026)
-    const saSeasons = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
-    const colombiaSeasons = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
-    const isValidSA = (saSeasons.has(season) && (country === "argentina" || country === "brazil")) || (colombiaSeasons.has(season) && country === "colombia");
-
-    const scotlandSeasons = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
-    const ukraineSeasons = new Set(["1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
-    const isValidScotland = country === "scotland" && scotlandSeasons.has(season);
-    const isValidUkraine = country === "ukraine" && ukraineSeasons.has(season);
-
-    if (isValid1985 || isValid1987 || isValid1988 || isValid1989 || isValid1990 || isValid1991 || isValid1992 || isValid1993 || isValid1994 || isValid1995 || isValid1996 || isValid1997 || isValid1998 || isValid1999 || isValid2000 || isValid2001 || isValid2002 || isValid2003 || isValid2004 || isValid2005 || isValid2006 || isValid2007 || isValid2008 || isValid2009 || isValid2010 || isValid2011 || isValid2012 || isValid2013 || isValid2014 || isValid2015 || isValid2016 || isValid2017 || isValid2018 || isValid2019 || isValid2020 || isValid2021 || isValid2022 || isValid2023 || isValid2024 || isValid2025 || isValid2026 || isValidSA || isValidScotland || isValidUkraine) {
-      setSelectedTeamId(null); // Reset team selection when changing league!
-      setDivision(1); // Default to division 1
-      setStep(2);
-    } else {
-      setStep(3);
-    }
+  const handleSelectLeague = (leagueId) => {
+    setCountry(leagueId);
+    setSelectedTeamId(null);
+    setDivision(1);
+    setStep("teams");
   };
 
   const handleImportSave = (event) => {
@@ -495,13 +469,6 @@ export default function LeagueSelect() {
       }
     };
     reader.readAsText(file);
-  };
-
-  const handleQuickRedirect = () => {
-    setSeason("1993");
-    setCountry("england");
-    setSelectedTeamId(null);
-    setStep(2);
   };
 
   // Initialize League Career state
@@ -1116,161 +1083,247 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
     navigate("/league/dashboard");
   };
 
-  // Generate Year Array (1980 to 2026)
+  // Generate Year Array (1990/91 to 2025/26)
   const seasonsList = [];
-  for (let y = 1980; y <= 2026; y++) {
+  for (let y = 1990; y <= 2025; y++) {
     seasonsList.push(`${y}`);
   }
 
-  // Set of seasons that have real data for ALL countries
-  const availableSeasons = new Set(["1985", "1987", "1988", "1989", "1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
-  const russiaSeasons = new Set(["1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
-  const portugalNetherlandsSeasons = new Set(["1987", "1988", "1989", "1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
-  const scotlandSeasonsList = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
-  const ukraineSeasonsList = new Set(["1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
-
-  const saSeasonsList = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
-  const colombiaSeasonsList = new Set(["1990", "1991", "1992", "1993", "1994", "1995", "1996", "1997", "1998", "1999", "2000", "2001", "2002", "2003", "2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"]);
-
-  const hasData = (yr) => {
-    if (country === "scotland") {
-      return scotlandSeasonsList.has(`${yr}`);
-    }
-    if (country === "ukraine") {
-      return ukraineSeasonsList.has(`${yr}`);
-    }
-    if (country === "colombia") {
-      return colombiaSeasonsList.has(`${yr}`);
-    }
-    if (country === "argentina" || country === "brazil") {
-      return saSeasonsList.has(`${yr}`);
-    }
-    if (country === "portugal" || country === "netherlands") {
-      return portugalNetherlandsSeasons.has(`${yr}`);
-    }
-    if (country === "russia") {
-      return russiaSeasons.has(`${yr}`);
-    }
-    return availableSeasons.has(`${yr}`);
-  };
-
-
+  const activeRegionLeagues = (regionTab === "europe" ? EUROPE_LEAGUES : SOUTH_AMERICA_LEAGUES).filter((league) =>
+    regionTab === "europe" ? Boolean(leagueDataMap?.[season]?.[league.id]) : Boolean(leagueDataMapSA?.[season]?.[league.id])
+  );
 
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
   return (
     <div className="Match team-select-container">
 
-      {/* STEP 1: Season & Country Dropdowns Selectors */}
-      {step === 1 && (
-        <div className="animated-slide-in" style={{ width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+      {/* STEP 1: Season Year Selector (1990/91 - 2025/26) */}
+      {step === "season" && (
+        <div className="animated-slide-in" style={{ width: '100%', maxWidth: '880px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
           <div className="matchheader selector-header">
-            <h1 className="glowing-header-text">LEAGUE SETUP</h1>
-            <p className="lobby-subtitle">SELECT SEASON YEAR AND DIVISION</p>
+            <h1 className="glowing-header-text">CHOOSE SEASON</h1>
+            <p className="lobby-subtitle">SELECT STARTING CAMPAIGN YEAR (1990/91 – 2025/26)</p>
           </div>
 
-          <div className="team-select-card" style={{ width: '100%', padding: '30px' }}>
-            <h2>CHOOSE SEASON</h2>
-            <div className="select-wrapper" style={{ width: '90%', marginBottom: '15px' }}>
-              <select className="team-dropdown" value={season} onChange={(e) => setSeason(e.target.value)}>
-                {seasonsList.map(yr => (
-                  <option key={yr} value={yr}>
-                    {hasData(yr)
-                      ? `Season ${yr} / ${String((parseInt(yr) + 1) % 100).padStart(2, '0')}`
-                      : `Season ${yr} / ${String((parseInt(yr) + 1) % 100).padStart(2, '0')} — Coming Soon`
-                    }
-                  </option>
-                ))}
-              </select>
+          <div className="team-select-card" style={{ width: '100%', padding: '26px', maxWidth: '880px' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(122px, 1fr))',
+              gap: '10px',
+              width: '100%',
+              marginBottom: '22px'
+            }}>
+              {seasonsList.map((yr) => {
+                const isSelected = season === yr;
+                return (
+                  <button
+                    key={yr}
+                    type="button"
+                    className={`team-select-mini-card ${isSelected ? 'selected' : ''}`}
+                    onClick={() => handleSelectSeason(yr)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '12px 8px',
+                      cursor: 'pointer',
+                      borderRadius: '10px',
+                      border: isSelected ? '1.5px solid #00ff6a' : '1px solid rgba(255, 255, 255, 0.14)',
+                      background: isSelected ? 'rgba(0, 255, 106, 0.14)' : 'rgba(10, 22, 13, 0.78)',
+                      color: isSelected ? '#00ff6a' : '#e6f2ea',
+                      boxShadow: isSelected ? '0 0 14px rgba(0, 255, 106, 0.25)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <span style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 'bold', fontSize: '15px', letterSpacing: '0.5px' }}>
+                      {formatSeasonLabel(yr)}
+                    </span>
+                    <span style={{ fontSize: '10px', color: isSelected ? '#9effc5' : '#8ea395', marginTop: '3px' }}>
+                      {parseInt(yr, 10) < 2000 ? '90s Era' : parseInt(yr, 10) < 2010 ? '2000s Era' : parseInt(yr, 10) < 2020 ? '2010s Era' : 'Modern Era'}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
-            <h2>CHOOSE COUNTRY</h2>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '90%', marginBottom: '15px' }}>
-              <div className="select-wrapper" style={{ flex: 1, marginBottom: 0 }}>
-                <select className="team-dropdown" value={country} onChange={(e) => setCountry(e.target.value)}>
-                  <option value="england">England</option>
-                  <option value="germany">Germany</option>
-                  <option value="spain">Spain</option>
-                  <option value="italy">Italy</option>
-                  <option value="france">France</option>
-                  <option value="russia">Russia</option>
-                  <option value="portugal">Portugal</option>
-                  <option value="netherlands">Netherlands</option>
-                  <option value="scotland">Scotland</option>
-                  <option value="ukraine">Ukraine</option>
-                  <option disabled style={{ color: '#888', fontSize: '10px' }}>─── South America ───</option>
-                  <option value="argentina">Argentina</option>
-                  <option value="brazil">Brazil</option>
-                  <option value="colombia">Colombia</option>
-                </select>
-              </div>
-              <CountryFlag country={country} size={38} style={{ border: '1.5px solid rgba(255, 255, 255, 0.2)', flexShrink: 0 }} />
-            </div>
-
-            <button className="play-match-btn glowing-btn" style={{ marginTop: '20px', width: '90%' }} onClick={handleValidateConfig}>
-              GENERATE TEAMS ➔
-            </button>
-
-            <div style={{ display: 'flex', alignItems: 'center', width: '90%', margin: '20px 0 10px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', width: '100%', margin: '10px 0 16px 0' }}>
               <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.1)' }}></div>
-              <span style={{ padding: '0 10px', fontSize: '9px', color: '#888', letterSpacing: '1px', fontWeight: 'bold' }}>OR</span>
+              <span style={{ padding: '0 12px', fontSize: '9px', color: '#888', letterSpacing: '1px', fontWeight: 'bold' }}>OR</span>
               <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.1)' }}></div>
             </div>
 
-            <button
-              onClick={() => document.getElementById("select-import-save-input").click()}
-              className="glowing-btn"
-              style={{
-                width: '90%',
-                padding: '12px',
-                fontSize: '12px',
-                borderColor: '#ffc107',
-                color: '#ffc107',
-                background: 'rgba(255, 193, 7, 0.05)',
-                fontFamily: 'Orbitron, sans-serif',
-                fontWeight: 'bold',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                letterSpacing: '1px',
-                transition: 'all 0.3s ease',
-                border: '1.5px solid #ffc107',
-                boxShadow: '0 0 10px rgba(255, 193, 7, 0.1)'
-              }}
-              title="Import career save from a JSON file"
-              onMouseEnter={(e) => {
-                e.target.style.background = '#ffc107';
-                e.target.style.color = '#050c06';
-                e.target.style.boxShadow = '0 0 20px rgba(255, 193, 7, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = 'rgba(255, 193, 7, 0.05)';
-                e.target.style.color = '#ffc107';
-                e.target.style.boxShadow = '0 0 10px rgba(255, 193, 7, 0.1)';
-              }}
-            >
-              📂 IMPORT SAVE GAME
-            </button>
-            <input
-              type="file"
-              id="select-import-save-input"
-              accept=".json,application/json"
-              style={{ display: 'none' }}
-              onChange={handleImportSave}
-            />
+            <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+              <button
+                onClick={() => document.getElementById("select-import-save-input").click()}
+                className="glowing-btn"
+                style={{
+                  width: '100%',
+                  maxWidth: '380px',
+                  padding: '12px',
+                  fontSize: '12px',
+                  borderColor: '#ffc107',
+                  color: '#ffc107',
+                  background: 'rgba(255, 193, 7, 0.05)',
+                  fontFamily: 'Orbitron, sans-serif',
+                  fontWeight: 'bold',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  letterSpacing: '1px',
+                  transition: 'all 0.3s ease',
+                  border: '1.5px solid #ffc107',
+                  boxShadow: '0 0 10px rgba(255, 193, 7, 0.1)'
+                }}
+                title="Import career save from a JSON file"
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#ffc107';
+                  e.target.style.color = '#050c06';
+                  e.target.style.boxShadow = '0 0 20px rgba(255, 193, 7, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'rgba(255, 193, 7, 0.05)';
+                  e.target.style.color = '#ffc107';
+                  e.target.style.boxShadow = '0 0 10px rgba(255, 193, 7, 0.1)';
+                }}
+              >
+                📂 IMPORT SAVE GAME
+              </button>
+              <input
+                type="file"
+                id="select-import-save-input"
+                accept=".json,application/json"
+                style={{ display: 'none' }}
+                onChange={handleImportSave}
+              />
+            </div>
           </div>
 
-          <div style={{ marginTop: '10px' }}>
+          <div style={{ marginTop: '6px' }}>
             <button className="back-home-btn" onClick={() => navigate("/")}>➔ RETURN TO CABINET</button>
           </div>
         </div>
       )}
 
-      {/* STEP 2: England 1993/94 squad select screen */}
-      {step === 2 && (
+      {/* STEP 2: League / Region Selector (Europe & South America Tabs) */}
+      {step === "league" && (
+        <div className="animated-slide-in" style={{ width: '100%', maxWidth: '880px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+          <div className="matchheader selector-header">
+            <h1 className="glowing-header-text">CHOOSE LEAGUE</h1>
+            <p className="lobby-subtitle">SEASON {formatSeasonLabel(season)} — SELECT COUNTRY &amp; COMPETITION</p>
+          </div>
+
+          {/* Region Tabs: Europe / South America */}
+          <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '460px' }}>
+            <button
+              type="button"
+              onClick={() => setRegionTab("europe")}
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                fontFamily: 'Orbitron, sans-serif',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                border: regionTab === "europe" ? '1.5px solid #00ff6a' : '1px solid rgba(255, 255, 255, 0.15)',
+                background: regionTab === "europe" ? 'rgba(0, 255, 106, 0.18)' : 'rgba(10, 22, 13, 0.78)',
+                color: regionTab === "europe" ? '#00ff6a' : '#9fb3a5',
+                boxShadow: regionTab === "europe" ? '0 0 14px rgba(0, 255, 106, 0.25)' : 'none',
+                transition: 'all 0.2s ease',
+                letterSpacing: '0.8px'
+              }}
+            >
+              EUROPE
+            </button>
+            <button
+              type="button"
+              onClick={() => setRegionTab("south_america")}
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                fontFamily: 'Orbitron, sans-serif',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                border: regionTab === "south_america" ? '1.5px solid #ffc107' : '1px solid rgba(255, 255, 255, 0.15)',
+                background: regionTab === "south_america" ? 'rgba(255, 193, 7, 0.18)' : 'rgba(10, 22, 13, 0.78)',
+                color: regionTab === "south_america" ? '#ffc107' : '#9fb3a5',
+                boxShadow: regionTab === "south_america" ? '0 0 14px rgba(255, 193, 7, 0.25)' : 'none',
+                transition: 'all 0.2s ease',
+                letterSpacing: '0.8px'
+              }}
+            >
+              SOUTH AMERICA
+            </button>
+          </div>
+
+          <div className="team-select-card" style={{ width: '100%', padding: '26px', maxWidth: '880px' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))',
+              gap: '14px',
+              width: '100%'
+            }}>
+              {activeRegionLeagues.map((league) => {
+                const isSelected = country === league.id;
+                const clubsCount = regionTab === "europe"
+                  ? (leagueDataMap?.[season]?.[league.id]?.length || 0)
+                  : (leagueDataMapSA?.[season]?.[league.id]?.length || 0);
+                const hasDiv2 = regionTab === "europe" && Boolean(leagueDataMapD2?.[season]?.[league.id]?.length);
+                return (
+                  <button
+                    key={league.id}
+                    type="button"
+                    className={`team-select-mini-card ${isSelected ? 'selected' : ''}`}
+                    onClick={() => handleSelectLeague(league.id)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '10px',
+                      padding: '18px 12px',
+                      cursor: 'pointer',
+                      borderRadius: '12px',
+                      border: isSelected ? '1.5px solid #00ff6a' : '1px solid rgba(255, 255, 255, 0.14)',
+                      background: isSelected ? 'rgba(0, 255, 106, 0.14)' : 'rgba(10, 22, 13, 0.78)',
+                      color: '#fff',
+                      boxShadow: isSelected ? '0 0 16px rgba(0, 255, 106, 0.22)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <CountryFlag country={league.id} size={56} style={{ border: '1.5px solid rgba(255, 255, 255, 0.25)', borderRadius: '6px' }} />
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontFamily: 'Orbitron, sans-serif', fontWeight: 'bold', fontSize: '14px', color: '#fff' }}>
+                        {league.name}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#9effc5', marginTop: '3px' }}>
+                        {league.getTitle(season)}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#8ea395', marginTop: '4px' }}>
+                        {clubsCount} clubs{hasDiv2 ? ' • D1 & D2' : ''}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ marginTop: '6px' }}>
+            <button className="back-home-btn" onClick={() => setStep("season")}>➔ BACK TO SEASONS</button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3: Team Selection Screen */}
+      {step === "teams" && (
         <div className="animated-slide-in" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
           <div className="matchheader selector-header">
             <h1 className="glowing-header-text">CHOOSE YOUR SQUAD</h1>
-            <p className="lobby-subtitle">{cap(country)} {season}/${String((parseInt(season) + 1) % 100).padStart(2, '0')} - {division === 2 ? 'Second Division' : 'First Division'} League Campaign</p>
+            <p className="lobby-subtitle">{cap(country)} {formatSeasonLabel(season)} - {division === 2 ? 'Second Division' : 'First Division'} League Campaign</p>
           </div>
 
           {hasD2 && (
@@ -1463,39 +1516,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
           </div>
 
           <div style={{ marginTop: '20px' }}>
-            <button className="back-home-btn" onClick={() => setStep(1)}>➔ BACK TO SETUP</button>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 3: Season / League Coming Soon Warning Console */}
-      {step === 3 && (
-        <div className="animated-slide-in" style={{ width: '100%', maxWidth: '550px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-          <div className="matchheader selector-header">
-            <h1 className="glowing-header-text" style={{ background: 'linear-gradient(135deg, #ff4500, #ff8c00)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>COMING SOON!</h1>
-            <p className="lobby-subtitle">Division Under Construction</p>
-          </div>
-
-          <div className="team-select-card" style={{ width: '100%', padding: '30px', border: '1.5px solid #ff4500', boxShadow: '0 0 20px rgba(255, 69, 0, 0.15)', textAlign: 'center' }}>
-            <div style={{ fontSize: '45px', marginBottom: '15px' }}>🚧</div>
-
-            <p style={{ color: '#fff', fontSize: '15px', fontWeight: 'bold', margin: '0 0 10px 0' }}>
-              Season {season} - {cap(country)} League is under construction!
-            </p>
-
-            <p style={{ color: '#a3b3a7', fontSize: '13px', lineHeight: '1.5', margin: '0 0 25px 0' }}>
-              Historic roster databases and kit colors for this league are currently being compiled and will be added in a future update!
-              <br /><br />
-              In the meantime, enter the legendary **England 1993/94 Premier League** campaign to play right now!
-            </p>
-
-            <button className="play-match-btn glowing-btn" style={{ width: '90%', fontSize: '15px', padding: '12px 20px' }} onClick={handleQuickRedirect}>
-              ➔ PLAY ENGLAND 1993/94 NOW
-            </button>
-          </div>
-
-          <div style={{ marginTop: '20px' }}>
-            <button className="back-home-btn" onClick={() => setStep(1)}>➔ BACK TO SETUP</button>
+            <button className="back-home-btn" onClick={() => setStep("league")}>➔ BACK TO LEAGUES</button>
           </div>
         </div>
       )}

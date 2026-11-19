@@ -196,6 +196,64 @@ const CM_PENALTY_MISS = [
   { text: "MISSED!! <p2> sends the spot-kick inches wide of the left-hand post!", sound: "newmiss.wav" }
 ];
 
+const CM_FOUL_WARNING = {
+  def: [
+    { text: "FOUL! <p1> ({team}) clips the heels of <p2> on the edge of the area. <ref> blows his whistle and gives him a stern talking-to.", sound: "whist3.wav" },
+    { text: "Clumsy challenge at the back! <p1> drags down <p2> as he tries to turn. <ref> issues a final verbal warning.", sound: "badtack.wav" },
+    { text: "<p1> steps across <p2> illegally to halt the run. <ref> signals for a free kick and tells the {team} defender to calm down.", sound: "whist3.wav" }
+  ],
+  mid: [
+    { text: "FOUL! <p1> ({team}) catches <p2> late in the centre circle. <ref> awards the free kick and warns him cleanly.", sound: "whist3.wav" },
+    { text: "<p1> comes through the back of <p2> in midfield! <ref> blows up immediately and wags a finger at the {team} man.", sound: "badtack.wav" },
+    { text: "Heavy collision in the middle! <p1> bundles <p2> over — <ref> keeps his cards in his pocket this time.", sound: "whist3.wav" }
+  ],
+  att: [
+    { text: "FOUL! <p1> ({team}) goes in over-enthusiastically on <p2> while pressing high. <ref> gives the defender a free kick.", sound: "whist3.wav" },
+    { text: "<p1> leaves a foot in on <p2> deep in the opposition half! <ref> stops play for a verbal warning.", sound: "badtack.wav" },
+    { text: "Frustrated tug by <p1> on <p2>'s shirt. <ref> blows the whistle and tells the {team} forward to watch himself.", sound: "whist3.wav" }
+  ]
+};
+
+const CM_YELLOW_CARD = {
+  def: [
+    { text: "🟨 YELLOW CARD! <p1> ({team}) hacks down <p2> right outside the box! <ref> reaches straight into his pocket!", sound: "card1.wav" },
+    { text: "🟨 YELLOW CARD! Cynical pull-back by <p1> as <p2> threatens to break clear! <ref> books the {team} defender.", sound: "heyrefm.wav" },
+    { text: "🟨 YELLOW CARD! <p1> lunges in late and catches <p2>'s ankle cleanly — <ref> has no choice but to show yellow.", sound: "card1.wav" }
+  ],
+  mid: [
+    { text: "🟨 YELLOW CARD! <p1> ({team}) chops <p2> down from behind in the centre circle! <ref> takes his name!", sound: "card1.wav" },
+    { text: "🟨 YELLOW CARD! Late, reckless sliding tackle from <p1> on <p2>! <ref> flashes the yellow card immediately.", sound: "heyrefm.wav" },
+    { text: "🟨 YELLOW CARD! <p1> stops a dangerous counter by hauling down <p2>. Mandatory booking from <ref>.", sound: "card1.wav" }
+  ],
+  att: [
+    { text: "🟨 YELLOW CARD! <p1> ({team}) dives in with studs showing on <p2>! <ref> runs over and books the {team} forward!", sound: "card1.wav" },
+    { text: "🟨 YELLOW CARD! Reckless high boot by <p1> catches <p2> while chasing a loose ball. <ref> pulls out the yellow.", sound: "heyrefm.wav" },
+    { text: "🟨 YELLOW CARD! <p1> clips <p2> from behind in frustration after losing possession. Booked by <ref>.", sound: "card1.wav" }
+  ]
+};
+
+const CM_SECOND_YELLOW_RED = [
+  { text: "🟨🟥 SECOND YELLOW! SENT OFF!! <p1> ({team}) fouls <p2> recklessly and <ref> produces a second yellow followed by RED! {team} are down to 10 men!", sound: "newref.wav" },
+  { text: "🟨🟥 SECOND YELLOW! OFF HE GOES!! Already on a booking, <p1> dives in on <p2> — <ref> has no hesitation! Red card for {team}!", sound: "newref.wav" },
+  { text: "🟨🟥 SECOND YELLOW! SENT OFF!! Madness from <p1>! He drags down <p2> and <ref> sends the {team} player for an early bath!", sound: "newref.wav" },
+  { text: "🟨🟥 SECOND YELLOW! DISASTER FOR {team}!! <p1> commits a needless foul on <p2> and receives his marching orders from <ref>!", sound: "card1.wav" }
+];
+
+const CM_DIRECT_RED = {
+  def: [
+    { text: "🟥 STRAIGHT RED CARD!! <p1> ({team}) brings down <p2> as the last man!! <ref> reaches for the red card instantly — {team} are down a man!", sound: "newref.wav" },
+    { text: "🟥 STRAIGHT RED CARD!! Horrendous challenge by <p1> scything <p2> down on the edge of the box! <ref> sends him straight off!", sound: "newref.wav" }
+  ],
+  mid: [
+    { text: "🟥 STRAIGHT RED CARD!! Two-footed horror lunge by <p1> ({team}) on <p2>!! <ref> doesn't even think twice — straight red!", sound: "newref.wav" },
+    { text: "🟥 STRAIGHT RED CARD!! Shocking tackle from <p1> leaves <p2> crumpled in midfield! <ref> flashes the red card immediately!", sound: "newref.wav" }
+  ],
+  att: [
+    { text: "🟥 STRAIGHT RED CARD!! Violent lash-out by <p1> ({team}) on <p2> off the ball!! <ref> sees it and sends the forward straight down the tunnel!", sound: "newref.wav" },
+    { text: "🟥 STRAIGHT RED CARD!! Studs-up challenge by <p1> catches <p2> high! <ref> reaches straight for the red card — {team} are stunned!", sound: "newref.wav" }
+  ]
+};
+
 /* ==============================================================================
  * EXPORTED COMMENTARY GENERATORS (Backwards compatible with both 2 & 4 args)
  * ============================================================================== */
@@ -327,4 +385,76 @@ export function getPenaltyMissCommentary(attackerTeam, defenderTeam, attackerLin
     .replace(/{team}/g, attackerTeam);
 
   return new CommentaryResult(text, tpl.sound, null);
+}
+
+/**
+ * Resolves opposing sector victim & formats discipline commentary using a single shared path.
+ */
+function buildDisciplineCommentary(
+  templatesOrMap,
+  offenderName,
+  offenderTeam,
+  opponentTeam,
+  opponentLineup = null,
+  sector = 'mid',
+  refereeName = 'The referee',
+  side = null
+) {
+  const normSector = (sector === 'def' || sector === 'att') ? sector : 'mid';
+  const oppPool = extractPlayersFromLineup(opponentLineup, opponentTeam);
+
+  let victimPool = oppPool.mid;
+  let fallbackVictim = `${opponentTeam} Midfielder`;
+  if (normSector === 'def') {
+    victimPool = oppPool.att.length > 0 ? oppPool.att : oppPool.all;
+    fallbackVictim = `${opponentTeam} Forward`;
+  } else if (normSector === 'att') {
+    victimPool = oppPool.def.length > 0 ? oppPool.def : oppPool.all;
+    fallbackVictim = `${opponentTeam} Defender`;
+  } else {
+    victimPool = oppPool.mid.length > 0 ? oppPool.mid : oppPool.all;
+  }
+
+  const p2 = pickPlayer(victimPool, fallbackVictim);
+  const bank = Array.isArray(templatesOrMap)
+    ? templatesOrMap
+    : (templatesOrMap[normSector] || templatesOrMap.mid);
+  const tpl = getRandomElement(bank);
+  const refLabel = refereeName ? `Referee ${refereeName}` : 'The referee';
+
+  const text = tpl.text
+    .replace(/<p1>/g, offenderName || `${offenderTeam} Player`)
+    .replace(/<p2>/g, p2.name)
+    .replace(/<ref>/g, refLabel)
+    .replace(/{team}/g, offenderTeam);
+
+  return new CommentaryResult(text, tpl.sound, side);
+}
+
+/**
+ * Generates commentary for a foul resulting in a verbal warning (no card).
+ */
+export function getFoulWarningCommentary(offenderName, offenderTeam, opponentTeam, opponentLineup = null, sector = 'mid', refereeName = 'The referee', side = null) {
+  return buildDisciplineCommentary(CM_FOUL_WARNING, offenderName, offenderTeam, opponentTeam, opponentLineup, sector, refereeName, side);
+}
+
+/**
+ * Generates commentary for a yellow card booking.
+ */
+export function getYellowCardCommentary(offenderName, offenderTeam, opponentTeam, opponentLineup = null, sector = 'mid', refereeName = 'The referee', side = null) {
+  return buildDisciplineCommentary(CM_YELLOW_CARD, offenderName, offenderTeam, opponentTeam, opponentLineup, sector, refereeName, side);
+}
+
+/**
+ * Generates commentary for a second yellow card leading to dismissal.
+ */
+export function getSecondYellowRedCommentary(offenderName, offenderTeam, opponentTeam, opponentLineup = null, sector = 'mid', refereeName = 'The referee', side = null) {
+  return buildDisciplineCommentary(CM_SECOND_YELLOW_RED, offenderName, offenderTeam, opponentTeam, opponentLineup, sector, refereeName, side);
+}
+
+/**
+ * Generates commentary for a straight red card dismissal.
+ */
+export function getDirectRedCardCommentary(offenderName, offenderTeam, opponentTeam, opponentLineup = null, sector = 'mid', refereeName = 'The referee', side = null) {
+  return buildDisciplineCommentary(CM_DIRECT_RED, offenderName, offenderTeam, opponentTeam, opponentLineup, sector, refereeName, side);
 }

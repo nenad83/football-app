@@ -26,7 +26,11 @@ import {
   getGoalCommentary,
   getSaveCommentary,
   getPenaltyGoalCommentary,
-  getPenaltyMissCommentary
+  getPenaltyMissCommentary,
+  getFoulWarningCommentary,
+  getYellowCardCommentary,
+  getSecondYellowRedCommentary,
+  getDirectRedCardCommentary
 } from './MatchCommentary';
 import { initializeKnockouts } from "../utils/tournamentRules";
 import { advanceDomesticCup } from "../utils/domesticCupGenerator";
@@ -37,6 +41,7 @@ import {
   rollAttackDef,
   rollShotOnGoal,
   rollPenalty,
+  resolveFoulCheck,
   simulateFixture as simulateFixtureEngine,
   ENGINE_MODE_D10,
   ENGINE_MODE_CLASSIC_D6
@@ -54,6 +59,8 @@ const MATCH_REFEREES = [
   'David Elleray',
   'Paul Durkin'
 ];
+
+const STRICT_REFEREES = new Set(['Pierluigi Collina', 'Graham Poll', 'Mike Riley', 'Steve Bennett']);
 
 function getContrastText(hexColor, fallback = '#ffffff') {
   if (!hexColor || typeof hexColor !== 'string' || !hexColor.startsWith('#') || hexColor.length < 7) {
@@ -127,8 +134,16 @@ const updateFanConfidence = (currentConfidence, playerTeam, opponentTeam, player
 };
 
 
-// Post-match player condition depletion (fatigue), recovery, and injury updates
-export const updatePlayerConditionsAndInjuries = (teamName, season, isTournamentMode, didPlayMatch = true, minutesPlayedMap = null) => {
+// Post-match player condition depletion (fatigue), recovery, injury, and disciplinary updates
+export const updatePlayerConditionsAndInjuries = (
+  teamName,
+  season,
+  isTournamentMode,
+  didPlayMatch = true,
+  minutesPlayedMap = null,
+  matchCardsForTeam = null,
+  options = {}
+) => {
   const rosterKey = `retro_roster_${teamName}_${season}`;
   const lineupKey = `retro_lineup_${teamName}_${season}`;
 
@@ -147,12 +162,27 @@ export const updatePlayerConditionsAndInjuries = (teamName, season, isTournament
       : new Set();
 
     const injuryAlerts = [];
+    const suspensionAlerts = [];
 
     // 2. Loop through all roster players
     roster = roster.map(p => {
       let cond = p.condition !== undefined ? p.condition : 100;
       let injuryMatches = p.injuryMatchesLeft !== undefined ? p.injuryMatchesLeft : 0;
       let injury = p.injury || null;
+
+      let yellowCards = p.yellowCards !== undefined ? p.yellowCards : 0;
+      let redCards = p.redCards !== undefined ? p.redCards : 0;
+      let suspensionMatchesLeft = p.suspensionMatchesLeft !== undefined ? p.suspensionMatchesLeft : 0;
+      let suspensionReason = p.suspensionReason || null;
+
+      // Step 1: Serve any pre-existing suspension FIRST (before applying new cards from this match)
+      const wasSuspended = didPlayMatch && suspensionMatchesLeft > 0;
+      if (wasSuspended) {
+        suspensionMatchesLeft -= 1;
+        if (suspensionMatchesLeft === 0) {
+          suspensionReason = null;
+        }
+      }
 
       // Handle recovery of injured players
       if (injuryMatches > 0) {
@@ -170,14 +200,16 @@ export const updatePlayerConditionsAndInjuries = (teamName, season, isTournament
         let playedMins = 0;
         let hasPlayed = false;
 
-        if (minutesPlayedMap) {
-          if (minutesPlayedMap[p.name] !== undefined) {
-            playedMins = minutesPlayedMap[p.name];
-            hasPlayed = playedMins > 0;
+        if (!wasSuspended) {
+          if (minutesPlayedMap) {
+            if (minutesPlayedMap[p.name] !== undefined) {
+              playedMins = minutesPlayedMap[p.name];
+              hasPlayed = playedMins > 0;
+            }
+          } else {
+            hasPlayed = startingNames.has(p.name);
+            playedMins = hasPlayed ? 90 : 0;
           }
-        } else {
-          hasPlayed = startingNames.has(p.name);
-          playedMins = hasPlayed ? 90 : 0;
         }
 
         // Calculate potential full-match fatigue drop
@@ -196,7 +228,7 @@ export const updatePlayerConditionsAndInjuries = (teamName, season, isTournament
           ? 25 + Math.floor(Math.random() * 10)
           : (p.age < 30 ? 20 + Math.floor(Math.random() * 8) : 12 + Math.floor(Math.random() * 6));
 
-        if (minutesPlayedMap) {
+        if (minutesPlayedMap && !wasSuspended) {
           // Manual match: turn-by-turn condition depletion was already applied.
           // We only add proportional recovery for the minutes they rested.
           const maxMins = Math.max(90, ...Object.values(minutesPlayedMap));
@@ -204,7 +236,7 @@ export const updatePlayerConditionsAndInjuries = (teamName, season, isTournament
           const recovery = Math.round(recoveryRate * restRatio);
           cond = Math.min(100, cond + recovery);
         } else {
-          // Simulated match: apply both proportional fatigue and recovery
+          // Simulated match or suspended rest: apply proportional fatigue and recovery
           const maxMins = 90;
           const playRatio = Math.min(1.0, playedMins / maxMins);
           const restRatio = 1.0 - playRatio;
@@ -257,15 +289,51 @@ export const updatePlayerConditionsAndInjuries = (teamName, season, isTournament
         }
       }
 
+      // Step 2: Apply new match cards AFTER serving prior bans
+      if (Array.isArray(matchCardsForTeam) && matchCardsForTeam.length > 0) {
+        const pCards = matchCardsForTeam.filter(c => c && c.playerName === p.name);
+        if (pCards.length > 0) {
+          const gotDirectRed = pCards.some(c => c.type === 'red');
+          const gotSecondYellow = pCards.some(c => c.type === 'second_yellow');
+          const singleYellows = pCards.filter(c => c.type === 'yellow').length;
+
+          if (gotDirectRed) {
+            redCards += 1;
+            yellowCards += singleYellows;
+            suspensionMatchesLeft = Math.max(suspensionMatchesLeft, 2);
+            suspensionReason = 'Direct Red Card';
+            suspensionAlerts.push(`🟥 ${p.name} (${p.position}) suspended for 2 matches (Direct Red Card)`);
+          } else if (gotSecondYellow) {
+            redCards += 1;
+            suspensionMatchesLeft = Math.max(suspensionMatchesLeft, 1);
+            suspensionReason = 'Red Card (2 Yellows)';
+            suspensionAlerts.push(`🟨🟥 ${p.name} (${p.position}) suspended for 1 match (Red Card - 2 Yellows)`);
+          } else if (singleYellows > 0) {
+            const prevY = yellowCards;
+            yellowCards += singleYellows;
+            const banInterval = isTournamentMode ? 2 : 5;
+            if (Math.floor(yellowCards / banInterval) > Math.floor(prevY / banInterval)) {
+              suspensionMatchesLeft = Math.max(suspensionMatchesLeft, 1);
+              suspensionReason = `${yellowCards} Yellow Cards`;
+              suspensionAlerts.push(`🟨 ${p.name} (${p.position}) suspended for 1 match (${yellowCards} Yellow Cards accumulation)`);
+            }
+          }
+        }
+      }
+
       return {
         ...p,
         condition: cond,
         injuryMatchesLeft: injuryMatches,
-        injury: injury
+        injury: injury,
+        yellowCards,
+        redCards,
+        suspensionMatchesLeft,
+        suspensionReason
       };
     });
 
-    // 3. Sync condition/injury fields in the lineup without auto-removing injured players
+    // 3. Sync condition/injury/suspension fields in the lineup without auto-removing players
     const newLineup = { ...lineup };
     let lineupChanged = false;
     Object.keys(newLineup).forEach(slotId => {
@@ -277,7 +345,11 @@ export const updatePlayerConditionsAndInjuries = (teamName, season, isTournament
             ...assigned,
             condition: rosterPlayer.condition,
             injuryMatchesLeft: rosterPlayer.injuryMatchesLeft,
-            injury: rosterPlayer.injury
+            injury: rosterPlayer.injury,
+            yellowCards: rosterPlayer.yellowCards,
+            redCards: rosterPlayer.redCards,
+            suspensionMatchesLeft: rosterPlayer.suspensionMatchesLeft,
+            suspensionReason: rosterPlayer.suspensionReason
           };
           lineupChanged = true;
         }
@@ -290,9 +362,19 @@ export const updatePlayerConditionsAndInjuries = (teamName, season, isTournament
       localStorage.setItem(lineupKey, JSON.stringify(newLineup));
     }
 
-    // 5. Notify the user if there are any injuries
-    if (injuryAlerts.length > 0) {
-      alert(`⚠️ MEDICAL REPORT - INJURY UPDATES:\n\n${injuryAlerts.join("\n")}`);
+    // 5. Notify the user if there are any injuries or suspensions
+    if (!options?.suppressAlerts) {
+      if (injuryAlerts.length > 0 && suspensionAlerts.length > 0) {
+        alert(
+          `⚠️ MEDICAL & DISCIPLINARY REPORT:\n\n` +
+          `MEDICAL UPDATES:\n${injuryAlerts.join("\n")}\n\n` +
+          `📋 DISCIPLINARY REPORT - SUSPENSIONS:\n${suspensionAlerts.join("\n")}`
+        );
+      } else if (injuryAlerts.length > 0) {
+        alert(`⚠️ MEDICAL REPORT - INJURY UPDATES:\n\n${injuryAlerts.join("\n")}`);
+      } else if (suspensionAlerts.length > 0) {
+        alert(`📋 DISCIPLINARY REPORT - SUSPENSIONS:\n\n${suspensionAlerts.join("\n")}`);
+      }
     }
 
   } catch (err) {
@@ -554,6 +636,19 @@ export default function Match() {
   const [cpuBenches, setCpuBenches] = useState({});
   const [cpuRoles, setCpuRoles] = useState({});
   const [showOpponentModal, setShowOpponentModal] = useState(null);
+  const [matchCards, setMatchCards] = useState([]);
+
+  const matchCardsRef = useRef([]);
+  const lineupRef = useRef(lineup);
+  const cpuLineupsRef = useRef(cpuLineups);
+
+  useEffect(() => {
+    lineupRef.current = lineup;
+  }, [lineup]);
+
+  useEffect(() => {
+    cpuLineupsRef.current = cpuLineups;
+  }, [cpuLineups]);
 
   const getPlayerTeamNameAndSeason = useCallback(() => {
     let teamName = "";
@@ -628,14 +723,26 @@ export default function Match() {
         if (currentRound === 1 && loadedSquad.length > 0) {
           let updated = false;
           loadedSquad = loadedSquad.map(p => {
-            if (p.condition !== 100 || p.injuryMatchesLeft !== 0 || p.injury !== null) {
+            if (
+              p.condition !== 100 ||
+              p.injuryMatchesLeft !== 0 ||
+              p.injury !== null ||
+              (p.yellowCards || 0) !== 0 ||
+              (p.redCards || 0) !== 0 ||
+              (p.suspensionMatchesLeft || 0) !== 0 ||
+              (p.suspensionReason || null) !== null
+            ) {
               updated = true;
             }
             return {
               ...p,
               condition: 100,
               injuryMatchesLeft: 0,
-              injury: null
+              injury: null,
+              yellowCards: 0,
+              redCards: 0,
+              suspensionMatchesLeft: 0,
+              suspensionReason: null
             };
           });
           if (updated) {
@@ -657,6 +764,7 @@ export default function Match() {
 
         if (!isMounted) return;
 
+        lineupRef.current = loadedLineup;
         setSquad(loadedSquad);
         setLineup(loadedLineup);
         setPlayerRoles(loadedRoles);
@@ -740,8 +848,20 @@ export default function Match() {
   };
 
   const executeSwap = (playerFromBench, targetSlotId, playerToBench) => {
+    const activePlayerTeamKey = isPlayerHome ? teamonename : teamtwoname;
     if (playerFromBench && playerFromBench.injuryMatchesLeft > 0) {
       alert(`${playerFromBench.name} is injured and cannot play! (${playerFromBench.injuryMatchesLeft} matches remaining)`);
+      return;
+    }
+    if (playerFromBench && playerFromBench.suspensionMatchesLeft > 0) {
+      alert(`${playerFromBench.name} is suspended and cannot play! (${playerFromBench.suspensionMatchesLeft} matches remaining)`);
+      return;
+    }
+    const isAlreadySentOff = playerFromBench && matchCardsRef.current.some(
+      c => c.teamKey === activePlayerTeamKey && c.playerName === playerFromBench.name && (c.type === 'red' || c.type === 'second_yellow')
+    );
+    if (isAlreadySentOff) {
+      alert(`${playerFromBench.name} has been sent off and cannot return to the field!`);
       return;
     }
     if (playerFromBench && playerMinutes[playerFromBench.name] && playerMinutes[playerFromBench.name].exitedAt !== null) {
@@ -755,6 +875,16 @@ export default function Match() {
     const isSub = playerFromBench && !startingNames.has(playerFromBench.name);
 
     if (isSub) {
+      const playerRedCount = matchCardsRef.current.filter(
+        c => c.teamKey === activePlayerTeamKey && (c.type === 'red' || c.type === 'second_yellow')
+      ).length;
+      const maxAllowedOnPitch = Math.max(0, 11 - playerRedCount);
+      const currentOnPitch = Object.values(lineup).filter(Boolean).length;
+      if (!playerToBench && currentOnPitch >= maxAllowedOnPitch) {
+        alert(`You are down to ${maxAllowedOnPitch} men due to red card(s)! Substitute an active player on the pitch or drag an existing player into this slot instead.`);
+        return;
+      }
+
       const currentSubs = isPlayerHome ? homeSubs : awaySubs;
       const maxSubs = getSubstitutionLimit(null, season);
       if (currentSubs >= maxSubs) {
@@ -784,6 +914,7 @@ export default function Match() {
     }
 
     newLineup[targetSlotId] = playerFromBench;
+    lineupRef.current = newLineup;
     setLineup(newLineup);
 
     if (teamName) {
@@ -829,6 +960,7 @@ export default function Match() {
     const { teamName, season } = getPlayerTeamNameAndSeason();
     const newLineup = { ...lineup };
     newLineup[slotId] = null;
+    lineupRef.current = newLineup;
     setLineup(newLineup);
 
     if (teamName) {
@@ -966,6 +1098,25 @@ export default function Match() {
   const [isPenaltyCPUProcessing, setIsPenaltyCPUProcessing] = useState(false);
 
   const [referee] = useState(() => MATCH_REFEREES[Math.floor(Math.random() * MATCH_REFEREES.length)]);
+  const isStrictReferee = STRICT_REFEREES.has(referee);
+
+  const homeCards = useMemo(() => matchCards.filter(c => c.teamKey === teamonename), [matchCards, teamonename]);
+  const awayCards = useMemo(() => matchCards.filter(c => c.teamKey === teamtwoname), [matchCards, teamtwoname]);
+  const homeYellowCount = useMemo(() => homeCards.filter(c => c.type === 'yellow' || c.type === 'second_yellow').length, [homeCards]);
+  const homeRedCount = useMemo(() => homeCards.filter(c => c.type === 'red' || c.type === 'second_yellow').length, [homeCards]);
+  const awayYellowCount = useMemo(() => awayCards.filter(c => c.type === 'yellow' || c.type === 'second_yellow').length, [awayCards]);
+  const awayRedCount = useMemo(() => awayCards.filter(c => c.type === 'red' || c.type === 'second_yellow').length, [awayCards]);
+
+  const getPlayerMatchCardStatus = useCallback((teamKey, playerName) => {
+    const pCards = matchCards.filter(c => c.teamKey === teamKey && c.playerName === playerName);
+    const yellows = pCards.filter(c => c.type === 'yellow').length;
+    const redCard = pCards.find(c => c.type === 'red' || c.type === 'second_yellow');
+    return {
+      yellows: yellows + (redCard?.type === 'second_yellow' ? 1 : 0),
+      isSentOff: Boolean(redCard),
+      redType: redCard ? redCard.type : null
+    };
+  }, [matchCards]);
 
   // Event feed chronicle & CM 01/02 Live Banner
   const [chronicle, setChronicle] = useState([
@@ -1048,6 +1199,27 @@ export default function Match() {
         background: '#cc0000',
         color: '#ffffff',
         borderColor: '#ffd700'
+      };
+    }
+    if (liveBanner.type === 'yellow-card') {
+      return {
+        background: '#b8860b',
+        color: '#ffffff',
+        borderColor: '#ffd700'
+      };
+    }
+    if (liveBanner.type === 'red-card') {
+      return {
+        background: '#b3001b',
+        color: '#ffffff',
+        borderColor: '#ff4d6d'
+      };
+    }
+    if (liveBanner.type === 'foul') {
+      return {
+        background: '#4a2b00',
+        color: '#ffe8cc',
+        borderColor: '#ff9800'
       };
     }
     if (liveBanner.side === 'home' && teamid[teamonename]?.primaryColor) {
@@ -1416,6 +1588,7 @@ export default function Match() {
       }
 
       if (isMounted) {
+        cpuLineupsRef.current = newLineups;
         setCpuStats(newStats);
         setCpuLineups(newLineups);
         setCpuBenches(newBenches);
@@ -1587,6 +1760,7 @@ export default function Match() {
       });
 
       if (lineupChanged) {
+        lineupRef.current = newLineup;
         setSquad(updatedSquad);
         setLineup(newLineup);
 
@@ -1774,6 +1948,236 @@ export default function Match() {
     simSpeed
   ]);
 
+  /**
+   * Resolves current pitch lineup from synced refs so same-turn dual checks see removals immediately.
+   */
+  const resolveLiveLineup = (teamKey) => {
+    if (teamKey === null || teamKey === undefined) return {};
+    if (
+      (playerTeamId !== null && teamKey === playerTeamId) ||
+      (teamKey === teamonename && !isHomeDisabled && !cpuLineupsRef.current[teamonename]) ||
+      (teamKey === teamtwoname && !isAwayDisabled && !cpuLineupsRef.current[teamtwoname])
+    ) {
+      return lineupRef.current || {};
+    }
+    return cpuLineupsRef.current[teamKey] || {};
+  };
+
+  /**
+   * Picks a random active outfield player on the pitch for a given team and sector ('def' | 'mid' | 'att').
+   */
+  const pickFoulPlayerForSector = (teamKey, sector) => {
+    const activeLineup = resolveLiveLineup(teamKey);
+    const formation = (teamKey === teamonename ? homeFormation : awayFormation) || getSavedFormation() || '4-4-2';
+    const slots = getFormationSlots(formation);
+
+    const activeEntries = [];
+    slots.forEach(slot => {
+      if (slot.role === 'gk') return;
+      const p = activeLineup[slot.id];
+      if (p) {
+        activeEntries.push({ slotId: slot.id, role: slot.role, player: p });
+      }
+    });
+
+    if (activeEntries.length === 0) {
+      const teamNameFallback = teamid[teamKey]?.name || 'Team';
+      const fallbackRoleLabel = sector === 'def' ? 'Defender' : (sector === 'att' ? 'Forward' : 'Midfielder');
+      const fallbackPos = sector === 'def' ? 'DC' : (sector === 'att' ? 'ST' : 'MC');
+      return {
+        slotId: null,
+        player: { name: `${teamNameFallback} ${fallbackRoleLabel}`, position: fallbackPos },
+        isSynthetic: true
+      };
+    }
+
+    const fallbackOrder = sector === 'att'
+      ? ['att', 'mid', 'def']
+      : (sector === 'def' ? ['def', 'mid', 'att'] : ['mid', 'def', 'att']);
+
+    let pool = [];
+    for (const roleKey of fallbackOrder) {
+      const matched = activeEntries.filter(entry => entry.role === roleKey);
+      if (matched.length > 0) {
+        pool = matched;
+        break;
+      }
+    }
+    if (pool.length === 0) pool = activeEntries;
+
+    const picked = pool[Math.floor(Math.random() * pool.length)];
+    return { ...picked, isSynthetic: false };
+  };
+
+  /**
+   * Evaluates a duel roll for fouls, yellow cards, second yellows, and direct red cards (Option 1).
+   */
+  const evaluateDuelFoul = ({ teamKey, side, rawRoll, rollSides, sector, isPressing, opponentKey }) => {
+    const check = resolveFoulCheck({
+      rawRoll,
+      sides: rollSides,
+      isPressing,
+      refereeStrictness: isStrictReferee ? 'strict' : 'normal'
+    });
+    if (!check.foul) return null;
+
+    const offender = pickFoulPlayerForSector(teamKey, sector);
+    const offenderTeamName = teamid[teamKey]?.name || 'Team';
+    const opponentTeamName = teamid[opponentKey]?.name || 'Opponent';
+    const oppLineup = resolveLiveLineup(opponentKey);
+
+    if (check.outcome === 'warning') {
+      return {
+        outcome: 'warning',
+        type: 'foul',
+        side,
+        payload: getFoulWarningCommentary(offender.player.name, offenderTeamName, opponentTeamName, oppLineup, sector, referee, side)
+      };
+    }
+
+    const priorYellows = offender.isSynthetic
+      ? 0
+      : matchCardsRef.current.filter(
+        c => c.teamKey === teamKey && c.playerName === offender.player.name && c.type === 'yellow'
+      ).length;
+
+    const cardType = check.outcome === 'red'
+      ? 'red'
+      : (priorYellows >= 1 ? 'second_yellow' : 'yellow');
+
+    const cardEntry = {
+      id: `${time}_${teamKey}_${offender.player.name}_${Math.random().toString(36).slice(2, 6)}`,
+      time,
+      teamKey,
+      side,
+      playerName: offender.player.name,
+      position: offender.player.position || '',
+      slotId: offender.slotId,
+      type: cardType,
+      sector,
+      isSynthetic: Boolean(offender.isSynthetic)
+    };
+
+    matchCardsRef.current = [...matchCardsRef.current, cardEntry];
+    setMatchCards(matchCardsRef.current);
+
+    let payload;
+    let eventType = 'yellow-card';
+    if (cardType === 'yellow') {
+      payload = getYellowCardCommentary(offender.player.name, offenderTeamName, opponentTeamName, oppLineup, sector, referee, side);
+    } else if (cardType === 'second_yellow') {
+      eventType = 'red-card';
+      payload = getSecondYellowRedCommentary(offender.player.name, offenderTeamName, opponentTeamName, oppLineup, sector, referee, side);
+    } else {
+      eventType = 'red-card';
+      payload = getDirectRedCardCommentary(offender.player.name, offenderTeamName, opponentTeamName, oppLineup, sector, referee, side);
+    }
+
+    let humanRedCardAlert = null;
+    if ((cardType === 'red' || cardType === 'second_yellow') && !offender.isSynthetic && offender.slotId) {
+      const isHumanSide =
+        (playerTeamId !== null && teamKey === playerTeamId) ||
+        (teamKey === teamonename && !isHomeDisabled && !cpuLineupsRef.current[teamonename]) ||
+        (teamKey === teamtwoname && !isAwayDisabled && !cpuLineupsRef.current[teamtwoname]);
+
+      if (isHumanSide) {
+        const updatedLineup = { ...(lineupRef.current || {}), [offender.slotId]: null };
+        lineupRef.current = updatedLineup;
+        setLineup(updatedLineup);
+
+        const { teamName, season } = getPlayerTeamNameAndSeason();
+        if (teamName) {
+          localStorage.setItem(`retro_lineup_${teamName}_${season}`, JSON.stringify(updatedLineup));
+          updateTeamStatsInStorage(updatedLineup, getSavedFormation());
+        }
+
+        setPlayerMinutes(prev => {
+          const next = { ...prev };
+          const pm = next[offender.player.name];
+          if (pm) {
+            const entryTime = pm.enteredAt !== null ? pm.enteredAt : 0;
+            next[offender.player.name] = {
+              ...pm,
+              exitedAt: time,
+              minutesPlayed: pm.minutesPlayed + Math.max(0, time - entryTime),
+              enteredAt: null,
+              sentOff: true
+            };
+          }
+          return next;
+        });
+
+        const remainingCount = Object.values(updatedLineup).filter(Boolean).length;
+        const reasonText = cardType === 'red' ? 'Direct Red Card' : 'Second Yellow Card';
+        humanRedCardAlert = `🟥 RED CARD (${time}')!\n\n${offender.player.name} (${offender.player.position || 'Player'}) has been SENT OFF (${reasonText})!\n\nYour team is down to ${remainingCount} men. You may reorganize your remaining players before resuming.`;
+      } else {
+        const updatedCpuLineup = { ...(cpuLineupsRef.current[teamKey] || {}), [offender.slotId]: null };
+        cpuLineupsRef.current = { ...cpuLineupsRef.current, [teamKey]: updatedCpuLineup };
+        setCpuLineups(prev => ({ ...prev, [teamKey]: updatedCpuLineup }));
+
+        const isHomeTeam = teamKey === teamonename;
+        const currentCpuTactic = isHomeTeam ? homeTactic : awayTactic;
+        const setCpuTactic = isHomeTeam ? setHomeTactic : setAwayTactic;
+        const selfScore = isHomeTeam ? scorehome : scoreaway;
+        const oppScore = isHomeTeam ? scoreaway : scorehome;
+        if (currentCpuTactic === 'attack') {
+          setCpuTactic('balanced');
+        } else if (selfScore >= oppScore && time >= 55 && currentCpuTactic !== 'defense') {
+          setCpuTactic('defense');
+        }
+      }
+    }
+
+    return {
+      outcome: cardType,
+      type: eventType,
+      side,
+      payload,
+      cardEntry,
+      humanRedCardAlert
+    };
+  };
+
+  /**
+   * Logs duel outcome alongside any foul warnings or bookings without clashing sound effects.
+   */
+  const logDuelWithFouls = (duelPayload, duelType, duelSide, foulResults) => {
+    const validFouls = (foulResults || []).filter(Boolean);
+    const warnings = validFouls.filter(r => r.outcome === 'warning');
+    const cards = validFouls.filter(r => r.outcome !== 'warning');
+
+    warnings.forEach(w => {
+      const warnText = w.payload && typeof w.payload === 'object' ? w.payload.text : String(w.payload);
+      logEvent({ text: warnText, sound: null, side: w.side }, 'foul', w.side);
+    });
+
+    if (cards.length > 0) {
+      const duelText = duelPayload && typeof duelPayload === 'object' ? duelPayload.text : String(duelPayload);
+      logEvent({ text: duelText, sound: null, side: duelSide }, duelType, duelSide);
+      cards.forEach((c, idx) => {
+        if (idx === cards.length - 1) {
+          logEvent(c.payload, c.type, c.side);
+        } else {
+          const cardText = c.payload && typeof c.payload === 'object' ? c.payload.text : String(c.payload);
+          logEvent({ text: cardText, sound: null, side: c.side }, c.type, c.side);
+        }
+      });
+    } else {
+      logEvent(duelPayload, duelType, duelSide);
+    }
+
+    const alertRes = validFouls.find(r => r.humanRedCardAlert);
+    if (alertRes) {
+      setIsPlaying(false);
+      if (squad && squad.length > 0) {
+        setShowSubModal(true);
+      }
+      setTimeout(() => {
+        alert(alertRes.humanRedCardAlert);
+      }, 150);
+    }
+  };
+
   useEffect(() => {
     if (time === 0) {
       logEvent({
@@ -1902,21 +2306,55 @@ export default function Match() {
       setrollOne(r1);
       setRollTwo(r2);
 
-      const homeLineupData = getTeamLineup(teamonename);
-      const awayLineupData = getTeamLineup(teamtwoname);
+      const foul1 = evaluateDuelFoul({
+        teamKey: teamonename,
+        side: "home",
+        rawRoll: roll1Result.roll,
+        rollSides: roll1Result.sides,
+        sector: "mid",
+        isPressing: homePressing,
+        opponentKey: teamtwoname
+      });
+      const foul2 = evaluateDuelFoul({
+        teamKey: teamtwoname,
+        side: "away",
+        rawRoll: roll2Result.roll,
+        rollSides: roll2Result.sides,
+        sector: "mid",
+        isPressing: awayPressing,
+        opponentKey: teamonename
+      });
+
+      const homeLineupData = resolveLiveLineup(teamonename);
+      const awayLineupData = resolveLiveLineup(teamtwoname);
       const homeName = teamid[teamonename].name;
       const awayName = teamid[teamtwoname].name;
 
       if (r1 > r2) {
-        logEvent(getMidfieldWinCommentary(homeName, awayName, homeLineupData, awayLineupData), "chance", "home");
+        logDuelWithFouls(
+          getMidfieldWinCommentary(homeName, awayName, homeLineupData, awayLineupData),
+          "chance",
+          "home",
+          [foul1, foul2]
+        );
         setHasHomeChance(true);
         setBallPosition("home-attack");
       } else if (r2 > r1) {
-        logEvent(getMidfieldWinCommentary(awayName, homeName, awayLineupData, homeLineupData), "chance", "away");
+        logDuelWithFouls(
+          getMidfieldWinCommentary(awayName, homeName, awayLineupData, homeLineupData),
+          "chance",
+          "away",
+          [foul1, foul2]
+        );
         setHasAwayChance(true);
         setBallPosition("away-attack");
       } else {
-        logEvent(getMidfieldDrawCommentary(homeName, awayName, homeLineupData, awayLineupData), "normal", "neutral");
+        logDuelWithFouls(
+          getMidfieldDrawCommentary(homeName, awayName, homeLineupData, awayLineupData),
+          "normal",
+          "neutral",
+          [foul1, foul2]
+        );
         setBallPosition("center");
       }
     }
@@ -1936,16 +2374,45 @@ export default function Match() {
     setrollOne(homeattack);
     setRollTwo(awaydefense);
 
-    const homeLineupData = getTeamLineup(teamonename);
-    const awayLineupData = getTeamLineup(teamtwoname);
+    const homeFoul = evaluateDuelFoul({
+      teamKey: teamonename,
+      side: "home",
+      rawRoll: homeAttRes.roll,
+      rollSides: homeAttRes.sides,
+      sector: "att",
+      isPressing: homePressing,
+      opponentKey: teamtwoname
+    });
+    const awayFoul = evaluateDuelFoul({
+      teamKey: teamtwoname,
+      side: "away",
+      rawRoll: awayDefRes.roll,
+      rollSides: awayDefRes.sides,
+      sector: "def",
+      isPressing: awayPressing,
+      opponentKey: teamonename
+    });
+
+    const homeLineupData = resolveLiveLineup(teamonename);
+    const awayLineupData = resolveLiveLineup(teamtwoname);
     const homeName = teamid[teamonename].name;
     const awayName = teamid[teamtwoname].name;
 
     if (homeattack > awaydefense) {
-      logEvent(getAttackSuccessCommentary(homeName, awayName, homeLineupData, awayLineupData), "chance", "home");
+      logDuelWithFouls(
+        getAttackSuccessCommentary(homeName, awayName, homeLineupData, awayLineupData),
+        "chance",
+        "home",
+        [homeFoul, awayFoul]
+      );
       setHasHomeScoreChance(true);
     } else {
-      logEvent(getAttackFailCommentary(awayName, homeName, awayLineupData, homeLineupData), "save", "away");
+      logDuelWithFouls(
+        getAttackFailCommentary(awayName, homeName, awayLineupData, homeLineupData),
+        "save",
+        "away",
+        [homeFoul, awayFoul]
+      );
       setBallPosition("center");
     }
   }
@@ -1987,16 +2454,45 @@ export default function Match() {
     setrollOne(homedefense);
     setRollTwo(awayattack);
 
-    const homeLineupData = getTeamLineup(teamonename);
-    const awayLineupData = getTeamLineup(teamtwoname);
+    const awayFoul = evaluateDuelFoul({
+      teamKey: teamtwoname,
+      side: "away",
+      rawRoll: awayAttRes.roll,
+      rollSides: awayAttRes.sides,
+      sector: "att",
+      isPressing: awayPressing,
+      opponentKey: teamonename
+    });
+    const homeFoul = evaluateDuelFoul({
+      teamKey: teamonename,
+      side: "home",
+      rawRoll: homeDefRes.roll,
+      rollSides: homeDefRes.sides,
+      sector: "def",
+      isPressing: homePressing,
+      opponentKey: teamtwoname
+    });
+
+    const homeLineupData = resolveLiveLineup(teamonename);
+    const awayLineupData = resolveLiveLineup(teamtwoname);
     const homeName = teamid[teamonename].name;
     const awayName = teamid[teamtwoname].name;
 
     if (awayattack > homedefense) {
-      logEvent(getAttackSuccessCommentary(awayName, homeName, awayLineupData, homeLineupData), "chance", "away");
+      logDuelWithFouls(
+        getAttackSuccessCommentary(awayName, homeName, awayLineupData, homeLineupData),
+        "chance",
+        "away",
+        [awayFoul, homeFoul]
+      );
       setHasAwayScoreChance(true);
     } else {
-      logEvent(getAttackFailCommentary(homeName, awayName, homeLineupData, awayLineupData), "save", "home");
+      logDuelWithFouls(
+        getAttackFailCommentary(homeName, awayName, homeLineupData, awayLineupData),
+        "save",
+        "home",
+        [awayFoul, homeFoul]
+      );
       setBallPosition("center");
     }
   }
@@ -2187,6 +2683,8 @@ export default function Match() {
       });
       return finalMinutesMap;
     };
+
+    const getCardsForTeamKey = (tKey) => matchCardsRef.current.filter(c => c.teamKey === tKey && !c.isSynthetic);
 
     if (isLeague) {
       let justPlayedFixtures = [];
@@ -2384,12 +2882,12 @@ export default function Match() {
         localStorage.setItem(`retro_roles_${playerTeam.name}_${leagueState.season}`, JSON.stringify(savedStartingRoles));
       }
 
-      // Update roster & lineup conditions/injuries
-      updatePlayerConditionsAndInjuries(playerTeam.name, leagueState.season, false, true, getFinalMinutesMap());
+      // Update roster & lineup conditions/injuries/suspensions
+      updatePlayerConditionsAndInjuries(playerTeam.name, leagueState.season, false, true, getFinalMinutesMap(), getCardsForTeamKey(playerTeamId));
       const oppIdRound = teamonename === playerTeamId ? teamtwoname : teamonename;
       const oppTeamRound = teamid ? teamid[oppIdRound] : null;
       if (oppTeamRound && oppTeamRound.name) {
-        updatePlayerConditionsAndInjuries(oppTeamRound.name, leagueState.season, false, true);
+        updatePlayerConditionsAndInjuries(oppTeamRound.name, leagueState.season, false, true, null, getCardsForTeamKey(oppIdRound), { suppressAlerts: true });
       }
 
       // Load updated lineup and update team stats in storage
@@ -3326,12 +3824,12 @@ export default function Match() {
         localStorage.setItem(`retro_roles_${playerTeam.name}_${stateCopy.season}`, JSON.stringify(savedStartingRoles));
       }
 
-      // Update roster & lineup conditions/injuries
-      updatePlayerConditionsAndInjuries(playerTeam.name, stateCopy.season, false, true, getFinalMinutesMap());
+      // Update roster & lineup conditions/injuries/suspensions
+      updatePlayerConditionsAndInjuries(playerTeam.name, stateCopy.season, false, true, getFinalMinutesMap(), getCardsForTeamKey(playerTeamId));
       const oppIdEuro = teamonename === playerTeamId ? teamtwoname : teamonename;
       const oppTeamEuro = teamid ? teamid[oppIdEuro] : null;
       if (oppTeamEuro && oppTeamEuro.name) {
-        updatePlayerConditionsAndInjuries(oppTeamEuro.name, stateCopy.season, false, true);
+        updatePlayerConditionsAndInjuries(oppTeamEuro.name, stateCopy.season, false, true, null, getCardsForTeamKey(oppIdEuro), { suppressAlerts: true });
       }
 
       // Load updated lineup and update team stats in storage
@@ -3482,12 +3980,12 @@ export default function Match() {
         localStorage.setItem(`retro_roles_${playerTeam.name}_${rosterSeason}`, JSON.stringify(savedStartingRoles));
       }
 
-      // Update roster & lineup conditions/injuries
-      updatePlayerConditionsAndInjuries(playerTeam.name, rosterSeason, true, true, getFinalMinutesMap());
+      // Update roster & lineup conditions/injuries/suspensions
+      updatePlayerConditionsAndInjuries(playerTeam.name, rosterSeason, true, true, getFinalMinutesMap(), getCardsForTeamKey(playerTeamId));
       const oppIdTourn = teamonename === playerTeamId ? teamtwoname : teamonename;
       const oppTeamTourn = teamid ? teamid[oppIdTourn] : null;
       if (oppTeamTourn && oppTeamTourn.name) {
-        updatePlayerConditionsAndInjuries(oppTeamTourn.name, rosterSeason, true, true);
+        updatePlayerConditionsAndInjuries(oppTeamTourn.name, rosterSeason, true, true, null, getCardsForTeamKey(oppIdTourn), { suppressAlerts: true });
       }
 
       // Load updated lineup and update team stats in storage
@@ -3629,6 +4127,66 @@ export default function Match() {
 
   const isHomeSubDisabled = isHomeDisabled || homeSubs >= maxSubs || (time !== 45 && time !== 0 && homeStoppagesUsed >= maxStoppages) || time === 0 || isGameOver || isPenaltyShootout;
   const isAwaySubDisabled = isAwayDisabled || awaySubs >= maxSubs || (time !== 45 && time !== 0 && awayStoppagesUsed >= maxStoppages) || time === 0 || isGameOver || isPenaltyShootout;
+
+  const activePlayerTeamKey = isPlayerHome ? teamonename : teamtwoname;
+  const playerRedCountInMatch = activePlayerTeamKey === teamonename ? homeRedCount : awayRedCount;
+  const maxAllowedOnPitch = Math.max(0, 11 - playerRedCountInMatch);
+
+  const renderTeamDisciplineStrip = (cards, yCount, rCount) => {
+    if (!cards || cards.length === 0) return null;
+    const remainingMen = Math.max(0, 11 - rCount);
+    return (
+      <div style={{
+        width: '100%',
+        marginTop: '8px',
+        padding: '6px 8px',
+        background: rCount > 0 ? 'rgba(255, 46, 76, 0.08)' : 'rgba(255, 215, 0, 0.06)',
+        border: `1px solid ${rCount > 0 ? 'rgba(255, 46, 76, 0.35)' : 'rgba(255, 215, 0, 0.25)'}`,
+        borderRadius: '6px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', fontFamily: 'Orbitron', fontWeight: 'bold' }}>
+            {yCount > 0 && <span style={{ color: '#ffd700' }}>🟨 {yCount}</span>}
+            {rCount > 0 && <span style={{ color: '#ff4d6d' }}>🟥 {rCount}</span>}
+          </div>
+          {rCount > 0 && (
+            <span style={{
+              fontSize: '8px',
+              fontFamily: 'Orbitron',
+              fontWeight: 'bold',
+              color: '#fff',
+              background: '#c91834',
+              padding: '1px 5px',
+              borderRadius: '4px'
+            }}>
+              ⚠️ {remainingMen} MEN
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+          {cards.map(c => (
+            <span
+              key={c.id}
+              style={{
+                fontSize: '8.5px',
+                color: c.type === 'yellow' ? '#ffe89e' : '#ffb3be',
+                background: 'rgba(0,0,0,0.35)',
+                padding: '1px 5px',
+                borderRadius: '3px',
+                border: `1px solid ${c.type === 'yellow' ? 'rgba(255,215,0,0.2)' : 'rgba(255,46,76,0.35)'}`,
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {c.type === 'yellow' ? '🟨' : (c.type === 'second_yellow' ? '🟨🟥' : '🟥')} {getLastName(c.playerName)} {c.time}'
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -3873,6 +4431,8 @@ export default function Match() {
             <span className="roll-label">{engineMode === 'd10' ? 'MIDFIELD ROLL (d10)' : 'MIDFIELD ROLL (d6)'}</span>
             <div className="roll-number-glowing">{rollone}</div>
           </div>
+
+          {renderTeamDisciplineStrip(homeCards, homeYellowCount, homeRedCount)}
 
           {/* Tactical Selector Panel */}
           <TacticsPanel
@@ -4163,7 +4723,7 @@ export default function Match() {
           <div className="cm-live-commentary-section">
             {/* Iconic CM 01/02 Flashing Single-Line Live Commentary Bar */}
             <div
-              className={`cm-live-commentary-bar ${liveBanner?.type === 'goal' ? 'cm-goal-flash' : ''}`}
+              className={`cm-live-commentary-bar ${liveBanner?.type === 'goal' ? 'cm-goal-flash' : (liveBanner?.type === 'red-card' ? 'cm-red-flash' : '')}`}
               style={getCommentaryBarStyle()}
             >
               {liveBanner?.text || "⚽ Match awaiting kickoff..."}
@@ -4176,7 +4736,7 @@ export default function Match() {
                   <span className="cm-retro-icon">⚽</span> CM 01/02 MATCH INCIDENT &amp; COMMENTARY LOG
                 </span>
                 <span className="cm-header-ref">
-                  REF: {referee.toUpperCase()}
+                  REF: {referee.toUpperCase()}{isStrictReferee ? ' (STRICT)' : ''}
                 </span>
               </div>
               <div className="cm-commentary-stream">
@@ -4186,6 +4746,9 @@ export default function Match() {
                   else if (item.type === 'save') rowClass += ' save';
                   else if (item.type === 'miss') rowClass += ' miss';
                   else if (item.type === 'chance') rowClass += ' chance';
+                  else if (item.type === 'yellow-card') rowClass += ' yellow-card';
+                  else if (item.type === 'red-card') rowClass += ' red-card';
+                  else if (item.type === 'foul') rowClass += ' foul';
                   if (index === 0) rowClass += ' latest-item';
 
                   const sideColor = item.side === 'away'
@@ -4194,13 +4757,21 @@ export default function Match() {
                       ? (teamid[teamonename]?.primaryColor || '#ffdd44')
                       : '#00a2a2';
 
+                  const borderLeftColor = item.type === 'goal'
+                    ? '#ffd700'
+                    : (item.type === 'yellow-card'
+                      ? '#ffd700'
+                      : (item.type === 'red-card'
+                        ? '#ff2e4c'
+                        : (item.type === 'foul'
+                          ? '#ff9800'
+                          : (item.side === 'neutral' ? '#00a2a2' : sideColor))));
+
                   return (
                     <div
                       key={index}
                       className={rowClass}
-                      style={{
-                        borderLeftColor: item.type === 'goal' ? '#ffd700' : (item.side === 'neutral' ? '#00a2a2' : sideColor)
-                      }}
+                      style={{ borderLeftColor }}
                     >
                       <span className="cm-comm-min">{item.time}'</span>
                       <span className="cm-comm-text">{item.text}</span>
@@ -4344,6 +4915,8 @@ export default function Match() {
             <div className="roll-number-glowing">{rolltwo}</div>
           </div>
 
+          {renderTeamDisciplineStrip(awayCards, awayYellowCount, awayRedCount)}
+
           {/* Tactical Selector Panel */}
           <TacticsPanel
             disabled={isAwayDisabled}
@@ -4369,9 +4942,25 @@ export default function Match() {
             {/* Modal Header */}
             <div className="sub-modal-header">
               <div>
-                <h2 className="sub-modal-title">
-                  MANUAL SUBSTITUTIONS & ROLES
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h2 className="sub-modal-title">
+                    MANUAL SUBSTITUTIONS & ROLES
+                  </h2>
+                  {playerRedCountInMatch > 0 && (
+                    <span style={{
+                      background: '#c91834',
+                      border: '1px solid #ff4d6d',
+                      color: '#fff',
+                      fontSize: '9px',
+                      fontFamily: 'Orbitron',
+                      fontWeight: 'bold',
+                      padding: '2px 7px',
+                      borderRadius: '4px'
+                    }}>
+                      🟥 DOWN TO {maxAllowedOnPitch} MEN
+                    </span>
+                  )}
+                </div>
                 <span className="sub-modal-subtitle">
                   Drag & Drop or Click to swap players, or click role badges to change player duties. Subs used: <strong style={{ color: '#00e5ff' }}>{isPlayerHome ? homeSubs : awaySubs} / {maxSubs}</strong>{maxStoppages < 99 && <> (Stoppages: <strong style={{ color: '#00e5ff' }}>{isPlayerHome ? homeStoppagesUsed : awayStoppagesUsed} / {maxStoppages}</strong>)</>}
                 </span>
@@ -4514,7 +5103,7 @@ export default function Match() {
                               {assignedPlayer.position}
                             </span>
                             <span className="sub-modal-player-name">
-                              {assignedPlayer.injuryMatchesLeft > 0 ? "🤕 " : ""}{getLastName(assignedPlayer.name)}
+                              {assignedPlayer.injuryMatchesLeft > 0 ? "🤕 " : ""}{getPlayerMatchCardStatus(activePlayerTeamKey, assignedPlayer.name).yellows > 0 ? "🟨 " : ""}{getLastName(assignedPlayer.name)}
                             </span>
                             <div style={{ display: 'flex', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
                               <span
@@ -4558,24 +5147,30 @@ export default function Match() {
                               </button>
                             )}
                           </div>
-                        ) : (
-                          <div
-                            onClick={() => {
-                              if (selectedRosterPlayer) {
-                                executeSwap(selectedRosterPlayer, slot.id, null);
-                                setSelectedRosterPlayer(null);
-                              }
-                            }}
-                            style={{
-                              border: dragOverSlotId === slot.id ? '2px dashed #00ff64' : undefined,
-                              background: dragOverSlotId === slot.id ? 'rgba(0, 255, 100, 0.12)' : undefined,
-                              color: dragOverSlotId === slot.id ? '#00ff64' : undefined
-                            }}
-                            className="sub-modal-empty-slot"
-                          >
-                            <span>+</span>
-                          </div>
-                        )}
+                        ) : (() => {
+                          const isAtMaxMen = playerRedCountInMatch > 0 && Object.values(lineup).filter(Boolean).length >= maxAllowedOnPitch;
+                          return (
+                            <div
+                              onClick={() => {
+                                if (selectedRosterPlayer) {
+                                  executeSwap(selectedRosterPlayer, slot.id, null);
+                                  setSelectedRosterPlayer(null);
+                                }
+                              }}
+                              style={{
+                                border: dragOverSlotId === slot.id ? '2px dashed #00ff64' : (isAtMaxMen ? '1px dashed rgba(255, 77, 109, 0.5)' : undefined),
+                                background: dragOverSlotId === slot.id ? 'rgba(0, 255, 100, 0.12)' : undefined,
+                                color: dragOverSlotId === slot.id ? '#00ff64' : (isAtMaxMen ? '#ffb3be' : undefined)
+                              }}
+                              className="sub-modal-empty-slot"
+                              title={isAtMaxMen ? `Down to ${maxAllowedOnPitch} men — drag an on-pitch player here to cover this slot` : "Assign or move player here"}
+                            >
+                              <span style={isAtMaxMen ? { fontSize: '7.5px', fontFamily: 'Orbitron', fontWeight: 'bold' } : undefined}>
+                                {isAtMaxMen ? `${maxAllowedOnPitch}M / MOVE` : '+'}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}
@@ -4597,17 +5192,21 @@ export default function Match() {
                     })
                     .map(player => {
                       const isInjured = player.injuryMatchesLeft > 0;
+                      const isSuspended = player.suspensionMatchesLeft > 0;
+                      const isSentOff = getPlayerMatchCardStatus(activePlayerTeamKey, player.name).isSentOff;
                       const hasExited = playerMinutes[player.name]?.exitedAt !== null && playerMinutes[player.name]?.started;
+                      const isBlocked = isInjured || isSuspended || isSentOff || hasExited;
 
                       return (
                         <div
                           key={player.name}
-                          draggable={!(isInjured || hasExited)}
+                          draggable={!isBlocked}
                           onDragStart={(e) => {
+                            if (isBlocked) { e.preventDefault(); return; }
                             setDraggedPlayer(player);
                           }}
                           onClick={() => {
-                            if (isInjured || hasExited) return;
+                            if (isBlocked) return;
                             if (selectedRosterPlayer?.name === player.name) {
                               setSelectedRosterPlayer(null);
                             } else {
@@ -4617,8 +5216,8 @@ export default function Match() {
                           style={{
                             background: selectedRosterPlayer?.name === player.name ? 'rgba(0, 229, 255, 0.15)' : undefined,
                             border: selectedRosterPlayer?.name === player.name ? '1px solid #00e5ff' : undefined,
-                            opacity: (isInjured || hasExited) ? 0.45 : 1,
-                            cursor: (isInjured || hasExited) ? 'not-allowed' : 'pointer'
+                            opacity: isBlocked ? 0.45 : 1,
+                            cursor: isBlocked ? 'not-allowed' : 'pointer'
                           }}
                           className="sub-modal-roster-item"
                         >
@@ -4631,12 +5230,20 @@ export default function Match() {
                               {player.position}
                             </span>
                             <span className="sub-modal-roster-item-name">
-                              {isInjured ? "🤕 " : ""}{player.name}
+                              {isSentOff ? "🟥 " : (isSuspended ? "🟥 " : (isInjured ? "🤕 " : ""))}{player.name}
                             </span>
                           </div>
 
                           <div className="sub-modal-roster-item-stats">
-                            {isInjured ? (
+                            {isSentOff ? (
+                              <span style={{ color: '#ff2e4c', fontSize: '9px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                                🟥 SENT OFF
+                              </span>
+                            ) : isSuspended ? (
+                              <span style={{ color: '#ff4d6d', fontSize: '9px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                                🟥 SUS ({player.suspensionMatchesLeft}m)
+                              </span>
+                            ) : isInjured ? (
                               <span className="sub-modal-roster-item-injured">
                                 Injured ({player.injuryMatchesLeft}m)
                               </span>
@@ -4875,7 +5482,7 @@ export default function Match() {
                                 </span>
                               </div>
                               <span style={{ fontSize: '8.5px', fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '75px', textAlign: 'center' }}>
-                                {getLastName(p.name)}
+                                {getPlayerMatchCardStatus(showOpponentModal, p.name).yellows > 0 ? "🟨 " : ""}{getLastName(p.name)}
                               </span>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '2px', marginTop: '1px' }}>
                                 <span style={{ fontSize: '7px', color: (p.condition || 100) < 80 ? '#ff4500' : '#00ff64' }}>
@@ -4909,6 +5516,33 @@ export default function Match() {
 
                 {/* Column 2: Substitutes Bench */}
                 <div style={{ flex: '1 1 360px', display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '280px' }}>
+                  {(() => {
+                    const oppSentOffCards = matchCards.filter(
+                      c => c.teamKey === showOpponentModal && (c.type === 'red' || c.type === 'second_yellow')
+                    );
+                    if (oppSentOffCards.length === 0) return null;
+                    return (
+                      <div style={{
+                        padding: '8px 10px',
+                        background: 'rgba(255, 46, 76, 0.12)',
+                        border: '1px solid rgba(255, 46, 76, 0.4)',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <span style={{ fontSize: '10px', fontFamily: 'Orbitron', fontWeight: 'bold', color: '#ff4d6d' }}>
+                          🟥 SENT OFF:
+                        </span>
+                        {oppSentOffCards.map(c => (
+                          <span key={c.id} style={{ fontSize: '10.5px', color: '#fff', background: 'rgba(0,0,0,0.4)', padding: '2px 6px', borderRadius: '4px' }}>
+                            {c.playerName} ({c.time}'{c.type === 'second_yellow' ? ' 2ndY' : ' Red'})
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '11px', fontFamily: 'Orbitron', fontWeight: 'bold', color: '#aaa', letterSpacing: '0.8px' }}>
                       AVAILABLE SUBSTITUTES ({oppBench.length})

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CATEGORY_CONFIG } from '../utils/newsGenerator';
+import { CATEGORY_CONFIG, getQualitativeRating } from '../utils/newsGenerator';
 
 export default function NewsFeed({
   newsItems = [],
@@ -548,68 +548,93 @@ export default function NewsFeed({
               )}
 
               {/* Opponent Preview Stats Widget if available */}
-              {activeNews.previewWidget && (
-                <div style={{ background: 'rgba(0, 229, 255, 0.05)', border: '1px solid rgba(0, 229, 255, 0.2)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <h4 style={{ margin: 0, fontSize: '11px', color: '#00e5ff', fontFamily: 'Orbitron', letterSpacing: '1px' }}>
-                    🔍 OPPONENT SCOUTING: {activeNews.previewWidget.opponentName}
-                  </h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center', fontSize: '12px' }}>
-                    <div style={{ background: 'rgba(0,0,0,0.35)', padding: '8px', borderRadius: '6px' }}>
-                      <span style={{ color: '#888', fontSize: '9px', display: 'block', textTransform: 'uppercase', marginBottom: '2px' }}>ATTACK</span>
-                      <strong style={{
-                        color: activeNews.previewWidget.attackLabel === 'Very Strong' ? '#00ff64' : (activeNews.previewWidget.attackLabel === 'Strong' ? '#76ff03' : (activeNews.previewWidget.attackLabel === 'Solid' ? '#ffd700' : '#ff3366')),
-                        fontFamily: 'Orbitron', fontSize: '12px'
-                      }}>
-                        {activeNews.previewWidget.attackLabel || activeNews.previewWidget.attack}
-                      </strong>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.35)', padding: '8px', borderRadius: '6px' }}>
-                      <span style={{ color: '#888', fontSize: '9px', display: 'block', textTransform: 'uppercase', marginBottom: '2px' }}>MIDFIELD</span>
-                      <strong style={{
-                        color: activeNews.previewWidget.midfieldLabel === 'Very Strong' ? '#00ff64' : (activeNews.previewWidget.midfieldLabel === 'Strong' ? '#76ff03' : (activeNews.previewWidget.midfieldLabel === 'Solid' ? '#ffd700' : '#ff3366')),
-                        fontFamily: 'Orbitron', fontSize: '12px'
-                      }}>
-                        {activeNews.previewWidget.midfieldLabel || activeNews.previewWidget.midfield}
-                      </strong>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.35)', padding: '8px', borderRadius: '6px' }}>
-                      <span style={{ color: '#888', fontSize: '9px', display: 'block', textTransform: 'uppercase', marginBottom: '2px' }}>DEFENSE</span>
-                      <strong style={{
-                        color: activeNews.previewWidget.defenseLabel === 'Very Strong' ? '#00ff64' : (activeNews.previewWidget.defenseLabel === 'Strong' ? '#76ff03' : (activeNews.previewWidget.defenseLabel === 'Solid' ? '#ffd700' : '#ff3366')),
-                        fontFamily: 'Orbitron', fontSize: '12px'
-                      }}>
-                        {activeNews.previewWidget.defenseLabel || activeNews.previewWidget.defense}
-                      </strong>
-                    </div>
-                  </div>
+              {activeNews.previewWidget && (() => {
+                const pw = activeNews.previewWidget;
+                const attScore = pw.attackScore != null ? pw.attackScore : (typeof pw.attack === 'number' ? pw.attack : null);
+                const midScore = pw.midfieldScore != null ? pw.midfieldScore : (typeof pw.midfield === 'number' ? pw.midfield : null);
+                const defScore = pw.defenseScore != null ? pw.defenseScore : (typeof pw.defense === 'number' ? pw.defense : null);
 
-                  {/* Key Opponent Players List */}
-                  {activeNews.previewWidget.keyPlayers && activeNews.previewWidget.keyPlayers.length > 0 && (
-                    <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                      <span style={{ fontSize: '10px', color: '#ffd700', fontFamily: 'Orbitron', fontWeight: 'bold', display: 'block', marginBottom: '6px', textAlign: 'left' }}>
-                        ⭐ KEY OPPONENT PLAYERS:
-                      </span>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        {activeNews.previewWidget.keyPlayers.map((kp, idx) => (
-                          <div key={idx} style={{
-                            background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,215,0,0.25)',
-                            borderRadius: '5px', padding: '4px 8px', fontSize: '11px', color: '#fff',
-                            display: 'flex', alignItems: 'center', gap: '6px'
-                          }}>
-                            <span style={{ fontWeight: 'bold' }}>{kp.name}</span>
-                            <span style={{ fontSize: '9px', background: 'rgba(255,255,255,0.1)', padding: '1px 4px', borderRadius: '3px', color: '#ffd700' }}>
-                              {kp.position}
-                            </span>
-                            <span style={{ fontSize: '10px', color: '#ffd700', fontWeight: 'bold' }}>
-                              {kp.rating > 5 ? `★${kp.rating}` : "⭐".repeat(kp.rating || 3)}
-                            </span>
-                          </div>
-                        ))}
+                const attLabel = attScore != null ? getQualitativeRating(attScore) : (pw.attackLabel || "Solid");
+                const midLabel = midScore != null ? getQualitativeRating(midScore) : (pw.midfieldLabel || "Solid");
+                const defLabel = defScore != null ? getQualitativeRating(defScore) : (pw.defenseLabel || "Solid");
+
+                const getLabelColor = (lbl) => {
+                  if (lbl === 'Very Strong') return '#00ff64';
+                  if (lbl === 'Strong') return '#76ff03';
+                  if (lbl === 'Solid') return '#ffd700';
+                  if (lbl === 'Vulnerable') return '#ff9100';
+                  return '#ff3366';
+                };
+
+                return (
+                  <div style={{ background: 'rgba(0, 229, 255, 0.05)', border: '1px solid rgba(0, 229, 255, 0.2)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <h4 style={{ margin: 0, fontSize: '11px', color: '#00e5ff', fontFamily: 'Orbitron', letterSpacing: '1px' }}>
+                      🔍 OPPONENT SCOUTING: {pw.opponentName}
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center', fontSize: '12px' }}>
+                      <div style={{ background: 'rgba(0,0,0,0.35)', padding: '8px', borderRadius: '6px' }}>
+                        <span style={{ color: '#888', fontSize: '9px', display: 'block', textTransform: 'uppercase', marginBottom: '2px' }}>ATTACK</span>
+                        <strong style={{
+                          color: getLabelColor(attLabel),
+                          fontFamily: 'Orbitron', fontSize: '12px'
+                        }}>
+                          {attLabel}
+                        </strong>
+                      </div>
+                      <div style={{ background: 'rgba(0,0,0,0.35)', padding: '8px', borderRadius: '6px' }}>
+                        <span style={{ color: '#888', fontSize: '9px', display: 'block', textTransform: 'uppercase', marginBottom: '2px' }}>MIDFIELD</span>
+                        <strong style={{
+                          color: getLabelColor(midLabel),
+                          fontFamily: 'Orbitron', fontSize: '12px'
+                        }}>
+                          {midLabel}
+                        </strong>
+                      </div>
+                      <div style={{ background: 'rgba(0,0,0,0.35)', padding: '8px', borderRadius: '6px' }}>
+                        <span style={{ color: '#888', fontSize: '9px', display: 'block', textTransform: 'uppercase', marginBottom: '2px' }}>DEFENSE</span>
+                        <strong style={{
+                          color: getLabelColor(defLabel),
+                          fontFamily: 'Orbitron', fontSize: '12px'
+                        }}>
+                          {defLabel}
+                        </strong>
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
+
+                    {/* Key Opponent Players List */}
+                    {pw.keyPlayers && pw.keyPlayers.length > 0 && (
+                      <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                        <span style={{ fontSize: '10px', color: '#ffd700', fontFamily: 'Orbitron', fontWeight: 'bold', display: 'block', marginBottom: '6px', textAlign: 'left' }}>
+                          ⭐ KEY OPPONENT PLAYERS:
+                        </span>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {pw.keyPlayers.map((kp, idx) => {
+                            const pRating = typeof kp.rating === 'number' ? kp.rating : (parseInt(kp.rating, 10) || 5);
+                            return (
+                              <div key={idx} style={{
+                                background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,215,0,0.25)',
+                                borderRadius: '5px', padding: '4px 8px', fontSize: '11px', color: '#fff',
+                                display: 'flex', alignItems: 'center', gap: '6px'
+                              }}>
+                                <span style={{ fontWeight: 'bold' }}>{kp.name}</span>
+                                <span style={{ fontSize: '9px', background: 'rgba(255,255,255,0.1)', padding: '1px 4px', borderRadius: '3px', color: '#ffd700' }}>
+                                  {kp.position}
+                                </span>
+                                <span style={{ fontSize: '10px', color: '#ffd700', fontWeight: 'bold' }}>
+                                  {pRating > 5 ? `★${pRating}` : "⭐".repeat(pRating || 3)}
+                                </span>
+                                <span style={{ fontSize: '9px', color: getLabelColor(getQualitativeRating(pRating)) }}>
+                                  ({getQualitativeRating(pRating)})
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* League Roundup Full Results Grid Widget if available */}
               {activeNews.resultsWidget && activeNews.resultsWidget.length > 0 && (
@@ -683,7 +708,22 @@ export default function NewsFeed({
 
               {/* Main Article Body */}
               <div style={{ fontSize: '13px', color: '#ddd', lineHeight: '1.6', whiteSpace: 'pre-line' }}>
-                {activeNews.body}
+                {activeNews.category === "preview" && activeNews.previewWidget ? (() => {
+                  const pw = activeNews.previewWidget;
+                  const attScore = pw.attackScore != null ? pw.attackScore : (typeof pw.attack === 'number' ? pw.attack : null);
+                  const midScore = pw.midfieldScore != null ? pw.midfieldScore : (typeof pw.midfield === 'number' ? pw.midfield : null);
+                  const defScore = pw.defenseScore != null ? pw.defenseScore : (typeof pw.defense === 'number' ? pw.defense : null);
+                  if (attScore != null && midScore != null && defScore != null) {
+                    const aL = getQualitativeRating(attScore);
+                    const mL = getQualitativeRating(midScore);
+                    const dL = getQualitativeRating(defScore);
+                    return (activeNews.body || "").replace(
+                      /rate their attacking threat as [^,]+, their midfield balance as [^,]+, and their defensive unit as [^.\n]+/,
+                      `rate their attacking threat as ${aL}, their midfield balance as ${mL}, and their defensive unit as ${dL}`
+                    );
+                  }
+                  return activeNews.body;
+                })() : activeNews.body}
               </div>
 
               {/* Quick Jump Action Button */}

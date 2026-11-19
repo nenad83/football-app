@@ -19,7 +19,7 @@ import TransferModal from './TransferModal';
 import NewsFeed from './NewsFeed';
 import Fixtures from './Fixtures';
 import { createDomesticCup, advanceDomesticCup, getDomesticCupExpectation, CUP_STAGE_NAMES } from '../utils/domesticCupGenerator';
-import { generateInitialNews, generateMatchdayNews, generateDomesticCupDrawNews, generateDomesticCupMatchNews, generateMonthlyAwardsNews, generateYearlyAwardsNews } from '../utils/newsGenerator';
+import { generateInitialNews, generateMatchdayNews, generateDomesticCupDrawNews, generateDomesticCupMatchNews, generateMonthlyAwardsNews, generateYearlyAwardsNews, getQualitativeRating } from '../utils/newsGenerator';
 import { checkMonthConclusion, generateMatchEvents, recordMatchEventsInStats, calculateMonthlyAwards, calculateYearlyAwards, awardManagerTitle } from '../utils/awardsManager';
 import { loadSeasonRosters, cleanStale1To5Rosters, scaleStatTo10, getTeamDetailsSync } from '../data/rosters/rosterRegistry';
 import { applyTeamTheme } from '../utils/themeManager';
@@ -694,6 +694,16 @@ const calculateStandingsForRounds = (teamsList, fixturesList, startRound, endRou
   });
 };
 
+const formatOrdinal = (num) => {
+  const n = parseInt(num, 10);
+  if (!n || n <= 0) return "—";
+  const j = n % 10, k = n % 100;
+  if (j === 1 && k !== 11) return `${n}st`;
+  if (j === 2 && k !== 12) return `${n}nd`;
+  if (j === 3 && k !== 13) return `${n}rd`;
+  return `${n}th`;
+};
+
 export default function LeagueDashboard() {
   const [leagueState, setLeagueState] = useState(null);
   const [officeTab, setOfficeTab] = useState("home"); // "news" | "home" | "tactics" | "transfers" | "board" | "manager"
@@ -1027,6 +1037,49 @@ export default function LeagueDashboard() {
         season: parsedCareer.season
       });
       localStorage.setItem("retro_league_career", JSON.stringify(parsedCareer));
+    }
+
+    // Sanitize any existing scouting news feed items with 1-10 scale ratings
+    if (Array.isArray(parsedCareer.newsFeed)) {
+      let newsSanitized = false;
+      parsedCareer.newsFeed = parsedCareer.newsFeed.map(item => {
+        if (item && item.category === "preview" && item.previewWidget) {
+          const pw = item.previewWidget;
+          const att = pw.attackScore != null ? pw.attackScore : (typeof pw.attack === 'number' ? pw.attack : null);
+          const mid = pw.midfieldScore != null ? pw.midfieldScore : (typeof pw.midfield === 'number' ? pw.midfield : null);
+          const def = pw.defenseScore != null ? pw.defenseScore : (typeof pw.defense === 'number' ? pw.defense : null);
+          if (att != null && mid != null && def != null) {
+            const newAtt = getQualitativeRating(att);
+            const newMid = getQualitativeRating(mid);
+            const newDef = getQualitativeRating(def);
+            if (pw.attackLabel !== newAtt || pw.midfieldLabel !== newMid || pw.defenseLabel !== newDef) {
+              newsSanitized = true;
+              const oppName = pw.opponentName || "Opponent";
+              const newSummary = `Scouting analysis on ${oppName}: Attack is ${newAtt}, Midfield is ${newMid}, Defense is ${newDef}.`;
+              let newBody = item.body || "";
+              newBody = newBody.replace(
+                /rate their attacking threat as [^,]+, their midfield balance as [^,]+, and their defensive unit as [^.\n]+/,
+                `rate their attacking threat as ${newAtt}, their midfield balance as ${newMid}, and their defensive unit as ${newDef}`
+              );
+              return {
+                ...item,
+                summary: newSummary,
+                body: newBody,
+                previewWidget: {
+                  ...pw,
+                  attackLabel: newAtt,
+                  midfieldLabel: newMid,
+                  defenseLabel: newDef
+                }
+              };
+            }
+          }
+        }
+        return item;
+      });
+      if (newsSanitized) {
+        localStorage.setItem("retro_league_career", JSON.stringify(parsedCareer));
+      }
     }
 
     // Auto-generate post-match news & process awards for last played round
@@ -2596,6 +2649,7 @@ export default function LeagueDashboard() {
   const isSeasonOver = (calendar ? calendarIndex >= calendar.length : currentRound > totalRounds) || leagueState.isSacked;
 
   let isEuropeanMatchNext = false;
+  let isEuropeanGroupStageNext = false;
   let clPlayerFixture = null;
   let europeanOpponent = null;
   let europeanIsHome = true;
@@ -2611,6 +2665,7 @@ export default function LeagueDashboard() {
       (rules.format === "group_then_knockout" && currentEvent.stage === "group_stage") ||
       (rules.format === "league_then_knockout" && currentEvent.stage === "league_stage")
     );
+    isEuropeanGroupStageNext = !!hasGroupStage;
 
     if (hasGroupStage) {
       clPlayerFixture = cupState.fixtures[currentEvent.matchday - 1]?.find(f => f.homeId === pId || f.awayId === pId);
@@ -4026,6 +4081,33 @@ export default function LeagueDashboard() {
 
   const handleKickOff = () => {
     if (isSeasonOver) return;
+    const willPlayMatch = isEuropeanMatchNext ? !isRestWeek : Boolean(opponentTeamObj);
+    if (willPlayMatch && playerTeamObj?.name) {
+      try {
+        const lineupRaw = localStorage.getItem(`retro_lineup_${playerTeamObj.name}_${season}`);
+        const rosterRaw = localStorage.getItem(`retro_roster_${playerTeamObj.name}_${season}`);
+        const parsedLineup = lineupRaw ? JSON.parse(lineupRaw) : {};
+        const parsedRoster = rosterRaw ? JSON.parse(rosterRaw) : [];
+        const rosterByName = new Map(
+          (Array.isArray(parsedRoster) ? parsedRoster : []).filter(Boolean).map(rp => [rp.name, rp])
+        );
+        const suspendedStarters = Object.values(parsedLineup || {})
+          .filter(Boolean)
+          .map(lp => rosterByName.get(lp.name) || lp)
+          .filter(p => p.suspensionMatchesLeft > 0);
+        if (suspendedStarters.length > 0) {
+          const listStr = suspendedStarters
+            .map(p => `• ${p.name} (${p.suspensionMatchesLeft}m — ${p.suspensionReason || 'Suspended'})`)
+            .join("\n");
+          alert(`🟥 SUSPENDED STARTER(S) IN LINEUP!\n\nYou cannot kick off with suspended player(s) in your starting XI:\n${listStr}\n\nPlease replace them in Tactics.`);
+          setOfficeTab("tactics");
+          return;
+        }
+      } catch (e) {
+        // Proceed if localStorage parse fails
+      }
+    }
+
     if (isEuropeanMatchNext) {
       if (isRestWeek) {
         simulateRestWeek();
@@ -5438,25 +5520,50 @@ export default function LeagueDashboard() {
                       </div>
                     )}
 
-                    {!isRestWeek && (
-                      <div className="stats-box" style={{ width: '90%', padding: '10px 15px', gap: '8px', fontSize: '12px', display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                          <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? playerTeamObj.attack : europeanOpponent.attack}</span>
-                          <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>ATTACK</span>
-                          <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? europeanOpponent.attack : playerTeamObj.attack}</span>
+                    {!isRestWeek && (() => {
+                      const playerCupTeam = europeanCupState?.teams?.find(t => t.idnum === europeanCupState?.europeanPlayerTeamId);
+                      const clGroupStandings = (isEuropeanGroupStageNext && playerCupTeam?.group && typeof getCLGroupStandings === 'function')
+                        ? getCLGroupStandings(playerCupTeam.group)
+                        : (rules?.format === "league_then_knockout" && typeof getCLGroupStandings === 'function' ? getCLGroupStandings(null) : []);
+                      const pCupRank = clGroupStandings?.length ? clGroupStandings.findIndex(t => t.idnum === playerCupTeam?.idnum) + 1 : 0;
+                      const oppCupRank = clGroupStandings?.length ? clGroupStandings.findIndex(t => t.idnum === europeanOpponent?.idnum) + 1 : 0;
+                      const euroHomePos = europeanIsHome ? pCupRank : oppCupRank;
+                      const euroAwayPos = europeanIsHome ? oppCupRank : pCupRank;
+                      const isSwissLeague = rules?.format === "league_then_knockout";
+                      const euroTableLabel = isSwissLeague ? "LEAGUE PHASE" : (playerCupTeam?.group ? `GROUP ${playerCupTeam.group} TABLE` : "TABLE POSITION");
+
+                      return (
+                        <div className="stats-box" style={{ width: '90%', padding: '12px 16px', fontSize: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', alignItems: 'center', textAlign: 'center', width: '100%' }}>
+                            {isEuropeanGroupStageNext && euroHomePos > 0 && euroAwayPos > 0 ? (
+                              <>
+                                <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#00e5ff', fontSize: '15px', fontFamily: 'Orbitron' }}>
+                                  {`${formatOrdinal(euroHomePos)} Place`}
+                                </span>
+                                <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                                  {euroTableLabel}
+                                </span>
+                                <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#00e5ff', fontSize: '15px', fontFamily: 'Orbitron' }}>
+                                  {`${formatOrdinal(euroAwayPos)} Place`}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#00e5ff', fontSize: '13px', fontFamily: 'Orbitron' }}>
+                                  KNOCKOUT
+                                </span>
+                                <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                                  {currentEvent?.stage ? currentEvent.stage.toUpperCase().replace(/_/g, " ") : "KNOCKOUT MATCH"}
+                                </span>
+                                <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#00e5ff', fontSize: '13px', fontFamily: 'Orbitron' }}>
+                                  KNOCKOUT
+                                </span>
+                              </>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                          <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? playerTeamObj.midfield : europeanOpponent.midfield}</span>
-                          <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>MIDFIELD</span>
-                          <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? europeanOpponent.midfield : playerTeamObj.midfield}</span>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                          <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? playerTeamObj.defense : europeanOpponent.defense}</span>
-                          <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>DEFENSE</span>
-                          <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{europeanIsHome ? europeanOpponent.defense : playerTeamObj.defense}</span>
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {isRestWeek ? (
                       <button
@@ -5519,23 +5626,27 @@ export default function LeagueDashboard() {
                           </div>
                         </div>
 
-                        <div className="stats-box" style={{ width: '90%', padding: '10px 15px', gap: '8px', fontSize: '12px', display: 'flex', flexDirection: 'column' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                            <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{isHome ? playerTeamObj.attack : opponentTeamObj.attack}</span>
-                            <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>ATTACK</span>
-                            <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{isHome ? opponentTeamObj.attack : playerTeamObj.attack}</span>
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                            <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{isHome ? playerTeamObj.midfield : opponentTeamObj.midfield}</span>
-                            <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>MIDFIELD</span>
-                            <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{isHome ? opponentTeamObj.midfield : playerTeamObj.midfield}</span>
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', alignItems: 'center', textAlign: 'center' }}>
-                            <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#fff' }}>{isHome ? playerTeamObj.defense : opponentTeamObj.defense}</span>
-                            <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>DEFENSE</span>
-                            <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#fff' }}>{isHome ? opponentTeamObj.defense : playerTeamObj.defense}</span>
-                          </div>
-                        </div>
+                        {(() => {
+                          const oppPosition = opponentTeamObj ? (standings.findIndex(t => t.idnum === opponentTeamObj.idnum || t.name === opponentTeamObj.name) + 1) : 0;
+                          const homeTablePos = isHome ? playerPosition : (oppPosition > 0 ? oppPosition : null);
+                          const awayTablePos = isHome ? (oppPosition > 0 ? oppPosition : null) : playerPosition;
+
+                          return (
+                            <div className="stats-box" style={{ width: '90%', padding: '12px 16px', fontSize: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', alignItems: 'center', textAlign: 'center', width: '100%' }}>
+                                <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#ffd700', fontSize: '15px', fontFamily: 'Orbitron' }}>
+                                  {homeTablePos ? `${formatOrdinal(homeTablePos)} Place` : "—"}
+                                </span>
+                                <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                                  {isDomesticCupNext ? "LEAGUE POSITION" : "TABLE POSITION"}
+                                </span>
+                                <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#ffd700', fontSize: '15px', fontFamily: 'Orbitron' }}>
+                                  {awayTablePos ? `${formatOrdinal(awayTablePos)} Place` : "—"}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </>
                     )}
 

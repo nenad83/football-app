@@ -282,7 +282,33 @@ export default function PreMatch() {
     if (!playerTeamName) return {};
     try {
       const raw = localStorage.getItem(`retro_lineup_${playerTeamName}_${playerSeason}`);
-      return raw ? JSON.parse(raw) : {};
+      const parsed = raw ? JSON.parse(raw) : {};
+      const rosterRaw = localStorage.getItem(`retro_roster_${playerTeamName}_${playerSeason}`);
+      const parsedRoster = rosterRaw ? JSON.parse(rosterRaw) : [];
+      if (Array.isArray(parsedRoster) && parsedRoster.length > 0 && parsed && typeof parsed === 'object') {
+        const rosterByName = new Map(parsedRoster.filter(Boolean).map(rp => [rp.name, rp]));
+        const synced = {};
+        Object.keys(parsed).forEach(slotId => {
+          const lp = parsed[slotId];
+          if (!lp) {
+            synced[slotId] = lp;
+            return;
+          }
+          const rp = rosterByName.get(lp.name);
+          synced[slotId] = rp ? {
+            ...lp,
+            condition: rp.condition !== undefined ? rp.condition : lp.condition,
+            injuryMatchesLeft: rp.injuryMatchesLeft !== undefined ? rp.injuryMatchesLeft : lp.injuryMatchesLeft,
+            injury: rp.injury !== undefined ? rp.injury : lp.injury,
+            yellowCards: rp.yellowCards !== undefined ? rp.yellowCards : (lp.yellowCards || 0),
+            redCards: rp.redCards !== undefined ? rp.redCards : (lp.redCards || 0),
+            suspensionMatchesLeft: rp.suspensionMatchesLeft !== undefined ? rp.suspensionMatchesLeft : (lp.suspensionMatchesLeft || 0),
+            suspensionReason: rp.suspensionReason !== undefined ? rp.suspensionReason : (lp.suspensionReason || null)
+          } : lp;
+        });
+        return synced;
+      }
+      return parsed;
     } catch (e) {
       return {};
     }
@@ -542,6 +568,17 @@ export default function PreMatch() {
     : (cpuAwayData?.roles || {});
 
   const handleStartMatch = () => {
+    const suspendedStarters = Object.values(playerLineup || {})
+      .filter(Boolean)
+      .filter(p => p.suspensionMatchesLeft > 0);
+    if (suspendedStarters.length > 0) {
+      const listStr = suspendedStarters
+        .map(p => `• ${p.name} (${p.suspensionMatchesLeft}m - ${p.suspensionReason || 'Suspended'})`)
+        .join("\n");
+      alert(`🟥 SUSPENDED PLAYER(S) IN STARTING XI!\n\nCannot start match while suspended player(s) remain in your lineup:\n${listStr}\n\nPlease return to the dashboard and replace them in Tactics.`);
+      return;
+    }
+
     navigate(`/match${url}`, {
       state: {
         homeTactic,

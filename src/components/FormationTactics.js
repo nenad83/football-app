@@ -677,6 +677,18 @@ export const generatePlayerPositions = (primaryPos) => {
   return list;
 };
 
+// Formats full player positions for display (e.g. "DC, DR", "DL, ML", "GK")
+export const getPlayerFullPositions = (player) => {
+  if (!player) return '';
+  if (Array.isArray(player.positions) && player.positions.length > 0) {
+    return player.positions.join(', ');
+  }
+  if (typeof player.positions === 'string' && player.positions.trim()) {
+    return player.positions;
+  }
+  return player.position || '';
+};
+
 export const getIdealSlotPosition = (slotRole, x, y) => {
   if (slotRole === 'gk') return 'GK';
 
@@ -793,7 +805,21 @@ export const generateProceduralSquad = (teamName, country, stats) => {
     const rating = Math.max(1, Math.min(10, Math.round(baseStat + Math.random() * 2 - 1)));
     const age = 18 + Math.floor(Math.random() * 16);
     const positions = generatePlayerPositions(position);
-    return { name, position, positions, rating, age, isProcedural: true, condition: 100, injuryMatchesLeft: 0, injury: null };
+    return {
+      name,
+      position,
+      positions,
+      rating,
+      age,
+      isProcedural: true,
+      condition: 100,
+      injuryMatchesLeft: 0,
+      injury: null,
+      yellowCards: 0,
+      redCards: 0,
+      suspensionMatchesLeft: 0,
+      suspensionReason: null
+    };
   };
 
   // Assign detailed positions in the fallback generator
@@ -924,6 +950,10 @@ Requirements:
       condition: 100,
       injuryMatchesLeft: 0,
       injury: null,
+      yellowCards: 0,
+      redCards: 0,
+      suspensionMatchesLeft: 0,
+      suspensionReason: null,
       positions: Array.isArray(p.positions) ? p.positions : [p.position]
     };
   });
@@ -965,7 +995,11 @@ export const updateSquadStatsFallback = (existingSquad, stats) => {
       rating,
       condition: 100,
       injuryMatchesLeft: 0,
-      injury: null
+      injury: null,
+      yellowCards: 0,
+      redCards: 0,
+      suspensionMatchesLeft: 0,
+      suspensionReason: null
     };
   });
   return calibrateSquadRatings(formatted, stats);
@@ -1074,6 +1108,10 @@ Return a JSON array containing the exact same players (same names and primary po
       condition: 100,
       injuryMatchesLeft: 0,
       injury: null,
+      yellowCards: 0,
+      redCards: 0,
+      suspensionMatchesLeft: 0,
+      suspensionReason: null,
       positions: Array.isArray(p.positions) ? p.positions : [p.position]
     };
   });
@@ -1104,10 +1142,10 @@ export const generateDefaultLineup = (squad, formationKey = '4-4-2') => {
   if (!Array.isArray(squad) || squad.length === 0) return {};
   const slots = getFormationSlots(formationKey);
   const newLineup = {};
-  const availableGK = squad.filter(p => getGeneralPosition(p.position) === "GK" && !(p.injuryMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
-  const availableDF = squad.filter(p => getGeneralPosition(p.position) === "DF" && !(p.injuryMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
-  const availableMF = squad.filter(p => getGeneralPosition(p.position) === "MF" && !(p.injuryMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
-  const availableFW = squad.filter(p => getGeneralPosition(p.position) === "FW" && !(p.injuryMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
+  const availableGK = squad.filter(p => getGeneralPosition(p.position) === "GK" && !(p.injuryMatchesLeft > 0) && !(p.suspensionMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
+  const availableDF = squad.filter(p => getGeneralPosition(p.position) === "DF" && !(p.injuryMatchesLeft > 0) && !(p.suspensionMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
+  const availableMF = squad.filter(p => getGeneralPosition(p.position) === "MF" && !(p.injuryMatchesLeft > 0) && !(p.suspensionMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
+  const availableFW = squad.filter(p => getGeneralPosition(p.position) === "FW" && !(p.injuryMatchesLeft > 0) && !(p.suspensionMatchesLeft > 0)).sort((a, b) => b.rating - a.rating);
 
   let gkIdx = 0, dfIdx = 0, mfIdx = 0, fwIdx = 0;
 
@@ -1324,7 +1362,11 @@ const getActiveTeamInfo = (mode) => {
 // Formation Tactics Modal Component
 export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false }) => {
   const [selectedFormation, setSelectedFormation] = useState(getSavedFormation());
-  const [activeTab, setActiveTab] = useState("formations"); // "formations" | "tactics"
+  const [activeTab, setActiveTab] = useState("tactics"); // "tactics" | "squad"
+  const [showFormationModal, setShowFormationModal] = useState(false);
+  const [assigningPlayerMenu, setAssigningPlayerMenu] = useState(null);
+  const [activeAssignSlot, setActiveAssignSlot] = useState(null);
+  const [squadSortMode, setSquadSortMode] = useState('default'); // 'default' | 'rating' | 'position' | 'name'
   const [animatingOut, setAnimatingOut] = useState(false);
   const [squad, setSquad] = useState([]);
   const [lineup, setLineup] = useState({});
@@ -1346,6 +1388,61 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
   const startingNames = React.useMemo(() => new Set(Object.values(lineup).filter(Boolean).map(p => p.name)), [lineup]);
   const reservePlayers = React.useMemo(() => squad.filter(p => !startingNames.has(p.name) && !selectedBenchNames.includes(p.name)), [squad, startingNames, selectedBenchNames]);
   const displayedSquadPlayers = rosterViewFilter === 'reserves' ? reservePlayers : squad;
+
+  // Memoized squad list sorted in CM 01/02 traditional order: Starting XI in slot order -> Bench S1..S7 -> Reserves
+  const sortedSquadForTraditionalView = React.useMemo(() => {
+    if (!Array.isArray(squad) || squad.length === 0) return [];
+
+    if (squadSortMode === 'rating') {
+      return [...squad].sort((a, b) => b.rating - a.rating);
+    }
+    if (squadSortMode === 'position') {
+      const posWeight = (p) => {
+        const gp = getGeneralPosition(p.position);
+        if (gp === 'GK') return 1;
+        if (gp === 'DF') return 2;
+        if (gp === 'MF') return 3;
+        return 4;
+      };
+      return [...squad].sort((a, b) => posWeight(a) - posWeight(b) || b.rating - a.rating);
+    }
+    if (squadSortMode === 'name') {
+      return [...squad].sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    // Default CM 01/02 style: Starting XI in slot order -> Bench S1..S7 -> Reserves
+    const xiPlayers = [];
+    const xiNames = new Set();
+    slots.forEach(slot => {
+      const p = lineup[slot.id];
+      if (p && !xiNames.has(p.name)) {
+        xiPlayers.push(p);
+        xiNames.add(p.name);
+      }
+    });
+
+    const benchPlayers = [];
+    const benchNames = new Set();
+    selectedBenchNames.forEach(name => {
+      const p = squad.find(s => s.name === name);
+      if (p && !xiNames.has(p.name) && !benchNames.has(p.name)) {
+        benchPlayers.push(p);
+        benchNames.add(p.name);
+      }
+    });
+
+    const reservePlayersList = squad
+      .filter(p => !xiNames.has(p.name) && !benchNames.has(p.name))
+      .sort((a, b) => {
+        const posOrder = { GK: 1, DF: 2, MF: 3, FW: 4 };
+        const pa = posOrder[getGeneralPosition(a.position)] || 5;
+        const pb = posOrder[getGeneralPosition(b.position)] || 5;
+        if (pa !== pb) return pa - pb;
+        return b.rating - a.rating;
+      });
+
+    return [...xiPlayers, ...benchPlayers, ...reservePlayersList];
+  }, [squad, lineup, selectedBenchNames, slots, squadSortMode]);
 
   // Load squad and lineup
   const loadSquadAndLineup = async (info) => {
@@ -1473,20 +1570,37 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
       activeRoster = activeRoster.map(p => {
         const hasCond = p.condition !== undefined;
         const hasInj = p.injuryMatchesLeft !== undefined;
+        const hasCards = p.yellowCards !== undefined && p.redCards !== undefined && p.suspensionMatchesLeft !== undefined;
         const hasPositions = p.positions !== undefined && Array.isArray(p.positions);
 
         let newCond = hasCond ? p.condition : 100;
         let newInjMatches = hasInj ? p.injuryMatchesLeft : 0;
         let newInj = p.injury || null;
+        let newYellowCards = p.yellowCards !== undefined ? p.yellowCards : 0;
+        let newRedCards = p.redCards !== undefined ? p.redCards : 0;
+        let newSusMatches = p.suspensionMatchesLeft !== undefined ? p.suspensionMatchesLeft : 0;
+        let newSusReason = p.suspensionReason || null;
 
         if (isRound1) {
-          if (newCond !== 100 || newInjMatches !== 0 || newInj !== null) {
+          if (
+            newCond !== 100 ||
+            newInjMatches !== 0 ||
+            newInj !== null ||
+            newYellowCards !== 0 ||
+            newRedCards !== 0 ||
+            newSusMatches !== 0 ||
+            newSusReason !== null
+          ) {
             updated = true;
           }
           newCond = 100;
           newInjMatches = 0;
           newInj = null;
-        } else if (!hasCond || !hasInj || !hasPositions) {
+          newYellowCards = 0;
+          newRedCards = 0;
+          newSusMatches = 0;
+          newSusReason = null;
+        } else if (!hasCond || !hasInj || !hasCards || !hasPositions) {
           updated = true;
         }
 
@@ -1495,6 +1609,10 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
           condition: newCond,
           injuryMatchesLeft: newInjMatches,
           injury: newInj,
+          yellowCards: newYellowCards,
+          redCards: newRedCards,
+          suspensionMatchesLeft: newSusMatches,
+          suspensionReason: newSusReason,
           positions: hasPositions ? p.positions : [p.position]
         };
       });
@@ -1655,11 +1773,23 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
     }, 200);
   };
 
+  const checkUnavailablePlayer = (player) => {
+    if (!player) return false;
+    if (player.injuryMatchesLeft > 0) {
+      alert(`${player.name} is injured and cannot play! (${player.injuryMatchesLeft} matches remaining)`);
+      return true;
+    }
+    if (player.suspensionMatchesLeft > 0) {
+      alert(`${player.name} is suspended (${player.suspensionReason || 'Disciplinary Ban'}) and cannot play! (${player.suspensionMatchesLeft} matches remaining)`);
+      return true;
+    }
+    return false;
+  };
+
   // Drag and drop event handlers
   const handleDragStart = (e, player, originSlotId = null) => {
-    if (player.injuryMatchesLeft > 0) {
+    if (checkUnavailablePlayer(player)) {
       e.preventDefault();
-      alert(`${player.name} is injured and cannot play! (${player.injuryMatchesLeft} matches remaining)`);
       return;
     }
     setDraggedPlayer(player);
@@ -1772,6 +1902,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
   const handleAddPlayerToBench = (e, player) => {
     if (e && e.stopPropagation) e.stopPropagation();
     if (!player || selectedBenchNames.includes(player.name)) return;
+    if (checkUnavailablePlayer(player)) return;
     const limit = getSubstituteLimit(teamInfo.cupId, teamInfo.season, teamInfo.country);
     if (limit < 99 && selectedBenchNames.length >= limit) {
       alert(`You can only select up to ${limit} substitutes for the match bench!`);
@@ -1833,10 +1964,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
   };
 
   const handleRosterPlayerClick = (player) => {
-    if (player.injuryMatchesLeft > 0) {
-      alert(`${player.name} is injured and cannot play! (${player.injuryMatchesLeft} matches remaining)`);
-      return;
-    }
+    if (checkUnavailablePlayer(player)) return;
     if (isAssigned(player)) return;
     if (selectedRosterPlayer && selectedRosterPlayer.name === player.name) {
       setSelectedRosterPlayer(null);
@@ -1881,6 +2009,426 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
     if (genPos === "DF") return "#00e5ff";
     if (genPos === "MF") return "#00ff64";
     return "#ff4500";
+  };
+
+  // Get detailed assignment for any player (starting slot, bench sub index, or reserves)
+  const getPlayerAssignmentInfo = (player) => {
+    if (!player) return { type: 'reserve', label: '—', slotId: null, index: -1 };
+    const startingSlotEntry = Object.entries(lineup).find(([sId, p]) => p && p.name === player.name);
+    if (startingSlotEntry) {
+      const [slotId] = startingSlotEntry;
+      const slotObj = slots.find(s => s.id === slotId);
+      const posLabel = slotObj ? getIdealSlotPosition(slotObj.role, slotObj.x, slotObj.y) : 'XI';
+      return { type: 'starting', label: posLabel, slotId, index: -1 };
+    }
+    const benchIdx = selectedBenchNames.indexOf(player.name);
+    if (benchIdx !== -1) {
+      return { type: 'bench', label: `S${benchIdx + 1}`, slotId: null, index: benchIdx };
+    }
+    return { type: 'reserve', label: '—', slotId: null, index: -1 };
+  };
+
+  // Assign player to a starting slot
+  const assignPlayerToStartingSlot = (player, targetSlotId) => {
+    if (!player || !targetSlotId) return;
+    if (checkUnavailablePlayer(player)) return;
+
+    const newLineup = { ...lineup };
+    const prevStartingSlot = Object.keys(newLineup).find(k => newLineup[k] && newLineup[k].name === player.name);
+    const existingPlayerInTarget = newLineup[targetSlotId];
+
+    // If player came from another starting slot, swap them!
+    if (prevStartingSlot && prevStartingSlot !== targetSlotId) {
+      newLineup[prevStartingSlot] = existingPlayerInTarget || null;
+    }
+    newLineup[targetSlotId] = player;
+    updateLineupAndSave(newLineup);
+
+    // If player was on bench, remove them from bench
+    const benchKey = `retro_bench_${teamInfo.name}_${teamInfo.season}`;
+    if (selectedBenchNames.includes(player.name)) {
+      const nextBench = selectedBenchNames.filter(n => n !== player.name);
+      setSelectedBenchNames(nextBench);
+      localStorage.setItem(benchKey, JSON.stringify(nextBench));
+    }
+
+    setSelectedRosterPlayer(null);
+    setActiveAssignSlot(null);
+    setAssigningPlayerMenu(null);
+  };
+
+  // Assign player to a bench slot
+  const assignPlayerToBenchSlot = (player, targetIndex) => {
+    if (!player || targetIndex < 0) return;
+    if (checkUnavailablePlayer(player)) return;
+
+    // If player was in starting lineup, remove them
+    const startingSlot = Object.keys(lineup).find(k => lineup[k] && lineup[k].name === player.name);
+    if (startingSlot) {
+      const newLineup = { ...lineup, [startingSlot]: null };
+      updateLineupAndSave(newLineup);
+    }
+
+    const benchKey = `retro_bench_${teamInfo.name}_${teamInfo.season}`;
+    const nextBench = [...selectedBenchNames];
+    const prevBenchIdx = nextBench.indexOf(player.name);
+    const existingPlayerAtTarget = nextBench[targetIndex];
+
+    if (prevBenchIdx !== -1) {
+      // Swap bench positions
+      nextBench[prevBenchIdx] = existingPlayerAtTarget || null;
+      nextBench[targetIndex] = player.name;
+    } else {
+      // Place at target index
+      if (targetIndex < nextBench.length) {
+        nextBench[targetIndex] = player.name;
+      } else {
+        nextBench.push(player.name);
+      }
+    }
+    const filteredBench = nextBench.filter(Boolean);
+    setSelectedBenchNames(filteredBench);
+    localStorage.setItem(benchKey, JSON.stringify(filteredBench));
+
+    setSelectedRosterPlayer(null);
+    setActiveAssignSlot(null);
+    setAssigningPlayerMenu(null);
+  };
+
+  // Unassign player (send to reserves)
+  const handleUnassignPlayer = (player) => {
+    if (!player) return;
+    const startingSlot = Object.keys(lineup).find(k => lineup[k] && lineup[k].name === player.name);
+    if (startingSlot) {
+      const newLineup = { ...lineup, [startingSlot]: null };
+      updateLineupAndSave(newLineup);
+    }
+    if (selectedBenchNames.includes(player.name)) {
+      const benchKey = `retro_bench_${teamInfo.name}_${teamInfo.season}`;
+      const nextBench = selectedBenchNames.filter(n => n !== player.name);
+      setSelectedBenchNames(nextBench);
+      localStorage.setItem(benchKey, JSON.stringify(nextBench));
+    }
+    setSelectedRosterPlayer(null);
+    setActiveAssignSlot(null);
+    setAssigningPlayerMenu(null);
+  };
+
+  const handleBottomSlotClick = (slotTarget) => {
+    if (selectedRosterPlayer) {
+      if (slotTarget.type === 'starting') {
+        assignPlayerToStartingSlot(selectedRosterPlayer, slotTarget.id);
+      } else if (slotTarget.type === 'bench') {
+        assignPlayerToBenchSlot(selectedRosterPlayer, slotTarget.index);
+      }
+    } else {
+      if (activeAssignSlot && activeAssignSlot.type === slotTarget.type && (activeAssignSlot.id === slotTarget.id || activeAssignSlot.index === slotTarget.index)) {
+        setActiveAssignSlot(null);
+      } else {
+        setActiveAssignSlot(slotTarget);
+      }
+    }
+  };
+
+  /**
+   * Renders compact season disciplinary tallies (yellow/red cards) for a player when > 0.
+   */
+  const renderSeasonCardPills = (player) => {
+    const yc = player?.yellowCards || 0;
+    const rc = player?.redCards || 0;
+    if (yc === 0 && rc === 0) return null;
+    const isNearBan = yc >= 4;
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}>
+        {yc > 0 && (
+          <span
+            style={{
+              fontSize: '7.5px',
+              fontWeight: 'bold',
+              fontFamily: 'Orbitron',
+              color: isNearBan ? '#ff9100' : '#ffd700',
+              background: isNearBan ? 'rgba(255, 145, 0, 0.18)' : 'rgba(255, 215, 0, 0.12)',
+              border: `1px solid ${isNearBan ? 'rgba(255, 145, 0, 0.45)' : 'rgba(255, 215, 0, 0.3)'}`,
+              borderRadius: '3px',
+              padding: '0.5px 3px',
+              lineHeight: 1.2
+            }}
+            title={`Season Yellow Cards: ${yc}${isNearBan ? ' (One booking from suspension!)' : ''}`}
+          >
+            🟨{yc}
+          </span>
+        )}
+        {rc > 0 && (
+          <span
+            style={{
+              fontSize: '7.5px',
+              fontWeight: 'bold',
+              fontFamily: 'Orbitron',
+              color: '#ff4d6d',
+              background: 'rgba(255, 46, 76, 0.16)',
+              border: '1px solid rgba(255, 46, 76, 0.4)',
+              borderRadius: '3px',
+              padding: '0.5px 3px',
+              lineHeight: 1.2
+            }}
+            title={`Season Red Cards: ${rc}`}
+          >
+            🟥{rc}
+          </span>
+        )}
+      </span>
+    );
+  };
+
+  /**
+   * Renders unified suspension / injury / fitness badge for bench & squad lists.
+   */
+  const renderBenchReserveStatusBadge = (player) => {
+    if (player.suspensionMatchesLeft > 0) {
+      return (
+        <span
+          style={{
+            fontSize: '7.5px',
+            fontWeight: 'bold',
+            fontFamily: 'Orbitron',
+            color: '#ff4d6d',
+            background: 'rgba(255, 46, 76, 0.18)',
+            padding: '1px 4px',
+            borderRadius: '3px',
+            border: '1px solid rgba(255, 46, 76, 0.45)'
+          }}
+          title={`Suspended: ${player.suspensionReason || 'Disciplinary Ban'} (${player.suspensionMatchesLeft}m)`}
+        >
+          🟥 {player.suspensionMatchesLeft}m
+        </span>
+      );
+    }
+    if (player.injuryMatchesLeft > 0) {
+      return (
+        <span
+          style={{
+            fontSize: '7.5px',
+            fontWeight: 'bold',
+            fontFamily: 'Orbitron',
+            color: '#ff3333',
+            background: 'rgba(255, 51, 51, 0.1)',
+            padding: '1px 3px',
+            borderRadius: '3px',
+            border: '1px solid rgba(255, 51, 51, 0.25)'
+          }}
+          title={`Injured: ${player.injury || 'Unknown Injury'}`}
+        >
+          🤕 {player.injuryMatchesLeft}m
+        </span>
+      );
+    }
+    return (
+      <span
+        style={{
+          fontSize: '8px',
+          fontWeight: 'bold',
+          fontFamily: 'Orbitron',
+          color: player.condition < 60 ? '#ff3333' : (player.condition < 80 ? '#ffa500' : '#00ff64'),
+          background: player.condition < 60 ? 'rgba(255, 51, 51, 0.05)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.05)' : 'rgba(0, 255, 100, 0.05)'),
+          padding: '1px 3px',
+          borderRadius: '3px',
+          border: `1px solid ${player.condition < 60 ? 'rgba(255, 51, 51, 0.2)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.2)' : 'rgba(0, 255, 100, 0.15)')}`
+        }}
+        title={`Condition: ${player.condition !== undefined ? player.condition : 100}%`}
+      >
+        ⚡{player.condition !== undefined ? player.condition : 100}%
+      </span>
+    );
+  };
+
+  const renderTraditionalPlayerRow = (player, index) => {
+    if (!player) return null;
+    const assignment = getPlayerAssignmentInfo(player);
+    const isSelected = selectedRosterPlayer && selectedRosterPlayer.name === player.name;
+    const isSuspended = player.suspensionMatchesLeft > 0;
+    const isInjured = player.injuryMatchesLeft > 0;
+    const isStarting = assignment.type === 'starting';
+    const isBench = assignment.type === 'bench';
+
+    // Calculate rating with condition drop
+    const displayRating = player.condition < 80 && !isInjured
+      ? Math.max(1, player.rating - 1)
+      : player.rating;
+
+    // Tactical role if in starting lineup
+    const roleId = isStarting ? (playerRoles[assignment.slotId] || 'normal') : null;
+    const slotObj = isStarting ? slots.find(s => s.id === assignment.slotId) : null;
+    const roleMeta = (isStarting && slotObj) ? getRoleMetadata(slotObj, player, roleId) : null;
+    const hasRole = roleMeta && roleMeta.id !== 'normal';
+
+    return (
+      <div
+        key={player.name || index}
+        onClick={() => {
+          if (activeAssignSlot) {
+            if (activeAssignSlot.type === 'starting') {
+              assignPlayerToStartingSlot(player, activeAssignSlot.id);
+            } else if (activeAssignSlot.type === 'bench') {
+              assignPlayerToBenchSlot(player, activeAssignSlot.index);
+            }
+          } else {
+            handleRosterPlayerClick(player);
+          }
+        }}
+        className="cm-squad-row"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '2px 8px',
+          height: '26px',
+          borderRadius: '4px',
+          background: isSelected
+            ? 'rgba(0, 255, 100, 0.18)'
+            : (index % 2 === 0 ? 'rgba(255, 255, 255, 0.025)' : 'rgba(0, 0, 0, 0.25)'),
+          border: isSelected
+            ? '1px solid #00ff64'
+            : (isStarting ? '1px solid rgba(0, 255, 100, 0.15)' : (isBench ? '1px solid rgba(0, 229, 255, 0.1)' : '1px solid transparent')),
+          cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'all 0.15s ease',
+          gap: '6px'
+        }}
+        title="Click row to select. Click slot button on left to assign."
+      >
+        {/* Left: Slot Button Pill */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setAssigningPlayerMenu(player);
+          }}
+          className="cm-slot-btn"
+          style={{
+            width: '32px',
+            height: '19px',
+            borderRadius: '4px',
+            border: isStarting
+              ? '1px solid #64b5f6'
+              : (isBench ? '1px solid #4fc3f7' : '1px solid rgba(255,255,255,0.15)'),
+            background: isStarting
+              ? 'linear-gradient(180deg, #1e5799 0%, #207cca 40%, #155799 100%)'
+              : (isBench ? 'linear-gradient(180deg, #0288d1 0%, #01579b 100%)' : 'rgba(255,255,255,0.05)'),
+            color: isStarting ? '#ffffff' : (isBench ? '#e1f5fe' : '#777'),
+            fontFamily: 'Orbitron',
+            fontSize: '8px',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            flexShrink: 0,
+            padding: 0,
+            boxShadow: isStarting ? '0 1px 3px rgba(0,0,0,0.5)' : 'none'
+          }}
+          title="Click to assign slot"
+        >
+          {assignment.label}
+        </button>
+
+        {/* Status / Condition badge */}
+        <div style={{
+          width: '32px',
+          height: '15px',
+          borderRadius: '3px',
+          background: isSuspended
+            ? 'rgba(255, 46, 76, 0.22)'
+            : (isInjured
+              ? 'rgba(255, 51, 51, 0.2)'
+              : (player.condition < 60 ? 'rgba(255, 51, 51, 0.15)' : (player.condition < 80 ? 'rgba(255, 152, 0, 0.2)' : 'rgba(0, 255, 100, 0.12)'))),
+          border: `1px solid ${isSuspended ? '#ff2e4c' : (isInjured ? '#ff3333' : (player.condition < 60 ? '#ff3333' : (player.condition < 80 ? '#ffa500' : 'rgba(0, 255, 100, 0.3)')))}`,
+          color: isSuspended ? '#ff4d6d' : (isInjured ? '#ff5555' : (player.condition < 60 ? '#ff5555' : (player.condition < 80 ? '#ffa500' : '#00ff64'))),
+          fontSize: '7.5px',
+          fontWeight: 'bold',
+          fontFamily: 'Orbitron',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0
+        }} title={isSuspended ? `Suspended: ${player.suspensionReason || 'Ban'} (${player.suspensionMatchesLeft}m)` : (isInjured ? `Injured: ${player.injury || 'Injury'} (${player.injuryMatchesLeft}m)` : `Fitness: ${player.condition ?? 100}%`)}>
+          {isSuspended ? 'SUS' : (isInjured ? 'INJ' : `${player.condition ?? 100}%`)}
+        </div>
+
+        {/* Player Name */}
+        <div style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '5px',
+          overflow: 'hidden'
+        }}>
+          <span style={{
+            fontSize: '11px',
+            fontWeight: '600',
+            color: '#ffffff',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            {player.name}
+          </span>
+
+          {renderSeasonCardPills(player)}
+
+          {/* Tactical role badge if starting */}
+          {hasRole && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                if (slotObj) handleToggleSlotRole(e, slotObj, player);
+              }}
+              style={{
+                fontSize: '7px',
+                fontWeight: 'bold',
+                fontFamily: 'Orbitron',
+                color: roleMeta.color,
+                background: 'rgba(0,0,0,0.5)',
+                border: `1px solid ${roleMeta.color}`,
+                borderRadius: '3px',
+                padding: '0.5px 3px',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+              title={`Role: ${roleMeta.label}. Click to cycle duty.`}
+            >
+              {roleMeta.shortName}
+            </span>
+          )}
+        </div>
+
+        {/* Star Rating */}
+        <span style={{
+          fontSize: '9.5px',
+          fontWeight: 'bold',
+          fontFamily: 'Orbitron',
+          color: '#ffd700',
+          flexShrink: 0,
+          marginRight: '4px'
+        }}>
+          ★{displayRating}
+        </span>
+
+        {/* Playable Positions (right column, gold CM font) */}
+        <span style={{
+          fontSize: '9.5px',
+          fontWeight: 'bold',
+          fontFamily: 'Orbitron',
+          color: '#ffd700',
+          textAlign: 'right',
+          flexShrink: 0,
+          minWidth: '55px',
+          letterSpacing: '0.5px'
+        }} title={`Full positions: ${getPlayerFullPositions(player)}`}>
+          {getPlayerFullPositions(player)}
+        </span>
+      </div>
+    );
   };
 
   const currentFormation = FORMATIONS[selectedFormation];
@@ -2028,6 +2576,26 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
             height: 340px !important;
           }
         }
+        .cm-squad-row {
+          transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .cm-squad-row:hover {
+          background: rgba(0, 255, 100, 0.08) !important;
+        }
+        .cm-slot-btn:hover {
+          filter: brightness(1.2);
+          transform: scale(1.05);
+        }
+        .cm-pos-btn:hover {
+          filter: brightness(1.25);
+          border-color: #00ff64 !important;
+          box-shadow: 0 0 8px rgba(0, 255, 100, 0.4) !important;
+        }
+        @media (max-width: 900px) {
+          .cm-traditional-columns {
+            flex-direction: column !important;
+          }
+        }
       `}</style>
       <div className="glass-card animated-slide-in tactics-modal-card" style={{
         width: '100%',
@@ -2052,7 +2620,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
             fontFamily: 'Orbitron',
             letterSpacing: '2px'
           }}>
-            ⚽ FORMATION & SQUAD TACTICS
+            ⚽ TACTICS
           </h2>
           {!inline && (
             <button
@@ -2081,25 +2649,6 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
           marginBottom: '5px'
         }}>
           <button
-            onClick={() => setActiveTab("formations")}
-            style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              borderBottom: activeTab === "formations" ? '3px solid #00ff64' : '3px solid transparent',
-              color: activeTab === "formations" ? '#00ff64' : '#888',
-              fontFamily: 'Orbitron',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              padding: '10px 0',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              letterSpacing: '1px'
-            }}
-          >
-            📋 SELECT FORMATION
-          </button>
-          <button
             onClick={() => setActiveTab("tactics")}
             style={{
               flex: 1,
@@ -2116,273 +2665,375 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
               letterSpacing: '1px'
             }}
           >
-            🛡️ LINEUP
+            🛡️ TACTICS
+          </button>
+          <button
+            onClick={() => setActiveTab("squad")}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === "squad" ? '3px solid #00ff64' : '3px solid transparent',
+              color: activeTab === "squad" ? '#00ff64' : '#888',
+              fontFamily: 'Orbitron',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              padding: '10px 0',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              letterSpacing: '1px'
+            }}
+          >
+            📋 SQUAD
           </button>
         </div>
 
-        {activeTab === "formations" ? (
-          <>
-            {/* Active Formation Display */}
-            <div className="active-formation-display" style={{
-              display: 'flex',
-              gap: '20px',
-              alignItems: 'center',
-              background: 'rgba(0, 255, 100, 0.03)',
-              border: '1px solid rgba(0, 255, 100, 0.12)',
-              borderRadius: '12px',
-              padding: '15px 20px'
-            }}>
-              <div className="active-pitch-wrapper">
-                <FormationPitch formation={selectedFormation} isSelected={true} size="normal" />
-              </div>
+        {activeTab === "squad" ? (
+          /* SQUAD TAB: CM 01/02 TRADITIONAL SQUAD VIEW */
+          (() => {
+            const sortedSquad = sortedSquadForTraditionalView;
+            const halfCount = Math.ceil(sortedSquad.length / 2);
+            const col1 = sortedSquad.slice(0, halfCount);
+            const col2 = sortedSquad.slice(halfCount);
+            const startingCount = Object.values(lineup).filter(Boolean).length;
 
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            return (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '490px',
+                background: '#091512',
+                borderRadius: '12px',
+                border: '1.5px solid rgba(0, 255, 100, 0.25)',
+                boxShadow: 'inset 0 0 30px rgba(0, 0, 0, 0.85)',
+                overflow: 'hidden'
+              }}>
+                {/* Traditional View Top Header Bar */}
                 <div style={{
-                  fontFamily: 'Orbitron',
-                  fontSize: '28px',
-                  fontWeight: 'bold',
-                  color: '#00ff64',
-                  textShadow: '0 0 10px rgba(0, 255, 100, 0.3)',
-                  letterSpacing: '2px',
                   display: 'flex',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
-                  gap: '12px',
-                  flexWrap: 'wrap'
+                  padding: '7px 14px',
+                  background: 'rgba(0,0,0,0.45)',
+                  borderBottom: '1px solid rgba(255,255,255,0.08)'
                 }}>
-                  <span>{currentFormation.label}</span>
-                  {currentFormation.era && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span style={{
-                      fontSize: '11px',
+                      fontFamily: 'Orbitron',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
                       color: '#ffd700',
-                      fontFamily: 'Orbitron',
-                      fontWeight: 'bold',
-                      background: 'rgba(255, 215, 0, 0.1)',
-                      border: '1px solid rgba(255, 215, 0, 0.3)',
-                      borderRadius: '6px',
-                      padding: '2px 8px',
-                      letterSpacing: '0.5px',
-                      textShadow: 'none'
+                      letterSpacing: '1px',
+                      textShadow: '0 0 8px rgba(255, 215, 0, 0.4)'
                     }}>
-                      ⏳ {currentFormation.era}
+                      Players (Traditional View)
                     </span>
-                  )}
-                </div>
-                <div style={{
-                  fontSize: '11px',
-                  color: '#a3b3a7',
-                  lineHeight: '1.4'
-                }}>
-                  {currentFormation.desc}
-                </div>
-
-                {/* Stat modifiers */}
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
-                  <span style={{
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    background: 'rgba(255, 215, 0, 0.08)',
-                    border: '1px solid rgba(255, 215, 0, 0.2)',
-                    color: '#ffd700',
-                    fontSize: '9px',
-                    fontWeight: 'bold',
-                    fontFamily: 'Orbitron',
-                    letterSpacing: '0.5px'
-                  }}>
-                    ⚙️ RATINGS FROM PLAYER POSITIONS & ROLES (DEF÷4 • MID÷4 • ATT÷2)
-                  </span>
-                </div>
-
-                <div style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  marginTop: '4px',
-                  padding: '3px 10px',
-                  borderRadius: '12px',
-                  background: 'rgba(0, 255, 100, 0.1)',
-                  border: '1px solid rgba(0, 255, 100, 0.3)',
-                  color: '#00ff64',
-                  fontSize: '9px',
-                  fontWeight: 'bold',
-                  fontFamily: 'Orbitron',
-                  letterSpacing: '1px',
-                  alignSelf: 'flex-start'
-                }}>
-                  ✓ ACTIVE FORMATION
-                </div>
-              </div>
-            </div>
-
-            {/* Formation Legend */}
-            <div className="formation-legend" style={{
-              display: 'flex',
-              gap: '12px',
-              justifyContent: 'center',
-              padding: '6px 0',
-              borderTop: '1px solid rgba(255,255,255,0.04)',
-              borderBottom: '1px solid rgba(255,255,255,0.04)'
-            }}>
-              {[
-                { color: '#ffd700', label: 'GK' },
-                { color: '#00e5ff', label: 'DEF' },
-                { color: '#00ff64', label: 'MID' },
-                { color: '#ff4500', label: 'ATT' }
-              ].map(item => (
-                <div key={item.label} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontSize: '8px',
-                  color: '#888',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}>
-                  <div style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: item.color,
-                    boxShadow: `0 0 4px ${item.color}`
-                  }} />
-                  {item.label}
-                </div>
-              ))}
-            </div>
-
-            {/* Formation Grid */}
-            <div className="formations-grid" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '10px',
-              overflowY: 'auto',
-              maxHeight: '38vh',
-              paddingRight: '4px'
-            }}>
-              {formationKeys.map(key => {
-                const fm = FORMATIONS[key];
-                const isActive = key === selectedFormation;
-                const hasModifiers = fm.modifiers.attack !== 0 || fm.modifiers.midfield !== 0 || fm.modifiers.defense !== 0;
-
-                return (
-                  <button
-                    key={key}
-                    onClick={() => handleSelectFormation(key)}
-                    style={{
-                      background: isActive
-                        ? 'linear-gradient(135deg, rgba(0, 255, 100, 0.08), rgba(0, 255, 100, 0.02))'
-                        : 'rgba(255,255,255,0.02)',
-                      border: isActive
-                        ? '1.5px solid rgba(0, 255, 100, 0.4)'
-                        : '1px solid rgba(255,255,255,0.06)',
-                      borderRadius: '10px',
-                      padding: '10px 6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '6px',
-                      transition: 'all 0.25s ease',
-                      transform: isActive ? 'scale(1.02)' : 'scale(1)',
-                      boxShadow: isActive ? '0 0 12px rgba(0, 255, 100, 0.15)' : 'none'
-                    }}
-                  >
-                    <FormationPitch formation={key} isSelected={isActive} size="small" />
-
-                    <span style={{
-                      fontFamily: 'Orbitron',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      color: isActive ? '#00ff64' : '#fff',
-                      letterSpacing: '1px'
-                    }}>
-                      {fm.label}
+                    <span style={{ fontSize: '9.5px', color: '#888', fontFamily: 'Orbitron' }}>
+                      XI: <strong style={{ color: startingCount === 11 ? '#00ff64' : '#ffd700' }}>{startingCount}/11</strong> •{' '}
+                      Subs: <strong style={{ color: '#00e5ff' }}>{selectedBenchNames.length}/{limit >= 99 ? 'ALL' : limit}</strong> •{' '}
+                      Reserves: <strong style={{ color: '#aaa' }}>{reservePlayers.length}</strong>
                     </span>
+                  </div>
 
-                    {fm.era && (
-                      <span style={{
-                        fontSize: '7.5px',
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {/* Formation Selector Button (Opens Formation Picker Modal) */}
+                    <button
+                      type="button"
+                      onClick={() => setShowFormationModal(true)}
+                      style={{
+                        background: 'rgba(0, 255, 100, 0.1)',
+                        border: '1.5px solid rgba(0, 255, 100, 0.4)',
+                        borderRadius: '5px',
+                        color: '#00ff64',
+                        fontFamily: 'Orbitron',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        padding: '4px 9px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        boxShadow: '0 0 8px rgba(0, 255, 100, 0.15)',
+                        transition: 'all 0.2s ease'
+                      }}
+                      title="Click to change team formation"
+                    >
+                      <span>⚽ {selectedFormation}</span>
+                      <span style={{ fontSize: '8px', color: '#00ff64' }}>▼</span>
+                    </button>
+
+                    {/* Auto-select Best 11 */}
+                    <button
+                      type="button"
+                      onClick={handleAutoFill}
+                      style={{
+                        background: 'rgba(0, 255, 100, 0.08)',
+                        border: '1px solid rgba(0, 255, 100, 0.35)',
+                        borderRadius: '5px',
+                        color: '#00ff64',
+                        fontFamily: 'Orbitron',
+                        fontSize: '9px',
+                        fontWeight: 'bold',
+                        padding: '4px 8px',
+                        cursor: 'pointer'
+                      }}
+                      title="Auto-select highest rated players into formation"
+                    >
+                      ⚡ AUTO-SELECT
+                    </button>
+
+                    {/* Clear All */}
+                    <button
+                      type="button"
+                      onClick={handleClearAll}
+                      style={{
+                        background: 'rgba(255, 69, 0, 0.08)',
+                        border: '1px solid rgba(255, 69, 0, 0.35)',
+                        borderRadius: '5px',
+                        color: '#ff4500',
+                        fontFamily: 'Orbitron',
+                        fontSize: '9px',
+                        fontWeight: 'bold',
+                        padding: '4px 8px',
+                        cursor: 'pointer'
+                      }}
+                      title="Clear starting lineup"
+                    >
+                      ✕ CLEAR
+                    </button>
+
+                    {/* Sort Order Selector */}
+                    <select
+                      value={squadSortMode}
+                      onChange={(e) => setSquadSortMode(e.target.value)}
+                      style={{
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: '5px',
                         color: '#ffd700',
                         fontFamily: 'Orbitron',
+                        fontSize: '9px',
                         fontWeight: 'bold',
-                        background: 'rgba(255, 215, 0, 0.08)',
-                        border: '1px solid rgba(255, 215, 0, 0.25)',
-                        borderRadius: '4px',
-                        padding: '1px 5px',
-                        letterSpacing: '0.5px',
-                        textAlign: 'center'
-                      }}>
-                        ⏳ {fm.era}
-                      </span>
-                    )}
+                        padding: '4px 6px',
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                      title="Sort squad display order"
+                    >
+                      <option value="default" style={{ background: '#121217', color: '#fff' }}>SORT: XI → SUBS → SQUAD</option>
+                      <option value="position" style={{ background: '#121217', color: '#fff' }}>SORT: BY POSITION</option>
+                      <option value="rating" style={{ background: '#121217', color: '#fff' }}>SORT: BY RATING</option>
+                      <option value="name" style={{ background: '#121217', color: '#fff' }}>SORT: BY NAME</option>
+                    </select>
 
-                    <span style={{
-                      fontSize: '8px',
-                      color: '#888',
-                      textAlign: 'center',
-                      lineHeight: '1.3',
-                      maxWidth: '120px'
-                    }}>
-                      {fm.desc}
-                    </span>
+                    {/* Switch to Pitch */}
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('tactics')}
+                      style={{
+                        background: 'rgba(0, 229, 255, 0.1)',
+                        border: '1px solid rgba(0, 229, 255, 0.4)',
+                        borderRadius: '5px',
+                        color: '#00e5ff',
+                        fontFamily: 'Orbitron',
+                        fontSize: '9px',
+                        fontWeight: 'bold',
+                        padding: '4px 8px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      🛡️ PITCH VIEW
+                    </button>
+                  </div>
+                </div>
 
-                    {/* Compact modifiers */}
-                    <div style={{
-                      display: 'flex',
-                      gap: '3px',
-                      flexWrap: 'wrap',
-                      justifyContent: 'center',
-                      minHeight: '16px'
-                    }}>
-                      {hasModifiers ? (
-                        <>
-                          {fm.modifiers.attack !== 0 && (
-                            <span style={{
-                              fontSize: '7px',
-                              fontWeight: 'bold',
-                              color: fm.modifiers.attack > 0 ? '#00ff64' : '#ff3333',
-                              fontFamily: 'Orbitron'
-                            }}>
-                              ATT {fm.modifiers.attack > 0 ? '+' : ''}{fm.modifiers.attack}
-                            </span>
-                          )}
-                          {fm.modifiers.midfield !== 0 && (
-                            <span style={{
-                              fontSize: '7px',
-                              fontWeight: 'bold',
-                              color: fm.modifiers.midfield > 0 ? '#00ff64' : '#ff3333',
-                              fontFamily: 'Orbitron'
-                            }}>
-                              MID {fm.modifiers.midfield > 0 ? '+' : ''}{fm.modifiers.midfield}
-                            </span>
-                          )}
-                          {fm.modifiers.defense !== 0 && (
-                            <span style={{
-                              fontSize: '7px',
-                              fontWeight: 'bold',
-                              color: fm.modifiers.defense > 0 ? '#00ff64' : '#ff3333',
-                              fontFamily: 'Orbitron'
-                            }}>
-                              DEF {fm.modifiers.defense > 0 ? '+' : ''}{fm.modifiers.defense}
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        <span style={{
-                          fontSize: '7px',
-                          fontWeight: 'bold',
-                          color: '#ffd700',
-                          fontFamily: 'Orbitron'
-                        }}>
-                          STANDARD
-                        </span>
-                      )}
+                {/* Banner prompts when assigning */}
+                {activeAssignSlot && (
+                  <div style={{
+                    background: 'rgba(0, 255, 100, 0.15)',
+                    borderBottom: '1px solid rgba(0, 255, 100, 0.4)',
+                    padding: '3px 14px',
+                    fontSize: '9.5px',
+                    color: '#00ff64',
+                    fontFamily: 'Orbitron',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span>👉 Click any player below to assign them to position <strong>[{activeAssignSlot.label}]</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveAssignSlot(null)}
+                      style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', fontFamily: 'Orbitron', fontSize: '9px' }}
+                    >
+                      ✕ CANCEL
+                    </button>
+                  </div>
+                )}
+
+                {selectedRosterPlayer && !activeAssignSlot && (
+                  <div style={{
+                    background: 'rgba(0, 229, 255, 0.12)',
+                    borderBottom: '1px solid rgba(0, 229, 255, 0.4)',
+                    padding: '3px 14px',
+                    fontSize: '9.5px',
+                    color: '#00e5ff',
+                    fontFamily: 'Orbitron',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span>👉 Selected <strong>{selectedRosterPlayer.name}</strong> ({getPlayerFullPositions(selectedRosterPlayer)}): Click a slot in the bottom "Positions" bar to place them</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRosterPlayer(null)}
+                      style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', fontFamily: 'Orbitron', fontSize: '9px' }}
+                    >
+                      ✕ DESELECT
+                    </button>
+                  </div>
+                )}
+
+                {/* 2-Column Continuous Squad Layout (CM 01/02 Classic) */}
+                <div className="cm-traditional-columns" style={{
+                  flex: 1,
+                  display: 'flex',
+                  gap: '8px',
+                  padding: '6px 10px',
+                  overflowY: 'auto',
+                  background: 'linear-gradient(180deg, rgba(8, 20, 16, 0.6) 0%, rgba(6, 14, 12, 0.9) 100%)'
+                }}>
+                  {loading ? (
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '11px', fontFamily: 'Orbitron' }}>
+                      Loading squad...
                     </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
+                  ) : sortedSquad.length === 0 ? (
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '11px' }}>
+                      No players found in squad.
+                    </div>
+                  ) : (
+                    <>
+                      {/* Column 1 */}
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        {col1.map((player, idx) => renderTraditionalPlayerRow(player, idx))}
+                      </div>
+
+                      {/* Column 2 */}
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        {col2.map((player, idx) => renderTraditionalPlayerRow(player, idx + col1.length))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Bottom "Positions" Bar */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 12px',
+                  background: 'rgba(0,0,0,0.65)',
+                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                  overflowX: 'auto',
+                  flexShrink: 0
+                }}>
+                  <span style={{
+                    fontFamily: 'Orbitron',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    color: '#ffd700',
+                    letterSpacing: '1px',
+                    flexShrink: 0,
+                    marginRight: '4px'
+                  }}>
+                    Positions
+                  </span>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'nowrap', overflowX: 'auto', padding: '2px 0' }}>
+                    {/* Starting Slots */}
+                    {slots.map(slot => {
+                      const idealPos = getIdealSlotPosition(slot.role, slot.x, slot.y);
+                      const occupant = lineup[slot.id];
+                      const isActiveSlot = activeAssignSlot && activeAssignSlot.type === 'starting' && activeAssignSlot.id === slot.id;
+
+                      return (
+                        <button
+                          key={slot.id}
+                          type="button"
+                          onClick={() => handleBottomSlotClick({ type: 'starting', id: slot.id, label: idealPos })}
+                          className="cm-pos-btn"
+                          style={{
+                            minWidth: '32px',
+                            height: '24px',
+                            padding: '0 5px',
+                            borderRadius: '4px',
+                            background: isActiveSlot
+                              ? 'rgba(0, 255, 100, 0.35)'
+                              : (occupant ? 'linear-gradient(180deg, #1e5799 0%, #207cca 40%, #155799 100%)' : 'rgba(255,255,255,0.05)'),
+                            border: isActiveSlot
+                              ? '1.5px solid #00ff64'
+                              : (occupant ? '1px solid #64b5f6' : '1px solid rgba(255,255,255,0.15)'),
+                            color: isActiveSlot ? '#00ff64' : '#ffffff',
+                            fontFamily: 'Orbitron',
+                            fontSize: '8.5px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                            boxShadow: isActiveSlot ? '0 0 8px rgba(0, 255, 100, 0.4)' : 'none',
+                            transition: 'all 0.15s ease'
+                          }}
+                          title={`${idealPos}: ${occupant ? occupant.name : 'Empty'}`}
+                        >
+                          {idealPos}
+                        </button>
+                      );
+                    })}
+
+                    <div style={{ width: '1px', height: '18px', background: 'rgba(255,255,255,0.15)', margin: '0 4px', flexShrink: 0 }} />
+
+                    {/* Bench Slots */}
+                    {Array.from({ length: Math.min(limit, 7) }).map((_, bIdx) => {
+                      const occupantName = selectedBenchNames[bIdx];
+                      const occupant = occupantName ? squad.find(p => p.name === occupantName) : null;
+                      const isActiveSlot = activeAssignSlot && activeAssignSlot.type === 'bench' && activeAssignSlot.index === bIdx;
+
+                      return (
+                        <button
+                          key={bIdx}
+                          type="button"
+                          onClick={() => handleBottomSlotClick({ type: 'bench', index: bIdx, label: `S${bIdx + 1}` })}
+                          className="cm-pos-btn"
+                          style={{
+                            minWidth: '30px',
+                            height: '24px',
+                            padding: '0 5px',
+                            borderRadius: '4px',
+                            background: isActiveSlot
+                              ? 'rgba(0, 229, 255, 0.35)'
+                              : (occupant ? 'linear-gradient(180deg, #0288d1 0%, #01579b 100%)' : 'rgba(255,255,255,0.05)'),
+                            border: isActiveSlot
+                              ? '1.5px solid #00e5ff'
+                              : (occupant ? '1px solid #4fc3f7' : '1px solid rgba(255,255,255,0.15)'),
+                            color: isActiveSlot ? '#00e5ff' : '#e1f5fe',
+                            fontFamily: 'Orbitron',
+                            fontSize: '8.5px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                            boxShadow: isActiveSlot ? '0 0 8px rgba(0, 229, 255, 0.4)' : 'none',
+                            transition: 'all 0.15s ease'
+                          }}
+                          title={`S${bIdx + 1}: ${occupant ? occupant.name : 'Empty'}`}
+                        >
+                          S{bIdx + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()
         ) : (
           /* TACTICS TAB CONTENT: 3-COLUMN MODERN LAYOUT (PITCH | SUBS | RESERVES) */
           (() => {
@@ -2415,28 +3066,36 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '10px', color: '#888', fontFamily: 'Orbitron' }}>FORMATION:</span>
-                      <select
-                        value={selectedFormation}
-                        onChange={(e) => handleSelectFormation(e.target.value)}
+                      <button
+                        type="button"
+                        onClick={() => setShowFormationModal(true)}
                         style={{
-                          background: 'rgba(0,0,0,0.5)',
-                          border: '1px solid rgba(0, 255, 100, 0.3)',
+                          background: 'rgba(0, 255, 100, 0.1)',
+                          border: '1.5px solid rgba(0, 255, 100, 0.4)',
                           borderRadius: '6px',
                           color: '#00ff64',
                           fontFamily: 'Orbitron',
                           fontSize: '11px',
                           fontWeight: 'bold',
-                          padding: '3px 8px',
+                          padding: '3px 10px',
                           outline: 'none',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 0 10px rgba(0, 255, 100, 0.15)',
+                          transition: 'all 0.2s ease'
                         }}
+                        title="Click to select team formation"
                       >
-                        {formationKeys.map(k => (
-                          <option key={k} value={k} style={{ background: '#16161c', color: '#fff' }}>
-                            {k} {FORMATIONS[k]?.era ? `(${FORMATIONS[k].era})` : ''}
-                          </option>
-                        ))}
-                      </select>
+                        <span>⚽ {selectedFormation}</span>
+                        {FORMATIONS[selectedFormation]?.era && (
+                          <span style={{ fontSize: '8.5px', color: '#ffd700', opacity: 0.85 }}>
+                            ({FORMATIONS[selectedFormation].era})
+                          </span>
+                        )}
+                        <span style={{ fontSize: '8.5px', color: '#00ff64', marginLeft: '2px' }}>▼ CHANGE</span>
+                      </button>
                     </div>
 
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -2617,14 +3276,14 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                                   fontSize: '7.5px',
                                   fontWeight: 'bold',
                                   fontFamily: 'Orbitron',
-                                  color: assignedPlayer.injuryMatchesLeft > 0 ? '#ff3333' : (assignedPlayer.condition < 60 ? '#ff3333' : (assignedPlayer.condition < 80 ? '#ffa500' : '#00ff64')),
-                                  background: 'rgba(0,0,0,0.4)',
+                                  color: assignedPlayer.suspensionMatchesLeft > 0 ? '#ff4d6d' : (assignedPlayer.injuryMatchesLeft > 0 ? '#ff3333' : (assignedPlayer.condition < 60 ? '#ff3333' : (assignedPlayer.condition < 80 ? '#ffa500' : '#00ff64'))),
+                                  background: assignedPlayer.suspensionMatchesLeft > 0 ? 'rgba(255, 46, 76, 0.2)' : 'rgba(0,0,0,0.4)',
                                   padding: '0.5px 3px',
                                   borderRadius: '3px',
-                                  border: `1px solid ${assignedPlayer.injuryMatchesLeft > 0 ? '#ff333344' : (assignedPlayer.condition < 80 ? '#ffa50044' : '#00ff6433')}`,
+                                  border: `1px solid ${assignedPlayer.suspensionMatchesLeft > 0 ? '#ff2e4c' : (assignedPlayer.injuryMatchesLeft > 0 ? '#ff333344' : (assignedPlayer.condition < 80 ? '#ffa50044' : '#00ff6433'))}`,
                                   flexShrink: 0
-                                }} title={assignedPlayer.injuryMatchesLeft > 0 ? `Injured: ${assignedPlayer.injury || 'Unknown'}` : `Condition: ${assignedPlayer.condition !== undefined ? assignedPlayer.condition : 100}%`}>
-                                  {assignedPlayer.injuryMatchesLeft > 0 ? `🤕${assignedPlayer.injuryMatchesLeft}m` : `⚡${assignedPlayer.condition !== undefined ? assignedPlayer.condition : 100}%`}
+                                }} title={assignedPlayer.suspensionMatchesLeft > 0 ? `Suspended: ${assignedPlayer.suspensionReason || 'Ban'} (${assignedPlayer.suspensionMatchesLeft}m)` : (assignedPlayer.injuryMatchesLeft > 0 ? `Injured: ${assignedPlayer.injury || 'Unknown'}` : `Condition: ${assignedPlayer.condition !== undefined ? assignedPlayer.condition : 100}%`)}>
+                                  {assignedPlayer.suspensionMatchesLeft > 0 ? `🟥${assignedPlayer.suspensionMatchesLeft}m` : (assignedPlayer.injuryMatchesLeft > 0 ? `🤕${assignedPlayer.injuryMatchesLeft}m` : `⚡${assignedPlayer.condition !== undefined ? assignedPlayer.condition : 100}%`)}
                                 </span>
                               </div>
                               <span className="pitch-slot-name" style={{
@@ -2842,39 +3501,14 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                                 }} title={player.name}>
                                   {player.name}
                                 </span>
+                                {renderSeasonCardPills(player)}
                               </div>
 
                               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
                                 <span style={{ fontSize: '8.5px', color: '#888' }}>Age {player.age || 25}</span>
 
-                                {/* Condition / Injury */}
-                                {player.injuryMatchesLeft > 0 ? (
-                                  <span style={{
-                                    fontSize: '7.5px',
-                                    fontWeight: 'bold',
-                                    fontFamily: 'Orbitron',
-                                    color: '#ff3333',
-                                    background: 'rgba(255, 51, 51, 0.1)',
-                                    padding: '1px 3px',
-                                    borderRadius: '3px',
-                                    border: '1px solid rgba(255, 51, 51, 0.25)'
-                                  }} title={`Injured: ${player.injury || 'Unknown Injury'}`}>
-                                    🤕 {player.injuryMatchesLeft}m
-                                  </span>
-                                ) : (
-                                  <span style={{
-                                    fontSize: '8px',
-                                    fontWeight: 'bold',
-                                    fontFamily: 'Orbitron',
-                                    color: player.condition < 60 ? '#ff3333' : (player.condition < 80 ? '#ffa500' : '#00ff64'),
-                                    background: player.condition < 60 ? 'rgba(255, 51, 51, 0.05)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.05)' : 'rgba(0, 255, 100, 0.05)'),
-                                    padding: '1px 3px',
-                                    borderRadius: '3px',
-                                    border: `1px solid ${player.condition < 60 ? 'rgba(255, 51, 51, 0.2)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.2)' : 'rgba(0, 255, 100, 0.15)')}`
-                                  }} title={`Condition: ${player.condition !== undefined ? player.condition : 100}%`}>
-                                    ⚡{player.condition !== undefined ? player.condition : 100}%
-                                  </span>
-                                )}
+                                {/* Condition / Injury / Suspension */}
+                                {renderBenchReserveStatusBadge(player)}
 
                                 {/* Star Rating */}
                                 <span style={{
@@ -2997,39 +3631,14 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                                   }} title={player.name}>
                                     {player.name}
                                   </span>
+                                  {renderSeasonCardPills(player)}
                                 </div>
 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
                                   <span style={{ fontSize: '8.5px', color: '#888' }}>Age {player.age || 25}</span>
 
-                                  {/* Condition / Injury */}
-                                  {player.injuryMatchesLeft > 0 ? (
-                                    <span style={{
-                                      fontSize: '7.5px',
-                                      fontWeight: 'bold',
-                                      fontFamily: 'Orbitron',
-                                      color: '#ff3333',
-                                      background: 'rgba(255, 51, 51, 0.1)',
-                                      padding: '1px 3px',
-                                      borderRadius: '3px',
-                                      border: '1px solid rgba(255, 51, 51, 0.25)'
-                                    }} title={`Injured: ${player.injury || 'Unknown Injury'}`}>
-                                      🤕 {player.injuryMatchesLeft}m
-                                    </span>
-                                  ) : (
-                                    <span style={{
-                                      fontSize: '8px',
-                                      fontWeight: 'bold',
-                                      fontFamily: 'Orbitron',
-                                      color: player.condition < 60 ? '#ff3333' : (player.condition < 80 ? '#ffa500' : '#00ff64'),
-                                      background: player.condition < 60 ? 'rgba(255, 51, 51, 0.05)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.05)' : 'rgba(0, 255, 100, 0.05)'),
-                                      padding: '1px 3px',
-                                      borderRadius: '3px',
-                                      border: `1px solid ${player.condition < 60 ? 'rgba(255, 51, 51, 0.2)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.2)' : 'rgba(0, 255, 100, 0.15)')}`
-                                    }} title={`Condition: ${player.condition !== undefined ? player.condition : 100}%`}>
-                                      ⚡{player.condition !== undefined ? player.condition : 100}%
-                                    </span>
-                                  )}
+                                  {/* Condition / Injury / Suspension */}
+                                  {renderBenchReserveStatusBadge(player)}
 
                                   {/* Star Rating */}
                                   <span style={{
@@ -3311,35 +3920,10 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                                   </span>
                                 )}
                                 <span style={{ fontSize: '9px', color: '#888' }}>Age {player.age}</span>
+                                {renderSeasonCardPills(player)}
 
-                                {/* Condition / Injury */}
-                                {player.injuryMatchesLeft > 0 ? (
-                                  <span style={{
-                                    fontSize: '8px',
-                                    fontWeight: 'bold',
-                                    fontFamily: 'Orbitron',
-                                    color: '#ff3333',
-                                    background: 'rgba(255, 51, 51, 0.1)',
-                                    padding: '1px 4px',
-                                    borderRadius: '3px',
-                                    border: '1px solid rgba(255, 51, 51, 0.25)'
-                                  }} title={`Injured: ${player.injury || 'Unknown Injury'}`}>
-                                    🤕 {player.injuryMatchesLeft}m
-                                  </span>
-                                ) : (
-                                  <span style={{
-                                    fontSize: '8.5px',
-                                    fontWeight: 'bold',
-                                    fontFamily: 'Orbitron',
-                                    color: player.condition < 60 ? '#ff3333' : (player.condition < 80 ? '#ffa500' : '#00ff64'),
-                                    background: player.condition < 60 ? 'rgba(255, 51, 51, 0.05)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.05)' : 'rgba(0, 255, 100, 0.05)'),
-                                    padding: '1px 4px',
-                                    borderRadius: '3px',
-                                    border: `1px solid ${player.condition < 60 ? 'rgba(255, 51, 51, 0.2)' : (player.condition < 80 ? 'rgba(255, 165, 0, 0.2)' : 'rgba(0, 255, 100, 0.15)')}`
-                                  }} title={`Condition: ${player.condition !== undefined ? player.condition : 100}%`}>
-                                    ⚡{player.condition !== undefined ? player.condition : 100}%
-                                  </span>
-                                )}
+                                {/* Condition / Injury / Suspension */}
+                                {renderBenchReserveStatusBadge(player)}
 
                                 {/* Star Rating */}
                                 <span style={{
@@ -3413,6 +3997,521 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
           CONFIRM & SAVE SETTINGS ✓
         </button>
       </div>
+
+      {/* Formation Selection Modal */}
+      {showFormationModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.88)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={() => setShowFormationModal(false)}
+        >
+          <div
+            style={{
+              background: '#121217',
+              border: '1.5px solid rgba(0, 255, 100, 0.4)',
+              borderRadius: '16px',
+              maxWidth: '960px',
+              width: '100%',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              padding: '20px',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.9), 0 0 30px rgba(0, 255, 100, 0.15)',
+              overflow: 'hidden'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{
+                margin: 0,
+                fontFamily: 'Orbitron',
+                fontSize: '18px',
+                color: '#00ff64',
+                letterSpacing: '1.5px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span>⚽ SELECT TEAM FORMATION</span>
+              </h3>
+              <button
+                onClick={() => setShowFormationModal(false)}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '4px',
+                  color: '#aaa',
+                  padding: '4px 10px',
+                  cursor: 'pointer',
+                  fontFamily: 'Orbitron',
+                  fontWeight: 'bold',
+                  fontSize: '11px',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                ✕ CLOSE
+              </button>
+            </div>
+
+            {/* Active Formation Display */}
+            <div className="active-formation-display" style={{
+              display: 'flex',
+              gap: '20px',
+              alignItems: 'center',
+              background: 'rgba(0, 255, 100, 0.03)',
+              border: '1px solid rgba(0, 255, 100, 0.12)',
+              borderRadius: '12px',
+              padding: '12px 18px'
+            }}>
+              <div className="active-pitch-wrapper">
+                <FormationPitch formation={selectedFormation} isSelected={true} size="normal" />
+              </div>
+
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{
+                  fontFamily: 'Orbitron',
+                  fontSize: '24px',
+                  fontWeight: 'bold',
+                  color: '#00ff64',
+                  textShadow: '0 0 10px rgba(0, 255, 100, 0.3)',
+                  letterSpacing: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  flexWrap: 'wrap'
+                }}>
+                  <span>{currentFormation.label}</span>
+                  {currentFormation.era && (
+                    <span style={{
+                      fontSize: '11px',
+                      color: '#ffd700',
+                      fontFamily: 'Orbitron',
+                      fontWeight: 'bold',
+                      background: 'rgba(255, 215, 0, 0.1)',
+                      border: '1px solid rgba(255, 215, 0, 0.3)',
+                      borderRadius: '6px',
+                      padding: '2px 8px',
+                      letterSpacing: '0.5px',
+                      textShadow: 'none'
+                    }}>
+                      ⏳ {currentFormation.era}
+                    </span>
+                  )}
+                </div>
+                <div style={{
+                  fontSize: '11px',
+                  color: '#a3b3a7',
+                  lineHeight: '1.4'
+                }}>
+                  {currentFormation.desc}
+                </div>
+
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+                  <span style={{
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    background: 'rgba(255, 215, 0, 0.08)',
+                    border: '1px solid rgba(255, 215, 0, 0.2)',
+                    color: '#ffd700',
+                    fontSize: '9px',
+                    fontWeight: 'bold',
+                    fontFamily: 'Orbitron',
+                    letterSpacing: '0.5px'
+                  }}>
+                    ⚙️ RATINGS FROM PLAYER POSITIONS & ROLES (DEF÷4 • MID÷4 • ATT÷2)
+                  </span>
+                </div>
+
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  marginTop: '2px',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  background: 'rgba(0, 255, 100, 0.1)',
+                  border: '1px solid rgba(0, 255, 100, 0.3)',
+                  color: '#00ff64',
+                  fontSize: '8.5px',
+                  fontWeight: 'bold',
+                  fontFamily: 'Orbitron',
+                  letterSpacing: '1px',
+                  alignSelf: 'flex-start'
+                }}>
+                  ✓ ACTIVE FORMATION
+                </div>
+              </div>
+            </div>
+
+            {/* Formation Legend */}
+            <div className="formation-legend" style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'center',
+              padding: '4px 0',
+              borderTop: '1px solid rgba(255,255,255,0.04)',
+              borderBottom: '1px solid rgba(255,255,255,0.04)'
+            }}>
+              {[
+                { color: '#ffd700', label: 'GK' },
+                { color: '#00e5ff', label: 'DEF' },
+                { color: '#00ff64', label: 'MID' },
+                { color: '#ff4500', label: 'ATT' }
+              ].map(item => (
+                <div key={item.label} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '8px',
+                  color: '#888',
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  <div style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: item.color,
+                    boxShadow: `0 0 4px ${item.color}`
+                  }} />
+                  {item.label}
+                </div>
+              ))}
+            </div>
+
+            {/* Formation Grid */}
+            <div className="formations-grid" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '10px',
+              overflowY: 'auto',
+              maxHeight: '44vh',
+              paddingRight: '4px'
+            }}>
+              {formationKeys.map(key => {
+                const fm = FORMATIONS[key];
+                const isActive = key === selectedFormation;
+                const hasModifiers = fm.modifiers.attack !== 0 || fm.modifiers.midfield !== 0 || fm.modifiers.defense !== 0;
+
+                return (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      handleSelectFormation(key);
+                      setShowFormationModal(false);
+                    }}
+                    style={{
+                      background: isActive
+                        ? 'linear-gradient(135deg, rgba(0, 255, 100, 0.12), rgba(0, 255, 100, 0.03))'
+                        : 'rgba(255,255,255,0.02)',
+                      border: isActive
+                        ? '1.5px solid rgba(0, 255, 100, 0.6)'
+                        : '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: '10px',
+                      padding: '10px 6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s ease',
+                      transform: isActive ? 'scale(1.02)' : 'scale(1)',
+                      boxShadow: isActive ? '0 0 14px rgba(0, 255, 100, 0.25)' : 'none'
+                    }}
+                  >
+                    <FormationPitch formation={key} isSelected={isActive} size="small" />
+
+                    <span style={{
+                      fontFamily: 'Orbitron',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      color: isActive ? '#00ff64' : '#fff',
+                      letterSpacing: '1px'
+                    }}>
+                      {fm.label}
+                    </span>
+
+                    {fm.era && (
+                      <span style={{
+                        fontSize: '7.5px',
+                        color: '#ffd700',
+                        fontFamily: 'Orbitron',
+                        fontWeight: 'bold',
+                        background: 'rgba(255, 215, 0, 0.08)',
+                        border: '1px solid rgba(255, 215, 0, 0.25)',
+                        borderRadius: '4px',
+                        padding: '1px 5px',
+                        letterSpacing: '0.5px',
+                        textAlign: 'center'
+                      }}>
+                        ⏳ {fm.era}
+                      </span>
+                    )}
+
+                    <span style={{
+                      fontSize: '8px',
+                      color: '#888',
+                      textAlign: 'center',
+                      lineHeight: '1.3',
+                      maxWidth: '120px'
+                    }}>
+                      {fm.desc}
+                    </span>
+
+                    {/* Modifiers info */}
+                    <div style={{
+                      display: 'flex',
+                      gap: '3px',
+                      flexWrap: 'wrap',
+                      justifyContent: 'center',
+                      minHeight: '16px'
+                    }}>
+                      {hasModifiers ? (
+                        <>
+                          {fm.modifiers.attack !== 0 && (
+                            <span style={{
+                              fontSize: '7px',
+                              fontWeight: 'bold',
+                              color: fm.modifiers.attack > 0 ? '#00ff64' : '#ff3333',
+                              fontFamily: 'Orbitron'
+                            }}>
+                              ATT {fm.modifiers.attack > 0 ? '+' : ''}{fm.modifiers.attack}
+                            </span>
+                          )}
+                          {fm.modifiers.midfield !== 0 && (
+                            <span style={{
+                              fontSize: '7px',
+                              fontWeight: 'bold',
+                              color: fm.modifiers.midfield > 0 ? '#00ff64' : '#ff3333',
+                              fontFamily: 'Orbitron'
+                            }}>
+                              MID {fm.modifiers.midfield > 0 ? '+' : ''}{fm.modifiers.midfield}
+                            </span>
+                          )}
+                          {fm.modifiers.defense !== 0 && (
+                            <span style={{
+                              fontSize: '7px',
+                              fontWeight: 'bold',
+                              color: fm.modifiers.defense > 0 ? '#00ff64' : '#ff3333',
+                              fontFamily: 'Orbitron'
+                            }}>
+                              DEF {fm.modifiers.defense > 0 ? '+' : ''}{fm.modifiers.defense}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span style={{
+                          fontSize: '7px',
+                          fontWeight: 'bold',
+                          color: '#ffd700',
+                          fontFamily: 'Orbitron'
+                        }}>
+                          STANDARD
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Player Slot Assignment Popover Modal */}
+      {assigningPlayerMenu && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(5px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => setAssigningPlayerMenu(null)}
+        >
+          <div
+            style={{
+              background: '#121217',
+              border: '1.5px solid rgba(0, 229, 255, 0.4)',
+              borderRadius: '14px',
+              maxWidth: '560px',
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              padding: '18px',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.85), 0 0 25px rgba(0, 229, 255, 0.15)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px' }}>
+              <div>
+                <h4 style={{ margin: 0, fontFamily: 'Orbitron', fontSize: '15px', color: '#00e5ff', letterSpacing: '1px' }}>
+                  ASSIGN POSITION
+                </h4>
+                <div style={{ fontSize: '11px', color: '#fff', marginTop: '3px', fontWeight: 'bold' }}>
+                  {assigningPlayerMenu.name} <span style={{ color: '#ffd700', fontSize: '10px' }}>({getPlayerFullPositions(assigningPlayerMenu)} • ★{assigningPlayerMenu.rating})</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setAssigningPlayerMenu(null)}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '4px',
+                  color: '#aaa',
+                  padding: '3px 8px',
+                  cursor: 'pointer',
+                  fontFamily: 'Orbitron',
+                  fontSize: '10px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Starting XI slots */}
+            <div>
+              <div style={{ fontSize: '10px', color: '#00ff64', fontFamily: 'Orbitron', fontWeight: 'bold', marginBottom: '6px' }}>
+                ⚽ STARTING XI SLOTS ({selectedFormation})
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(115px, 1fr))', gap: '6px' }}>
+                {slots.map(slot => {
+                  const idealPos = getIdealSlotPosition(slot.role, slot.x, slot.y);
+                  const occupant = lineup[slot.id];
+                  const isSelf = occupant && occupant.name === assigningPlayerMenu.name;
+                  return (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      onClick={() => assignPlayerToStartingSlot(assigningPlayerMenu, slot.id)}
+                      style={{
+                        background: isSelf ? 'rgba(0, 255, 100, 0.2)' : (occupant ? 'rgba(255,255,255,0.04)' : 'rgba(0, 255, 100, 0.05)'),
+                        border: isSelf ? '1.5px solid #00ff64' : '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '6px',
+                        padding: '6px 8px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span style={{ fontFamily: 'Orbitron', fontSize: '10px', fontWeight: 'bold', color: getPositionColor(idealPos) }}>
+                        {idealPos} {isSelf ? '✓ (Current)' : ''}
+                      </span>
+                      <span style={{ fontSize: '9.5px', color: occupant ? '#bbb' : '#666', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                        {occupant ? occupant.name : '(Empty)'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Substitutes */}
+            <div>
+              <div style={{ fontSize: '10px', color: '#00e5ff', fontFamily: 'Orbitron', fontWeight: 'bold', marginBottom: '6px' }}>
+                💺 MATCH BENCH SUBSTITUTES
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(115px, 1fr))', gap: '6px' }}>
+                {Array.from({ length: Math.min(limit, 7) }).map((_, bIdx) => {
+                  const occupantName = selectedBenchNames[bIdx];
+                  const isSelf = occupantName === assigningPlayerMenu.name;
+                  return (
+                    <button
+                      key={bIdx}
+                      type="button"
+                      onClick={() => assignPlayerToBenchSlot(assigningPlayerMenu, bIdx)}
+                      style={{
+                        background: isSelf ? 'rgba(0, 229, 255, 0.2)' : (occupantName ? 'rgba(255,255,255,0.04)' : 'rgba(0, 229, 255, 0.05)'),
+                        border: isSelf ? '1.5px solid #00e5ff' : '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '6px',
+                        padding: '6px 8px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span style={{ fontFamily: 'Orbitron', fontSize: '10px', fontWeight: 'bold', color: '#00e5ff' }}>
+                        S{bIdx + 1} {isSelf ? '✓ (Current)' : ''}
+                      </span>
+                      <span style={{ fontSize: '9.5px', color: occupantName ? '#bbb' : '#666', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                        {occupantName || '(Empty)'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Unassign / Remove to Reserves */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px' }}>
+              <button
+                type="button"
+                onClick={() => handleUnassignPlayer(assigningPlayerMenu)}
+                style={{
+                  background: 'rgba(255, 69, 0, 0.1)',
+                  border: '1px solid rgba(255, 69, 0, 0.4)',
+                  borderRadius: '6px',
+                  color: '#ff4500',
+                  fontFamily: 'Orbitron',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  padding: '6px 12px',
+                  cursor: 'pointer'
+                }}
+              >
+                ❌ SEND TO RESERVES
+              </button>
+              <button
+                type="button"
+                onClick={() => setAssigningPlayerMenu(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '6px',
+                  color: '#aaa',
+                  fontFamily: 'Orbitron',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  padding: '6px 14px',
+                  cursor: 'pointer'
+                }}
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

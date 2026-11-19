@@ -144,7 +144,11 @@ export async function getOrLoadCPUSquad(teamName, season) {
         ...p,
         condition: p.condition !== undefined ? p.condition : 100,
         injuryMatchesLeft: p.injuryMatchesLeft !== undefined ? p.injuryMatchesLeft : 0,
-        injury: p.injury !== undefined ? p.injury : null
+        injury: p.injury !== undefined ? p.injury : null,
+        yellowCards: p.yellowCards !== undefined ? p.yellowCards : 0,
+        redCards: p.redCards !== undefined ? p.redCards : 0,
+        suspensionMatchesLeft: p.suspensionMatchesLeft !== undefined ? p.suspensionMatchesLeft : 0,
+        suspensionReason: p.suspensionReason !== undefined ? p.suspensionReason : null
       }));
       try {
         localStorage.setItem(rosterKey, JSON.stringify(initialized));
@@ -215,10 +219,11 @@ export function generateCPULineup(squad, formationKey = '4-4-2', options = {}) {
   for (const slot of sortedSlots) {
     const ideal = slot.idealPos;
 
-    // 1. Natural candidates (healthy & fit)
+    // 1. Natural candidates (healthy, fit, & eligible)
     let candidates = squad.filter(
       p => !usedNames.has(p.name) &&
         !(p.injuryMatchesLeft > 0) &&
+        !(p.suspensionMatchesLeft > 0) &&
         hasNaturalPosition(p, ideal)
     );
 
@@ -260,6 +265,7 @@ export function generateCPULineup(squad, formationKey = '4-4-2', options = {}) {
       let secondaryCandidates = squad.filter(
         p => !usedNames.has(p.name) &&
           !(p.injuryMatchesLeft > 0) &&
+          !(p.suspensionMatchesLeft > 0) &&
           hasSecondaryPosition(p, ideal)
       );
       secondaryCandidates.sort((a, b) => getEffectiveScore(b) - getEffectiveScore(a));
@@ -268,10 +274,10 @@ export function generateCPULineup(squad, formationKey = '4-4-2', options = {}) {
       }
     }
 
-    // 3. Emergency fallback (only if entire position is depleted by injuries)
+    // 3. Emergency fallback (only if entire position is depleted by injuries/suspensions)
     if (!chosen) {
       let emergencyCandidates = squad.filter(
-        p => !usedNames.has(p.name) && !(p.injuryMatchesLeft > 0)
+        p => !usedNames.has(p.name) && !(p.injuryMatchesLeft > 0) && !(p.suspensionMatchesLeft > 0)
       );
       emergencyCandidates.sort((a, b) => (b.rating || 3) - (a.rating || 3));
       if (emergencyCandidates.length > 0) {
@@ -285,9 +291,9 @@ export function generateCPULineup(squad, formationKey = '4-4-2', options = {}) {
     }
   }
 
-  // Build bench list (remaining healthy players sorted by rating)
+  // Build bench list (remaining healthy/eligible players sorted by rating)
   const bench = squad
-    .filter(p => !usedNames.has(p.name) && !(p.injuryMatchesLeft > 0))
+    .filter(p => !usedNames.has(p.name) && !(p.injuryMatchesLeft > 0) && !(p.suspensionMatchesLeft > 0))
     .sort((a, b) => (b.rating || 3) - (a.rating || 3))
     .slice(0, 7);
 

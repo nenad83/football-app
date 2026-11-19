@@ -189,6 +189,34 @@ export function simulateFixture(h, a, modeOverride = null) {
 }
 
 /**
+ * Resolves whether a duel roll triggers a foul and what disciplinary action the referee takes.
+ * A natural 1 commits a foul; the referee then rolls 1d6 (with Pressing or Strict ref raising yellowMax to 3),
+ * and a referee roll of 1 rolls a confirmation d10 where 1 = direct red card.
+ */
+export function resolveFoulCheck({ rawRoll, sides = 10, isPressing = false, refereeStrictness = 'normal' } = {}) {
+  if (rawRoll !== 1) {
+    return { foul: false, outcome: 'none', refRoll: null, confirmRoll: null };
+  }
+
+  const refRoll = rollDie(6);
+  const yellowMax = (isPressing || refereeStrictness === 'strict') ? 3 : 2;
+
+  if (refRoll === 1) {
+    const confirmRoll = rollDie(10);
+    if (confirmRoll === 1) {
+      return { foul: true, outcome: 'red', refRoll, confirmRoll, sides };
+    }
+    return { foul: true, outcome: 'yellow', refRoll, confirmRoll, sides };
+  }
+
+  if (refRoll <= yellowMax) {
+    return { foul: true, outcome: 'yellow', refRoll, confirmRoll: null, sides };
+  }
+
+  return { foul: true, outcome: 'warning', refRoll, confirmRoll: null, sides };
+}
+
+/**
  * Returns human-readable engine metadata for UI displays.
  */
 export function getEngineMetadata(modeOverride = null) {
