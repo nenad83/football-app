@@ -112,12 +112,12 @@
   {
     "idnum": 10,
     "id": "sco26",
-    "name": "Ross County",
-    "attack": 2,
+    "name": "Falkirk",
+    "attack": 3,
     "midfield": 2,
     "defense": 2,
     "kit": "swe92/0.png",
-    "primaryColor": "#001F3F",
+    "primaryColor": "#00205B",
     "secondaryColor": "#FFFFFF"
   },
   {

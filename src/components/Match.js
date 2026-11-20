@@ -8,7 +8,7 @@ import { clibRules } from '../data/clib/clibRules';
 import { csudRules } from '../data/csud/csudRules';
 import { getModifiedStat as computeModifiedStat, adjustCPUTactic as runCPUTacticAdjustment, TacticsPanel } from './MatchTactics';
 import { getSubstitutionLimit, getStoppageLimit } from '../utils/matchRules';
-import { getSavedFormation, getCPUFormation, updateTeamStatsInStorage, getFormationSlots, getIdealSlotPosition, getPositionPenalty, generateDefaultLineup } from './FormationTactics';
+import { getSavedFormation, getCPUFormation, updateTeamStatsInStorage, getFormationSlots, getIdealSlotPosition, getPositionPenalty, generateDefaultLineup, getSavedCaptain, resolveValidCaptain } from './FormationTactics';
 import { getPrebuiltRoster, getTeamDetails, getTeamDetailsSync, calculateMatchAttendance } from '../data/rosters/rosterRegistry';
 import { getCPUMatchLineupAndStats } from '../utils/cpuSquadManager';
 import {
@@ -34,12 +34,19 @@ import {
 } from './MatchCommentary';
 import { initializeKnockouts } from "../utils/tournamentRules";
 import { advanceDomesticCup } from "../utils/domesticCupGenerator";
+import { recordMatchEventsInStats } from "../utils/awardsManager";
+import {
+  buildEuropeanCupSetup,
+  insertEuropeanEventsIntoCalendar,
+  resolveTwoLegTie
+} from "../utils/europeanQualifierHelper";
 import {
   getEngineMode,
   setEngineMode,
   rollMidfield,
   rollAttackDef,
   rollShotOnGoal,
+  getGoalkeeperSaveModifier,
   rollPenalty,
   resolveFoulCheck,
   simulateFixture as simulateFixtureEngine,
@@ -459,6 +466,21 @@ export default function Match() {
           teamtwoname = currentFixture.awayId;
         }
       }
+    } else if (currentEvent && currentEvent.type === "europe_qualifier" && leagueState.europeanQualifierState) {
+      const qualState = leagueState.europeanQualifierState;
+      if (qualState.opponent) {
+        teamid[qualState.opponent.idnum] = qualState.opponent;
+      }
+      if (currentEvent.leg === 1) {
+        teamonename = qualState.leg1HomeId;
+        teamtwoname = qualState.leg1AwayId;
+      } else {
+        teamonename = qualState.leg2HomeId;
+        teamtwoname = qualState.leg2AwayId;
+        isLeg2 = true;
+        leg1HomeScore = qualState.leg1HomeScore;
+        leg1AwayScore = qualState.leg1AwayScore;
+      }
     } else {
       const currentFixture = leagueState.fixtures[leagueState.currentRound - 1]?.find(
         f => f.homeId === leagueState.playerTeamId || f.awayId === leagueState.playerTeamId
@@ -635,16 +657,23 @@ export default function Match() {
   const [cpuLineups, setCpuLineups] = useState({});
   const [cpuBenches, setCpuBenches] = useState({});
   const [cpuRoles, setCpuRoles] = useState({});
+  const [captainName, setCaptainName] = useState("");
   const [showOpponentModal, setShowOpponentModal] = useState(null);
   const [matchCards, setMatchCards] = useState([]);
 
   const matchCardsRef = useRef([]);
   const lineupRef = useRef(lineup);
   const cpuLineupsRef = useRef(cpuLineups);
+  const captainRef = useRef(captainName);
+  const matchGoalEventsRef = useRef([]);
 
   useEffect(() => {
     lineupRef.current = lineup;
   }, [lineup]);
+
+  useEffect(() => {
+    captainRef.current = captainName;
+  }, [captainName]);
 
   useEffect(() => {
     cpuLineupsRef.current = cpuLineups;
@@ -770,6 +799,9 @@ export default function Match() {
         setPlayerRoles(loadedRoles);
         setSavedStartingLineup(JSON.parse(JSON.stringify(loadedLineup)));
         setSavedStartingRoles(JSON.parse(JSON.stringify(loadedRoles)));
+        const initialCaptain = resolveValidCaptain(loadedLineup, getSavedCaptain(teamName, season));
+        captainRef.current = initialCaptain;
+        setCaptainName(initialCaptain);
 
         // Load selected bench names
         const benchKey = `retro_bench_${teamName}_${season}`;
@@ -819,6 +851,26 @@ export default function Match() {
   };
 
   const isPlayerHome = teamonename === playerTeamId;
+
+  const handleSelectMatchCaptain = (nextName) => {
+    if (!nextName || nextName === captainRef.current) return;
+    captainRef.current = nextName;
+    setCaptainName(nextName);
+    if (time > 0) {
+      logEvent(`©️ ${nextName} takes over the captain's armband!`, "normal");
+    }
+  };
+
+  const reassignCaptainIfRemoved = (updatedLineup, removedPlayerName, causeText) => {
+    if (!removedPlayerName || removedPlayerName !== captainRef.current) return null;
+    const nextCaptain = resolveValidCaptain(updatedLineup, '');
+    captainRef.current = nextCaptain;
+    setCaptainName(nextCaptain);
+    if (nextCaptain) {
+      logEvent(`©️ Captain ${removedPlayerName} (${causeText}) — the armband passes to ${nextCaptain}!`, "normal");
+    }
+    return nextCaptain;
+  };
 
   const handleTogglePlayerRole = (slotId, nextRole, player, slot) => {
     let resolvedSlot = slot;
@@ -931,6 +983,10 @@ export default function Match() {
         logEvent(`🔄 Sub: ${playerFromBench.name} comes on for ${playerToBench ? playerToBench.name : "empty slot"}!`, "normal");
       }
 
+      if (playerToBench) {
+        reassignCaptainIfRemoved(newLineup, playerToBench.name, "substituted");
+      }
+
       setPlayerMinutes(prev => {
         const next = { ...prev };
         if (playerToBench && next[playerToBench.name]) {
@@ -983,6 +1039,9 @@ export default function Match() {
     });
 
     logEvent(`🤕 ${player.name} leaves the field! The team is now playing with ${Object.values(newLineup).filter(Boolean).length} players.`, "normal");
+    if (player) {
+      reassignCaptainIfRemoved(newLineup, player.name, "forced off injured");
+    }
   };
 
   const handleCloseSubModal = () => {
@@ -1522,6 +1581,20 @@ export default function Match() {
     );
   };
 
+  const getActiveRolesForTeam = (teamKey) => {
+    if (playerTeamId !== null && teamKey === playerTeamId) return playerRoles || {};
+    if (teamKey === teamonename && !isHomeDisabled && !cpuLineupsRef.current[teamonename]) return playerRoles || {};
+    if (teamKey === teamtwoname && !isAwayDisabled && !cpuLineupsRef.current[teamtwoname]) return playerRoles || {};
+    return (cpuRoles && cpuRoles[teamKey]) ? cpuRoles[teamKey] : {};
+  };
+
+  const extractMatchScorersAndAssists = () => {
+    const events = matchGoalEventsRef.current || [];
+    const scorers = events.map(e => e.scorer).filter(Boolean).sort((a, b) => a.minute - b.minute);
+    const assists = events.map(e => e.assister).filter(Boolean).sort((a, b) => a.minute - b.minute);
+    return { scorers, assists };
+  };
+
   // Load CPU authentic starting lineups, rotation, tactical roles, and dynamic strength ratings
   useEffect(() => {
     let isMounted = true;
@@ -1738,7 +1811,8 @@ export default function Match() {
               newCond = Math.max(0, newCond - 30); // drop condition due to injury
 
               injuredPlayerName = sp.name;
-              injuredPlayerMsg = `🤕 INJURY ALERT!\n\n${sp.name} (${sp.position}, Age ${sp.age}) has suffered a ${injury} and cannot continue! (Out for ${injuryMatches} matches)\n\nPlease open the substitution modal to replace or remove him.`;
+              const isCaptainInjured = sp.name === captainRef.current;
+              injuredPlayerMsg = `🤕 INJURY ALERT!\n\n${sp.name} (${sp.position}, Age ${sp.age}) has suffered a ${injury} and cannot continue! (Out for ${injuryMatches} matches)\n\nPlease open the substitution modal to replace or remove him.${isCaptainInjured ? '\n\n©️ Your captain is injured — the armband will pass automatically when he is replaced or removed (or choose a new captain manually in Tactics).' : ''}`;
             }
           }
 
@@ -2005,19 +2079,48 @@ export default function Match() {
     }
     if (pool.length === 0) pool = activeEntries;
 
-    const picked = pool[Math.floor(Math.random() * pool.length)];
+    // Weight already-booked players significantly lower so teams don't repeatedly draw second yellows
+    const teamRedCount = matchCardsRef.current.filter(
+      c => c.teamKey === teamKey && (c.type === 'red' || c.type === 'second_yellow')
+    ).length;
+    const bookedWeight = teamRedCount > 0 ? 0.10 : 0.22;
+    const weights = pool.map(entry => {
+      const hasYellow = matchCardsRef.current.some(
+        c => c.teamKey === teamKey && c.playerName === entry.player.name && c.type === 'yellow'
+      );
+      return hasYellow ? bookedWeight : 1.0;
+    });
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    let cursor = Math.random() * totalWeight;
+    let picked = pool[0];
+    for (let i = 0; i < pool.length; i++) {
+      cursor -= weights[i];
+      if (cursor <= 0) {
+        picked = pool[i];
+        break;
+      }
+    }
     return { ...picked, isSynthetic: false };
   };
 
   /**
-   * Evaluates a duel roll for fouls, yellow cards, second yellows, and direct red cards (Option 1).
+   * Evaluates a duel roll for fouls, yellow cards, second yellows, and direct red cards.
    */
   const evaluateDuelFoul = ({ teamKey, side, rawRoll, rollSides, sector, isPressing, opponentKey }) => {
+    const teamRedCards = matchCardsRef.current.filter(
+      c => c.teamKey === teamKey && (c.type === 'red' || c.type === 'second_yellow')
+    ).length;
+    const matchRedCards = matchCardsRef.current.filter(
+      c => c.type === 'red' || c.type === 'second_yellow'
+    ).length;
+
     const check = resolveFoulCheck({
       rawRoll,
       sides: rollSides,
       isPressing,
-      refereeStrictness: isStrictReferee ? 'strict' : 'normal'
+      refereeStrictness: isStrictReferee ? 'strict' : 'normal',
+      teamRedCards,
+      matchRedCards
     });
     if (!check.foul) return null;
 
@@ -2026,7 +2129,20 @@ export default function Match() {
     const opponentTeamName = teamid[opponentKey]?.name || 'Opponent';
     const oppLineup = resolveLiveLineup(opponentKey);
 
-    if (check.outcome === 'warning') {
+    const priorYellows = offender.isSynthetic
+      ? 0
+      : matchCardsRef.current.filter(
+        c => c.teamKey === teamKey && c.playerName === offender.player.name && c.type === 'yellow'
+      ).length;
+
+    const softenExtremeRed =
+      check.outcome === 'yellow' &&
+      priorYellows >= 1 &&
+      teamRedCards >= 1 &&
+      matchRedCards >= 2 &&
+      Math.random() < 0.7;
+
+    if (check.outcome === 'warning' || softenExtremeRed) {
       return {
         outcome: 'warning',
         type: 'foul',
@@ -2034,12 +2150,6 @@ export default function Match() {
         payload: getFoulWarningCommentary(offender.player.name, offenderTeamName, opponentTeamName, oppLineup, sector, referee, side)
       };
     }
-
-    const priorYellows = offender.isSynthetic
-      ? 0
-      : matchCardsRef.current.filter(
-        c => c.teamKey === teamKey && c.playerName === offender.player.name && c.type === 'yellow'
-      ).length;
 
     const cardType = check.outcome === 'red'
       ? 'red'
@@ -2109,7 +2219,8 @@ export default function Match() {
 
         const remainingCount = Object.values(updatedLineup).filter(Boolean).length;
         const reasonText = cardType === 'red' ? 'Direct Red Card' : 'Second Yellow Card';
-        humanRedCardAlert = `🟥 RED CARD (${time}')!\n\n${offender.player.name} (${offender.player.position || 'Player'}) has been SENT OFF (${reasonText})!\n\nYour team is down to ${remainingCount} men. You may reorganize your remaining players before resuming.`;
+        const nextCaptainAfterRed = reassignCaptainIfRemoved(updatedLineup, offender.player.name, reasonText);
+        humanRedCardAlert = `🟥 RED CARD (${time}')!\n\n${offender.player.name} (${offender.player.position || 'Player'}) has been SENT OFF (${reasonText})!\n\nYour team is down to ${remainingCount} men. You may reorganize your remaining players before resuming.${nextCaptainAfterRed ? `\n\n©️ Captain's armband passed to ${nextCaptainAfterRed}.` : ''}`;
       } else {
         const updatedCpuLineup = { ...(cpuLineupsRef.current[teamKey] || {}), [offender.slotId]: null };
         cpuLineupsRef.current = { ...cpuLineupsRef.current, [teamKey]: updatedCpuLineup };
@@ -2206,9 +2317,31 @@ export default function Match() {
 
       const currentCalEvent = leagueState?.calendar ? leagueState.calendar[leagueState.calendarIndex] : null;
       const isDomesticCupMatch = isLeague && currentCalEvent && (currentCalEvent.type === "domestic_cup" || currentCalEvent.isDomesticCup);
+      const isEuropeanQualifierMatch = isLeague && currentCalEvent && currentCalEvent.type === "europe_qualifier" && Boolean(leagueState?.europeanQualifierState);
 
       if (isDomesticCupMatch) {
         needsExtraTime = (scorehome === scoreaway);
+      } else if (isEuropeanQualifierMatch) {
+        if (currentCalEvent.leg === 1) {
+          needsExtraTime = false;
+        } else {
+          isKnockoutLeg2 = true;
+          const qs = leagueState.europeanQualifierState;
+          const tieRes = resolveTwoLegTie({
+            playerTeamId: leagueState.playerTeamId,
+            leg1HomeId: qs.leg1HomeId,
+            leg1HomeScore: qs.leg1HomeScore,
+            leg1AwayScore: qs.leg1AwayScore,
+            leg2HomeId: qs.leg2HomeId,
+            leg2HomeScore: scorehome,
+            leg2AwayScore: scoreaway,
+            seasonStr: leagueState.season,
+            isSA: false
+          });
+          playerAgg = tieRes.playerAgg;
+          oppAgg = tieRes.oppAgg;
+          needsExtraTime = tieRes.needsET;
+        }
       } else if (isLeague || (isTournament && (tournamentState?.stage === "groups" || tournamentState?.stage === "finalGroup"))) {
         needsExtraTime = false;
       } else if (isEurope) {
@@ -2274,7 +2407,7 @@ export default function Match() {
         logEvent("Full time whistle! Tied on aggregate. We head to Extra Time!", "kickoff");
       } else {
         setIsGameOver(true);
-        if (isEurope && isKnockoutLeg2) {
+        if ((isEurope || isEuropeanQualifierMatch) && isKnockoutLeg2) {
           logEvent(`FULL TIME! Final Score: ${teamid[teamonename].name} ${scorehome} - ${scoreaway} ${teamid[teamtwoname].name} (Aggregate: ${playerAgg} - ${oppAgg})`, "kickoff");
         } else {
           logEvent(`FULL TIME! Final Score: ${teamid[teamonename].name} ${scorehome} - ${scoreaway} ${teamid[teamtwoname].name}`, "kickoff");
@@ -2283,13 +2416,39 @@ export default function Match() {
       return;
     }
 
-    if (time === 120 && scorehome !== scoreaway) {
-      setIsGameOver(true);
-      logEvent(`END OF EXTRA TIME! Final Score: ${teamid[teamonename].name} ${scorehome} - ${scoreaway} ${teamid[teamtwoname].name}`, "kickoff");
-      return;
-    }
+    if (time === 120) {
+      const currentCalEvent = leagueState?.calendar ? leagueState.calendar[leagueState.calendarIndex] : null;
+      const isEuropeanQualifierLeg2 = isLeague && currentCalEvent && currentCalEvent.type === "europe_qualifier" && currentCalEvent.leg === 2 && Boolean(leagueState?.europeanQualifierState);
 
-    if (time === 120 && scorehome === scoreaway) {
+      if (isEuropeanQualifierLeg2) {
+        const qs = leagueState.europeanQualifierState;
+        const tieRes = resolveTwoLegTie({
+          playerTeamId: leagueState.playerTeamId,
+          leg1HomeId: qs.leg1HomeId,
+          leg1HomeScore: qs.leg1HomeScore,
+          leg1AwayScore: qs.leg1AwayScore,
+          leg2HomeId: qs.leg2HomeId,
+          leg2HomeScore: scorehome,
+          leg2AwayScore: scoreaway,
+          seasonStr: leagueState.season,
+          isSA: false
+        });
+        if (tieRes.needsET) {
+          setIsPenaltyShootout(true);
+          logEvent(`End of Extra Time! Aggregate still level (${tieRes.playerAgg} - ${tieRes.oppAgg}). We are going to a penalty shootout!`, "kickoff");
+        } else {
+          setIsGameOver(true);
+          logEvent(`END OF EXTRA TIME! Final Score: ${teamid[teamonename].name} ${scorehome} - ${scoreaway} ${teamid[teamtwoname].name} (Aggregate: ${tieRes.playerAgg} - ${tieRes.oppAgg})`, "kickoff");
+        }
+        return;
+      }
+
+      if (scorehome !== scoreaway) {
+        setIsGameOver(true);
+        logEvent(`END OF EXTRA TIME! Final Score: ${teamid[teamonename].name} ${scorehome} - ${scoreaway} ${teamid[teamtwoname].name}`, "kickoff");
+        return;
+      }
+
       setIsPenaltyShootout(true);
       logEvent("End of Extra Time! Still tied! We are going to a penalty shootout!", "kickoff");
       return;
@@ -2400,7 +2559,7 @@ export default function Match() {
 
     if (homeattack > awaydefense) {
       logDuelWithFouls(
-        getAttackSuccessCommentary(homeName, awayName, homeLineupData, awayLineupData),
+        getAttackSuccessCommentary(homeName, awayName, homeLineupData, awayLineupData, homeFormation, getActiveRolesForTeam(teamonename)),
         "chance",
         "home",
         [homeFoul, awayFoul]
@@ -2417,26 +2576,67 @@ export default function Match() {
     }
   }
 
+  /**
+   * Resolves the goalkeeper save modifier (-1, 0, +1) from the active GK on the pitch.
+   */
+  const resolveGoalkeeperSaveMod = (teamKey) => {
+    const liveLineup = resolveLiveLineup(teamKey);
+    const hasActiveLineup = Boolean(liveLineup && Object.values(liveLineup).some(Boolean));
+    if (!hasActiveLineup) return 0;
+
+    const formation = (teamKey === teamonename ? homeFormation : awayFormation) || getSavedFormation() || '4-4-2';
+    const slots = getFormationSlots(formation);
+    const gkSlot = slots.find(s => s.role === 'gk');
+    const gkPlayer = (gkSlot && liveLineup[gkSlot.id]) || liveLineup.gk_0 || null;
+    return getGoalkeeperSaveModifier(gkPlayer, true, engineMode);
+  };
+
   function handleHomeScoreChance() {
     setHasHomeScoreChance(false);
-    // Shooting before goal: unassisted d6 vs d6
-    const homescore = rollShotOnGoal().roll;
-    const awaysave = rollShotOnGoal().roll;
+    const awaySaveMod = resolveGoalkeeperSaveMod(teamtwoname);
+    const homeShotRes = rollShotOnGoal(0);
+    const awaySaveRes = rollShotOnGoal(awaySaveMod);
+    const homescore = homeShotRes.total;
+    const awaysave = awaySaveRes.total;
     setrollOne(homescore);
     setRollTwo(awaysave);
 
-    const homeLineupData = getTeamLineup(teamonename);
-    const awayLineupData = getTeamLineup(teamtwoname);
+    const homeLineupData = resolveLiveLineup(teamonename);
+    const awayLineupData = resolveLiveLineup(teamtwoname);
     const homeName = teamid[teamonename].name;
     const awayName = teamid[teamtwoname].name;
 
     if (homescore > awaysave) {
-      logEvent(getGoalCommentary(homeName, awayName, homeLineupData, awayLineupData), "goal", "home");
+      const homeRoles = getActiveRolesForTeam(teamonename);
+      const goalRes = getGoalCommentary(homeName, awayName, homeLineupData, awayLineupData, homeFormation, homeRoles);
+      logEvent(goalRes, "goal", "home");
+      if (goalRes?.scorer) {
+        const goalMinute = Math.max(1, time);
+        matchGoalEventsRef.current.push({
+          type: 'goal',
+          side: 'home',
+          team: homeName,
+          minute: goalMinute,
+          scorer: {
+            name: goalRes.scorer.name,
+            position: goalRes.scorer.position || 'ST',
+            team: homeName,
+            minute: goalMinute
+          },
+          assister: goalRes.assister ? {
+            name: goalRes.assister.name,
+            position: goalRes.assister.position || 'MC',
+            team: homeName,
+            minute: goalMinute
+          } : null
+        });
+      }
       setScoreHome(prev => prev + 1);
       setBallPosition("home-goal");
       triggerGoalFlash(teamid[teamonename]);
     } else {
-      logEvent(getSaveCommentary(awayName, homeName, awayLineupData, homeLineupData), "save", "away");
+      const homeRoles = getActiveRolesForTeam(teamonename);
+      logEvent(getSaveCommentary(awayName, homeName, awayLineupData, homeLineupData, homeFormation, homeRoles), "save", "away");
       setBallPosition("center");
     }
   }
@@ -2480,7 +2680,7 @@ export default function Match() {
 
     if (awayattack > homedefense) {
       logDuelWithFouls(
-        getAttackSuccessCommentary(awayName, homeName, awayLineupData, homeLineupData),
+        getAttackSuccessCommentary(awayName, homeName, awayLineupData, homeLineupData, awayFormation, getActiveRolesForTeam(teamtwoname)),
         "chance",
         "away",
         [awayFoul, homeFoul]
@@ -2499,24 +2699,50 @@ export default function Match() {
 
   function handleAwayScoreChance() {
     setHasAwayScoreChance(false);
-    // Shooting before goal: unassisted d6 vs d6
-    const awayscore = rollShotOnGoal().roll;
-    const homesave = rollShotOnGoal().roll;
+    const homeSaveMod = resolveGoalkeeperSaveMod(teamonename);
+    const awayShotRes = rollShotOnGoal(0);
+    const homeSaveRes = rollShotOnGoal(homeSaveMod);
+    const awayscore = awayShotRes.total;
+    const homesave = homeSaveRes.total;
     setrollOne(homesave);
     setRollTwo(awayscore);
 
-    const homeLineupData = getTeamLineup(teamonename);
-    const awayLineupData = getTeamLineup(teamtwoname);
+    const homeLineupData = resolveLiveLineup(teamonename);
+    const awayLineupData = resolveLiveLineup(teamtwoname);
     const homeName = teamid[teamonename].name;
     const awayName = teamid[teamtwoname].name;
 
     if (awayscore > homesave) {
-      logEvent(getGoalCommentary(awayName, homeName, awayLineupData, homeLineupData), "goal", "away");
+      const awayRoles = getActiveRolesForTeam(teamtwoname);
+      const goalRes = getGoalCommentary(awayName, homeName, awayLineupData, homeLineupData, awayFormation, awayRoles);
+      logEvent(goalRes, "goal", "away");
+      if (goalRes?.scorer) {
+        const goalMinute = Math.max(1, time);
+        matchGoalEventsRef.current.push({
+          type: 'goal',
+          side: 'away',
+          team: awayName,
+          minute: goalMinute,
+          scorer: {
+            name: goalRes.scorer.name,
+            position: goalRes.scorer.position || 'ST',
+            team: awayName,
+            minute: goalMinute
+          },
+          assister: goalRes.assister ? {
+            name: goalRes.assister.name,
+            position: goalRes.assister.position || 'MC',
+            team: awayName,
+            minute: goalMinute
+          } : null
+        });
+      }
       setScoreAway(prev => prev + 1);
       setBallPosition("away-goal");
       triggerGoalFlash(teamid[teamtwoname]);
     } else {
-      logEvent(getSaveCommentary(homeName, awayName, homeLineupData, awayLineupData), "save", "home");
+      const awayRoles = getActiveRolesForTeam(teamtwoname);
+      logEvent(getSaveCommentary(homeName, awayName, homeLineupData, awayLineupData, awayFormation, awayRoles), "save", "home");
       setBallPosition("center");
     }
   }
@@ -2561,13 +2787,15 @@ export default function Match() {
       setRollTwo(r);
     }
 
+    const attackerFormation = isHome ? homeFormation : awayFormation;
+    const attackerRoles = getActiveRolesForTeam(attackerTeamKey);
     let isGoal = penRes.isGoal;
     if (r > 7) {
-      logEvent(getPenaltyGoalCommentary(attackerName, defenderName, attackerLineup, defenderLineup), "goal", isHome ? "home" : "away");
+      logEvent(getPenaltyGoalCommentary(attackerName, defenderName, attackerLineup, defenderLineup, attackerFormation, attackerRoles), "goal", isHome ? "home" : "away");
       triggerGoalFlash(teamid[attackerTeamKey]);
       isGoal = true;
     } else {
-      logEvent(getPenaltyMissCommentary(attackerName, defenderName, attackerLineup, defenderLineup), "miss", isHome ? "home" : "away");
+      logEvent(getPenaltyMissCommentary(attackerName, defenderName, attackerLineup, defenderLineup, attackerFormation, attackerRoles), "miss", isHome ? "home" : "away");
     }
 
     // Since react states update asynchronously, compute local next scores
@@ -2754,10 +2982,108 @@ export default function Match() {
             played: true
           }));
           roundTitle = `${domCup.cupName.toUpperCase()} - ${(stage || "").replace(/_/g, ' ').toUpperCase()}`;
+        } else if (currentEvent && currentEvent.type === "europe_qualifier" && leagueState.europeanQualifierState) {
+          const qualState = leagueState.europeanQualifierState;
+          const pId = leagueState.playerTeamId;
+          const pTeam = leagueState.teams.find(t => t.idnum === pId);
+          const opp = qualState.opponent;
+
+          if (currentEvent.leg === 1) {
+            qualState.leg1HomeScore = scorehome;
+            qualState.leg1AwayScore = scoreaway;
+            qualState.leg1Played = true;
+            roundTitle = `${qualState.competitionLabel} 3RD QUALIFYING ROUND - LEG 1`;
+          } else {
+            qualState.leg2HomeScore = scorehome;
+            qualState.leg2AwayScore = scoreaway;
+            qualState.leg2Played = true;
+            const hasPens = Boolean(penaltyWinner || (homepenalty + awaypenalty > 0));
+            if (hasPens) {
+              qualState.leg2PenaltyHomeScore = homepenalty;
+              qualState.leg2PenaltyAwayScore = awaypenalty;
+            }
+            const tieRes = resolveTwoLegTie({
+              playerTeamId: pId,
+              leg1HomeId: qualState.leg1HomeId,
+              leg1HomeScore: qualState.leg1HomeScore,
+              leg1AwayScore: qualState.leg1AwayScore,
+              leg2HomeId: qualState.leg2HomeId,
+              leg2HomeScore: scorehome,
+              leg2AwayScore: scoreaway,
+              leg2PenHome: hasPens ? homepenalty : null,
+              leg2PenAway: hasPens ? awaypenalty : null,
+              seasonStr: leagueState.season,
+              isSA: false
+            });
+
+            qualState.completed = true;
+            qualState.qualified = tieRes.playerWon;
+            qualState.tieSummary = tieRes;
+            roundTitle = `${qualState.competitionLabel} 3RD QUALIFYING ROUND - LEG 2`;
+
+            const decNote = tieRes.decidedBy === 'penalties'
+              ? `on penalties (${tieRes.playerPen}-${tieRes.oppPen})`
+              : (tieRes.decidedBy === 'away_goals' ? 'on away goals' : 'on aggregate');
+
+            if (tieRes.playerWon && pTeam && opp) {
+              const setup = buildEuropeanCupSetup({
+                competition: qualState.competition,
+                seasonStr: leagueState.season,
+                isSA: false,
+                selectedTeamObj: pTeam,
+                nextSeasonTeams: leagueState.teams,
+                targetReplaceTeamName: opp.name
+              });
+              leagueState.europeanCup = setup.europeanCup;
+              leagueState.europeanCupState = setup.europeanCupState;
+              leagueState.calendar = insertEuropeanEventsIntoCalendar(leagueState.calendar, setup.dynamicSchedules, 2);
+
+              leagueState.newsFeed = [{
+                id: `news_qual_win_${Date.now()}`,
+                round: leagueState.currentRound || 1,
+                dateStr: '3rd Qualifying Round',
+                category: 'cup',
+                categoryLabel: '🏆 QUALIFIED FOR EUROPE',
+                title: `✅ ${pTeam.name} Qualify for ${qualState.competitionLabel}!`,
+                summary: `${pTeam.name} defeated ${opp.name} (${tieRes.playerAgg}-${tieRes.oppAgg} agg, ${decNote}) to clinch their place in ${qualState.competitionLabel}.`,
+                body: `Celebrations are underway after ${pTeam.name} overcame ${opp.name} across two intense qualifying legs (${tieRes.playerAgg}-${tieRes.oppAgg} on aggregate, winning ${decNote})!\n\n${pTeam.name} have officially replaced ${opp.name} in this season's ${qualState.competitionLabel}.`,
+                isRead: false,
+                timestamp: Date.now()
+              }, ...(leagueState.newsFeed || [])];
+            } else if (pTeam && opp) {
+              leagueState.europeanCup = null;
+              leagueState.europeanCupState = null;
+              leagueState.newsFeed = [{
+                id: `news_qual_loss_${Date.now()}`,
+                round: leagueState.currentRound || 1,
+                dateStr: '3rd Qualifying Round',
+                category: 'cup',
+                categoryLabel: '🇪🇺 QUALIFYING EXIT',
+                title: `❌ ${pTeam.name} Eliminated from ${qualState.competitionLabel} Qualifying`,
+                summary: `${pTeam.name} fell to ${opp.name} (${tieRes.playerAgg}-${tieRes.oppAgg} agg, lost ${decNote}) and will focus on domestic competitions this season.`,
+                body: `Heartbreak in the 3rd Qualifying Round as ${pTeam.name} fell short against ${opp.name} (${tieRes.playerAgg}-${tieRes.oppAgg} on aggregate).\n\nFocus now shifts to the domestic league and cup campaign.`,
+                isRead: false,
+                timestamp: Date.now()
+              }, ...(leagueState.newsFeed || [])];
+            }
+          }
+
+          justPlayedFixtures = [{
+            homeId: teamonename,
+            awayId: teamtwoname,
+            homeScore: scorehome,
+            awayScore: scoreaway,
+            penaltyHomeScore: (penaltyWinner || (homepenalty + awaypenalty > 0)) ? homepenalty : undefined,
+            penaltyAwayScore: (penaltyWinner || (homepenalty + awaypenalty > 0)) ? awaypenalty : undefined,
+            played: true
+          }];
+          leagueState.calendarIndex += 1;
         } else if (currentEvent) {
           const currentRoundFixtures = leagueState.fixtures[currentEvent.index - 1] || [];
           justPlayedFixtures = currentRoundFixtures;
           roundTitle = `ROUND ${currentEvent.index} RESULTS`;
+          const { scorers: liveMatchScorers, assists: liveMatchAssists } = extractMatchScorersAndAssists();
+          const hasAllMatchScorers = liveMatchScorers.length > 0 || (scorehome + scoreaway === 0);
 
           currentRoundFixtures.forEach(f => {
             const isPlayerFixture = f.homeId === leagueState.playerTeamId || f.awayId === leagueState.playerTeamId;
@@ -2765,6 +3091,12 @@ export default function Match() {
               f.homeScore = scorehome;
               f.awayScore = scoreaway;
               f.played = true;
+              if (hasAllMatchScorers) {
+                f.scorers = liveMatchScorers;
+                f.assists = liveMatchAssists;
+                f.scorersRecorded = true;
+                leagueState.playerStats = recordMatchEventsInStats(leagueState.playerStats || {}, liveMatchScorers, liveMatchAssists);
+              }
             } else {
               // Simulate AI fixture based on team ratings
               const h = leagueState.teams.find(t => t.idnum === f.homeId);
@@ -2818,6 +3150,8 @@ export default function Match() {
         const currentRoundFixtures = leagueState.fixtures[leagueState.currentRound - 1];
         justPlayedFixtures = currentRoundFixtures;
         roundTitle = `ROUND ${leagueState.currentRound} RESULTS`;
+        const { scorers: liveMatchScorers, assists: liveMatchAssists } = extractMatchScorersAndAssists();
+        const hasAllMatchScorers = liveMatchScorers.length > 0 || (scorehome + scoreaway === 0);
 
         currentRoundFixtures.forEach(f => {
           const isPlayerFixture = f.homeId === leagueState.playerTeamId || f.awayId === leagueState.playerTeamId;
@@ -2825,6 +3159,12 @@ export default function Match() {
             f.homeScore = scorehome;
             f.awayScore = scoreaway;
             f.played = true;
+            if (hasAllMatchScorers) {
+              f.scorers = liveMatchScorers;
+              f.assists = liveMatchAssists;
+              f.scorersRecorded = true;
+              leagueState.playerStats = recordMatchEventsInStats(leagueState.playerStats || {}, liveMatchScorers, liveMatchAssists);
+            }
           } else {
             const h = leagueState.teams.find(t => t.idnum === f.homeId);
             const a = leagueState.teams.find(t => t.idnum === f.awayId);
@@ -2908,13 +3248,14 @@ export default function Match() {
       }
 
       localStorage.setItem("retro_league_career", JSON.stringify(leagueState));
-      const isDomCupFinished = roundTitle && !roundTitle.includes("RESULTS");
+      const isDomCupFinished = roundTitle && !roundTitle.includes("RESULTS") && !roundTitle.includes("QUALIFYING");
+      const isQualFinished = roundTitle && roundTitle.includes("QUALIFYING");
       navigate("/league/dashboard", {
         state: {
           showRoundResults: true,
           fixtures: justPlayedFixtures,
           roundTitle,
-          themeColor: isDomCupFinished ? "#ff0055" : "#00ff64"
+          themeColor: isQualFinished ? "#ffd700" : (isDomCupFinished ? "#ff0055" : "#00ff64")
         }
       });
     } else if (isEurope) {
@@ -4448,6 +4789,8 @@ export default function Match() {
             formation={homeFormation || getSavedFormation() || '4-4-2'}
             playerRoles={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? playerRoles : (cpuRoles[teamonename] || {})}
             onToggleRole={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? handleTogglePlayerRole : undefined}
+            captainName={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? captainName : ''}
+            onSelectCaptain={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? handleSelectMatchCaptain : undefined}
           />
         </div>
 
@@ -4931,6 +5274,8 @@ export default function Match() {
             formation={awayFormation || getSavedFormation() || '4-4-2'}
             playerRoles={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? playerRoles : (cpuRoles[teamtwoname] || {})}
             onToggleRole={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? handleTogglePlayerRole : undefined}
+            captainName={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? captainName : ''}
+            onSelectCaptain={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? handleSelectMatchCaptain : undefined}
           />
         </div>
 
@@ -4979,15 +5324,48 @@ export default function Match() {
               <div className="sub-modal-pitch-area">
                 <div className="sub-modal-pitch-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                   <span className="sub-modal-pitch-title">TACTICAL FORMATION: {getSavedFormation().toUpperCase()}</span>
-                  {(() => {
-                    const activeMentality = isPlayerHome ? homeTactic : awayTactic;
-                    const calc = calculateTeamTacticalStats(lineup, getSavedFormation(), playerRoles, activeMentality);
-                    return (
-                      <span style={{ fontSize: '9.5px', fontFamily: 'Orbitron', color: '#00ff64', letterSpacing: '0.5px' }}>
-                        🛡️ DEF: {calc.defense} ({calc.defSum.toFixed(0)}÷4) &nbsp;|&nbsp; ⚙️ MID: {calc.midfield} ({calc.midSum.toFixed(0)}÷4) &nbsp;|&nbsp; ⚔️ ATT: {calc.attack} ({calc.attSum.toFixed(0)}÷2)
-                      </span>
-                    );
-                  })()}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    {(() => {
+                      const modalPitchPlayers = getFormationSlots(getSavedFormation()).map(s => lineup[s.id]).filter(Boolean);
+                      const resolvedModalCap = modalPitchPlayers.some(p => p.name === captainName) ? captainName : (modalPitchPlayers[0]?.name || '');
+                      return modalPitchPlayers.length > 0 ? (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9px', fontFamily: 'Orbitron', color: '#ffd700' }}>
+                          <span>©️ CAPTAIN:</span>
+                          <select
+                            value={resolvedModalCap}
+                            onChange={(e) => handleSelectMatchCaptain(e.target.value)}
+                            style={{
+                              background: 'rgba(255, 215, 0, 0.12)',
+                              color: '#ffd700',
+                              border: '1px solid rgba(255, 215, 0, 0.45)',
+                              borderRadius: '4px',
+                              padding: '2px 6px',
+                              fontSize: '9px',
+                              fontFamily: 'Orbitron, sans-serif',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              outline: 'none'
+                            }}
+                          >
+                            {modalPitchPlayers.map(p => (
+                              <option key={p.name} value={p.name} style={{ background: '#0c1614', color: '#fff' }}>
+                                {p.name} ({p.position})
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null;
+                    })()}
+                    {(() => {
+                      const activeMentality = isPlayerHome ? homeTactic : awayTactic;
+                      const calc = calculateTeamTacticalStats(lineup, getSavedFormation(), playerRoles, activeMentality);
+                      return (
+                        <span style={{ fontSize: '9.5px', fontFamily: 'Orbitron', color: '#00ff64', letterSpacing: '0.5px' }}>
+                          🛡️ DEF: {calc.defense} ({calc.defSum.toFixed(0)}÷4) &nbsp;|&nbsp; ⚙️ MID: {calc.midfield} ({calc.midSum.toFixed(0)}÷4) &nbsp;|&nbsp; ⚔️ ATT: {calc.attack} ({calc.attSum.toFixed(0)}÷2)
+                        </span>
+                      );
+                    })()}
+                  </div>
                 </div>
 
                 {/* Visual field */}
@@ -5102,8 +5480,25 @@ export default function Match() {
                             >
                               {assignedPlayer.position}
                             </span>
-                            <span className="sub-modal-player-name">
-                              {assignedPlayer.injuryMatchesLeft > 0 ? "🤕 " : ""}{getPlayerMatchCardStatus(activePlayerTeamKey, assignedPlayer.name).yellows > 0 ? "🟨 " : ""}{getLastName(assignedPlayer.name)}
+                            <span className="sub-modal-player-name" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                              {captainName === assignedPlayer.name && (
+                                <span
+                                  title="Match Captain"
+                                  style={{
+                                    background: 'linear-gradient(135deg, #ffd700, #ffb300)',
+                                    color: '#121217',
+                                    fontSize: '7px',
+                                    fontWeight: 'bold',
+                                    fontFamily: 'Orbitron, sans-serif',
+                                    borderRadius: '2px',
+                                    padding: '0 3px',
+                                    lineHeight: '1.2'
+                                  }}
+                                >
+                                  C
+                                </span>
+                              )}
+                              <span>{assignedPlayer.injuryMatchesLeft > 0 ? "🤕 " : ""}{getPlayerMatchCardStatus(activePlayerTeamKey, assignedPlayer.name).yellows > 0 ? "🟨 " : ""}{getLastName(assignedPlayer.name)}</span>
                             </span>
                             <div style={{ display: 'flex', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
                               <span

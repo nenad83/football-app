@@ -1464,3 +1464,30 @@ With a sensational haul of ${p.goals} goals and ${p.assists} assists across all 
 
   return newsItems;
 };
+
+/**
+ * Generates club news stories when veteran players (36-40+) announce retirement at season transition.
+ */
+export const generateRetirementNews = ({ retirees = [], teamName, season, round = 1 }) => {
+  if (!Array.isArray(retirees) || retirees.length === 0) return [];
+  const baseTs = Date.now();
+  return retirees.map((player, idx) => {
+    const pos = player.position || "player";
+    const age = Number(player.age) || 37;
+    const rating = Number(player.rating) || 6;
+    const qual = getQualitativeRating(rating);
+    return {
+      id: `news_retirement_${season}_${idx}_${baseTs}`,
+      round,
+      dateStr: `Pre-Season ${season}`,
+      category: "transfer",
+      categoryLabel: "🏅 PLAYER RETIREMENT",
+      title: `🏅 END OF AN ERA: ${player.name} (${age}) Announces Retirement`,
+      summary: `Veteran ${pos} ${player.name} has hung up his boots at age ${age}, concluding his chapter at ${teamName}.`,
+      body: `An emotional announcement from the ${teamName} dressing room today: ${age}-year-old ${pos} ${player.name} (rated ${qual}, ${rating}/10) has officially retired from professional football ahead of the ${season} campaign.\n\nSupporters and teammates paid tribute to ${player.name}'s dedication and experience. With a spot now open in the ${teamName} squad, the board expects you to review your depth chart and evaluate potential reinforcements in the transfer market.`,
+      isRead: false,
+      timestamp: baseTs + idx,
+      actionTab: "tactics"
+    };
+  });
+};

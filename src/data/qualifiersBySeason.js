@@ -1057,40 +1057,40 @@ export const qualifiersBySeason = {
   },
   "2026": {
     cl: {
-      england: ["Liverpool", "Arsenal", "Manchester City", "Chelsea", "Newcastle", "Aston Villa"],
-      spain: ["Barcelona", "Real Madrid", "Atletico Madrid", "Athletic Bilbao", "Villarreal"],
-      germany: ["Bayern Munich", "Bayer Leverkusen", "Eintracht Frankfurt", "Borussia Dortmund", "VfB Stuttgart"],
-      italy: ["Napoli", "Inter Milan", "Atalanta", "Juventus"],
-      france: ["Paris Saint-Germain", "Olympique Marseille", "AS Monaco"],
+      england: ["Arsenal", "Aston Villa", "Liverpool", "Manchester City", "Manchester United"],
+      spain: ["Atletico Madrid", "Barcelona", "Real Betis", "Real Madrid", "Villarreal"],
+      germany: ["Bayern Munich", "Borussia Dortmund", "RB Leipzig", "VfB Stuttgart"],
+      italy: ["Como", "Inter Milan", "Napoli", "Roma"],
+      france: ["Paris Saint-Germain", "Lens", "Lille OSC"],
       russia: [],
-      portugal: ["Sporting CP", "Benfica", "Porto"],
-      netherlands: ["PSV", "Feyenoord", "Ajax"],
-      scotland: ["Celtic","Rangers"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      portugal: ["Sporting CP", "Porto"],
+      netherlands: ["PSV", "Feyenoord"],
+      scotland: [],
+      ukraine: ["Shakhtar Donetsk"]
     },
     uefa: {
-      england: ["Tottenham", "Nottingham Forest"],
-      spain: ["Real Betis", "Girona"],
-      germany: ["Freiburg", "Wolfsburg"],
-      italy: ["Roma", "Lazio"],
-      france: ["Nice", "Lille OSC", "Olympique Lyon"],
+      england: ["Bournemouth", "Crystal Palace", "Sunderland"],
+      spain: ["Celta Vigo", "Real Sociedad"],
+      germany: ["Bayer Leverkusen", "Hoffenheim"],
+      italy: ["AC Milan", "Juventus"],
+      france: ["Olympique Lyon", "Olympique Marseille", "Stade Rennais"],
       russia: [],
-      portugal: ["Braga", "Vitória de Guimarães"],
-      netherlands: ["AZ", "FC Twente"],
-      scotland: ["Hearts","Aberdeen"],
-      ukraine: ["Kryvbas Kryvyi Rih","Polissya Zhytomyr"]
+      portugal: ["Benfica"],
+      netherlands: ["AZ", "NEC Nijmegen"],
+      scotland: ["Celtic"],
+      ukraine: []
     },
     uecl: {
       england: ["Brighton"],
-      spain: ["Real Sociedad"],
-      germany: ["Mainz 05"],
-      italy: ["Fiorentina"],
-      france: ["Strasbourg"],
+      spain: ["Getafe"],
+      germany: ["Freiburg"],
+      italy: ["Atalanta"],
+      france: ["AS Monaco"],
       russia: [],
-      portugal: ["Moreirense"],
-      netherlands: ["FC Utrecht"],
-      scotland: ["Kilmarnock","St Mirren"],
-      ukraine: ["FC Oleksandriya","Rukh Lviv"]
+      portugal: ["Braga"],
+      netherlands: ["Ajax", "FC Twente"],
+      scotland: ["Hearts"],
+      ukraine: []
     }
   }
 };

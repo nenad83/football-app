@@ -789,3 +789,203 @@ export function computeCPUTacticalPlan({
     tier
   };
 }
+
+/**
+ * Infers a broad pitch slot role ('gk' | 'def' | 'mid' | 'att') from a CM position string.
+ */
+function inferSlotRoleFromPosition(posRaw) {
+  const pos = String(posRaw || '').toUpperCase().trim();
+  if (!pos) return 'mid';
+  if (pos === 'GK' || pos.includes('GK')) return 'gk';
+  if (['ST', 'CF', 'SC', 'FC', 'FW', 'LW', 'RW'].some(k => pos.includes(k))) return 'att';
+  if (['DC', 'DL', 'DR', 'SW', 'DF', 'CB', 'LB', 'RB', 'LWB', 'RWB'].some(k => pos.includes(k))) return 'def';
+  return 'mid';
+}
+
+/**
+ * Computes goal-scoring and assist weights for a player given slot, natural position, skill, and tactical role.
+ * - Attacking roles (forwards & support_att midfielders) lead goal scoring, scaled superlinearly by skill.
+ * - Support roles (normal mids, support_mid forwards, wing backs) score at a lower rate via distance shots/headers.
+ * - Defenders score rarely via set-piece headers or deep strikes.
+ */
+function computeGoalAndAssistWeights(player, slot, roleId = 'normal', squadBoost = 1.0) {
+  const rawPos = String(player?.position || (Array.isArray(player?.positions) ? player.positions[0] : '') || '').toUpperCase();
+  const idealPos = slot
+    ? (slot.idealPos || getIdealSlotPosition(slot.role, slot.x, slot.y))
+    : (rawPos || 'MC');
+  const slotRole = slot ? slot.role : inferSlotRoleFromPosition(idealPos);
+  const validRole = slot ? getRoleMetadata(slot, player, roleId).id : 'normal';
+  const effSkill = slot ? getPlayerEffectiveSkill(player, slot) : Math.max(1, Number(player?.rating) || 3);
+
+  let scorerTier = 'support';
+  let goalRoleMult = 1.6;
+  let assistRoleMult = 5.0;
+
+  if (slotRole === 'att') {
+    if (validRole === 'support_mid') {
+      scorerTier = 'support';
+      goalRoleMult = 5.5;
+      assistRoleMult = 7.5;
+    } else {
+      scorerTier = 'attacking';
+      goalRoleMult = 10.0;
+      assistRoleMult = 4.5;
+    }
+  } else if (slotRole === 'mid') {
+    const isAttackingMidPos = ['AMC', 'AML', 'AMR', 'LW', 'RW', 'AM'].some(k => idealPos.includes(k));
+    const isDefensiveMidPos = idealPos === 'DMC' || idealPos === 'DM';
+
+    if (validRole === 'support_att') {
+      scorerTier = 'attacking';
+      goalRoleMult = isAttackingMidPos ? 8.0 : 7.0;
+      assistRoleMult = isAttackingMidPos ? 9.0 : 7.5;
+    } else if (validRole === 'support_def') {
+      scorerTier = 'defense';
+      goalRoleMult = 0.65;
+      assistRoleMult = 2.2;
+    } else if (isAttackingMidPos) {
+      scorerTier = 'support';
+      goalRoleMult = 2.8;
+      assistRoleMult = 8.0;
+    } else if (isDefensiveMidPos) {
+      scorerTier = 'support';
+      goalRoleMult = 0.7;
+      assistRoleMult = 2.2;
+    } else {
+      scorerTier = 'support';
+      goalRoleMult = 1.6;
+      assistRoleMult = ['ML', 'MR', 'LM', 'RM'].includes(idealPos) ? 8.0 : 5.5;
+    }
+  } else if (slotRole === 'def') {
+    if (validRole === 'support_mid') {
+      scorerTier = 'support';
+      goalRoleMult = 0.85;
+      assistRoleMult = 4.2;
+    } else {
+      const isFullBack = ['DL', 'DR', 'LB', 'RB', 'LWB', 'RWB'].some(k => idealPos.includes(k));
+      scorerTier = 'defense';
+      goalRoleMult = isFullBack ? 0.3 : 0.55;
+      assistRoleMult = isFullBack ? 1.6 : 0.45;
+    }
+  } else {
+    scorerTier = 'defense';
+    goalRoleMult = 0.01;
+    assistRoleMult = 0.05;
+  }
+
+  const goalSkillFactor = Math.pow(Math.max(1, effSkill), 2.0);
+  const assistSkillFactor = Math.pow(Math.max(1, effSkill), 1.75);
+
+  return {
+    player,
+    slotRole,
+    idealPos,
+    validRole,
+    effSkill,
+    scorerTier,
+    goalWeight: Math.max(0.05, goalSkillFactor * goalRoleMult * squadBoost),
+    assistWeight: Math.max(0.05, assistSkillFactor * assistRoleMult * squadBoost)
+  };
+}
+
+function drawWeightedEntry(entries, weightKey) {
+  if (!entries || entries.length === 0) return null;
+  const total = entries.reduce((sum, e) => sum + Math.max(0.01, e[weightKey] || 0), 0);
+  if (total <= 0) return entries[0];
+  let roll = Math.random() * total;
+  for (let i = 0; i < entries.length; i++) {
+    roll -= Math.max(0.01, entries[i][weightKey] || 0);
+    if (roll <= 0) return entries[i];
+  }
+  return entries[entries.length - 1];
+}
+
+/**
+ * Picks a goalscorer and optional assister from an active lineup or squad array,
+ * weighted by tactical role (attacking / support / defense) and effective player skill.
+ */
+export function pickWeightedGoalScorerAndAssister(
+  lineupInput,
+  teamName = 'Team',
+  formationKey = '4-4-2',
+  playerRoles = {},
+  options = {}
+) {
+  const {
+    includeAssist = true,
+    assistChance = 0.76,
+    squadRotationMode = false,
+    onlyAttackersIfAvailable = false
+  } = options;
+
+  let entries = [];
+
+  if (lineupInput && !Array.isArray(lineupInput) && typeof lineupInput === 'object') {
+    const rawSlots = getFormationSlots(formationKey || '4-4-2');
+    const slotMap = new Map(
+      rawSlots.map(s => [s.id, { ...s, idealPos: getIdealSlotPosition(s.role, s.x, s.y) }])
+    );
+
+    Object.keys(lineupInput).forEach(slotId => {
+      const player = lineupInput[slotId];
+      if (!player) return;
+      const slot = slotMap.get(slotId) || null;
+      const roleId = (playerRoles && playerRoles[slotId]) || player.tacticalRole || 'normal';
+      const entry = computeGoalAndAssistWeights(player, slot, roleId, 1.0);
+      entries.push(entry);
+    });
+  } else if (Array.isArray(lineupInput) && lineupInput.length > 0) {
+    const cleanPlayers = lineupInput.filter(Boolean);
+    const outfield = cleanPlayers.filter(p => inferSlotRoleFromPosition(p.position) !== 'gk');
+    const pool = outfield.length > 0 ? outfield : cleanPlayers;
+
+    let sortedByRating = pool;
+    if (squadRotationMode) {
+      sortedByRating = [...pool].sort((a, b) => (Number(b.rating) || 3) - (Number(a.rating) || 3));
+    }
+
+    entries = sortedByRating.map((player, idx) => {
+      let squadBoost = 1.0;
+      if (squadRotationMode) {
+        if (idx < 10) squadBoost = 1.0;
+        else if (idx < 14) squadBoost = 0.35;
+        else squadBoost = 0.06;
+      }
+      return computeGoalAndAssistWeights(player, null, player.tacticalRole || 'normal', squadBoost);
+    });
+  }
+
+  if (entries.length === 0) {
+    return {
+      scorer: { name: `${teamName} Striker`, position: 'ST', team: teamName },
+      assister: null,
+      scorerTier: 'attacking',
+      attackingPool: []
+    };
+  }
+
+  const outfieldEntries = entries.filter(e => e.slotRole !== 'gk');
+  const scoringPool = outfieldEntries.length > 0 ? outfieldEntries : entries;
+
+  const attackingEntries = scoringPool.filter(e => e.scorerTier === 'attacking');
+  const activeGoalPool = (onlyAttackersIfAvailable && attackingEntries.length > 0)
+    ? attackingEntries
+    : scoringPool;
+
+  const scorerEntry = drawWeightedEntry(activeGoalPool, 'goalWeight') || scoringPool[0];
+  let assisterEntry = null;
+
+  if (includeAssist && Math.random() < assistChance) {
+    const assistCandidates = scoringPool.filter(e => e.player?.name !== scorerEntry.player?.name);
+    if (assistCandidates.length > 0) {
+      assisterEntry = drawWeightedEntry(assistCandidates, 'assistWeight');
+    }
+  }
+
+  return {
+    scorer: scorerEntry.player,
+    assister: assisterEntry ? assisterEntry.player : null,
+    scorerTier: scorerEntry.scorerTier,
+    attackingPool: attackingEntries.map(e => e.player)
+  };
+}

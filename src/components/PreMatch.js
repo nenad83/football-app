@@ -15,7 +15,9 @@ import {
   updateTeamStatsInStorage,
   getFormationSlots,
   getIdealSlotPosition,
-  generateDefaultLineup
+  generateDefaultLineup,
+  getSavedCaptain,
+  resolveValidCaptain
 } from './FormationTactics';
 import { calculateTeamTacticalStats, getRoleMetadata } from '../utils/tacticalRoleEngine';
 import { getCPUMatchLineupAndStats } from '../utils/cpuSquadManager';
@@ -139,6 +141,18 @@ export default function PreMatch() {
           teamonename = currentFixture.homeId;
           teamtwoname = currentFixture.awayId;
         }
+      }
+    } else if (currentEvent && currentEvent.type === "europe_qualifier" && leagueState.europeanQualifierState) {
+      const qualState = leagueState.europeanQualifierState;
+      if (qualState.opponent) {
+        teamid[qualState.opponent.idnum] = qualState.opponent;
+      }
+      if (currentEvent.leg === 1) {
+        teamonename = qualState.leg1HomeId;
+        teamtwoname = qualState.leg1AwayId;
+      } else {
+        teamonename = qualState.leg2HomeId;
+        teamtwoname = qualState.leg2AwayId;
       }
     } else {
       const currentFixture = leagueState.fixtures[leagueState.currentRound - 1]?.find(
@@ -607,6 +621,11 @@ export default function PreMatch() {
   const renderTeamSheetColumn = (team, isHome, formation, tactic, lineup, bench, roles) => {
     const slots = getFormationSlots(formation || '4-4-2');
     const managerToShow = isHome ? homeManagerName : awayManagerName;
+    const isHumanTeamSheet = Boolean(team?.name && playerTeamName && team.name === playerTeamName);
+    const captainName = resolveValidCaptain(
+      lineup,
+      isHumanTeamSheet ? getSavedCaptain(playerTeamName, playerSeason) : ''
+    );
     return (
       <div style={{ flex: '1 1 480px', display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '320px' }}>
         {/* Team Header */}
@@ -718,8 +737,26 @@ export default function PreMatch() {
                         ★{p.rating}
                       </span>
                     </div>
-                    <span style={{ fontSize: '8.5px', fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '75px', textAlign: 'center' }}>
-                      {getLastName(p.name)}
+                    <span style={{ fontSize: '8.5px', fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '75px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                      {captainName === p.name && (
+                        <span
+                          title="Team Captain"
+                          style={{
+                            background: 'linear-gradient(135deg, #ffd700, #ffb300)',
+                            color: '#121217',
+                            fontSize: '6.5px',
+                            fontWeight: 'bold',
+                            fontFamily: 'Orbitron, sans-serif',
+                            borderRadius: '2px',
+                            padding: '0 2.5px',
+                            lineHeight: '1.2',
+                            flexShrink: 0
+                          }}
+                        >
+                          C
+                        </span>
+                      )}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{getLastName(p.name)}</span>
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '2px', marginTop: '1px' }}>
                       <span style={{ fontSize: '7px', color: (p.condition || 100) < 80 ? '#ff4500' : '#00ff64' }}>

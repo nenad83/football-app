@@ -7,7 +7,7 @@
  * 1. 'd10' (1-10 Granular Scale):
  *    - Midfield contest: 1d10 + Midfield Stat
  *    - Attack vs Defense contest: 1d10 + Attack/Defense Stat
- *    - Shooting before goal (Final shot vs GK save): 1d6 vs 1d6 (no modifier)
+ *    - Shooting before goal (Final shot vs GK save): 1d6 vs 1d6 + GK save mod (-1/0/+1)
  *    - Penalty shootout: 1d10 + Attack vs target threshold (14)
  *    - Stat progress bars scale to 10 max.
  *
@@ -109,13 +109,43 @@ export function rollAttackDef(stat = 3, modeOverride = null) {
 }
 
 /**
- * Resolves a shooting chance on goal before goal (final finish vs GK save).
- * Pure unassisted 1d6 roll without modifiers.
+ * Returns goalkeeper save roll modifier based on active GK rating (1-10 scale):
+ *  - Rating 9-10: +1 to save rolls
+ *  - Rating 5-8:   0 modifier
+ *  - Rating 1-4 (or missing/out-of-position GK when lineup is active): -1 to save rolls
  */
-export function rollShotOnGoal() {
+export function getGoalkeeperSaveModifier(gkPlayer, hasActiveLineup = true, modeOverride = null) {
+  if (!hasActiveLineup) return 0;
+  if (!gkPlayer) return -1;
+
+  const positions = Array.isArray(gkPlayer.positions) && gkPlayer.positions.length > 0
+    ? gkPlayer.positions
+    : [gkPlayer.position];
+  const isNaturalGK = positions.some(p => String(p || '').trim().toUpperCase() === 'GK');
+  if (!isNaturalGK) return -1;
+
+  let rating = Number(gkPlayer.rating);
+  if (isNaN(rating) || rating <= 0) rating = 6;
+  if (!isD10Engine(modeOverride) && rating <= 5 && !gkPlayer.currentAbility) {
+    rating *= 2;
+  }
+
+  if (rating >= 9) return 1;
+  if (rating <= 4) return -1;
+  return 0;
+}
+
+/**
+ * Resolves a shooting chance on goal before goal (final finish vs GK save).
+ * Applies optional modifier (e.g. GK save modifier -1 / 0 / +1).
+ */
+export function rollShotOnGoal(modifier = 0) {
   const rawRoll = rollDie(6);
+  const numericMod = Number(modifier) || 0;
   return {
     roll: rawRoll,
+    modifier: numericMod,
+    total: rawRoll + numericMod,
     sides: 6
   };
 }
@@ -190,20 +220,41 @@ export function simulateFixture(h, a, modeOverride = null) {
 
 /**
  * Resolves whether a duel roll triggers a foul and what disciplinary action the referee takes.
- * A natural 1 commits a foul; the referee then rolls 1d6 (with Pressing or Strict ref raising yellowMax to 3),
- * and a referee roll of 1 rolls a confirmation d10 where 1 = direct red card.
+ * - Normalizes foul rate to ~10% on natural 1 (gated on d6 so classic d6 matches d10 discipline).
+ * - Referee rolls 1d10: 1 (with 1d18/1d14 confirmation) = direct red; <= yellowMax (2 normal, 3 pressing/strict, 4 both) = yellow.
+ * - Tapers direct red probability once a team already has a red card or the match already has 2+ reds.
  */
-export function resolveFoulCheck({ rawRoll, sides = 10, isPressing = false, refereeStrictness = 'normal' } = {}) {
+export function resolveFoulCheck({
+  rawRoll,
+  sides = 10,
+  isPressing = false,
+  refereeStrictness = 'normal',
+  teamRedCards = 0,
+  matchRedCards = 0
+} = {}) {
   if (rawRoll !== 1) {
     return { foul: false, outcome: 'none', refRoll: null, confirmRoll: null };
   }
 
-  const refRoll = rollDie(6);
-  const yellowMax = (isPressing || refereeStrictness === 'strict') ? 3 : 2;
+  // Normalize classic d6 (16.7%) to match d10 (10%) duel foul trigger rate
+  if (sides < 10 && Math.random() > 6 / 10) {
+    return { foul: false, outcome: 'none', refRoll: null, confirmRoll: null };
+  }
 
+  const refRoll = rollDie(10);
+  const isStrict = refereeStrictness === 'strict';
+  let yellowMax = 2;
+  if (isPressing && isStrict) {
+    yellowMax = 4;
+  } else if (isPressing || isStrict) {
+    yellowMax = 3;
+  }
+
+  const allowDirectRed = teamRedCards === 0 && matchRedCards < 2;
   if (refRoll === 1) {
-    const confirmRoll = rollDie(10);
-    if (confirmRoll === 1) {
+    const confirmSides = (isPressing && isStrict) ? 14 : 18;
+    const confirmRoll = rollDie(confirmSides);
+    if (allowDirectRed && confirmRoll === 1) {
       return { foul: true, outcome: 'red', refRoll, confirmRoll, sides };
     }
     return { foul: true, outcome: 'yellow', refRoll, confirmRoll, sides };

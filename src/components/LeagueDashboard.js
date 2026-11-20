@@ -19,11 +19,21 @@ import TransferModal from './TransferModal';
 import NewsFeed from './NewsFeed';
 import Fixtures from './Fixtures';
 import { createDomesticCup, advanceDomesticCup, getDomesticCupExpectation, CUP_STAGE_NAMES } from '../utils/domesticCupGenerator';
-import { generateInitialNews, generateMatchdayNews, generateDomesticCupDrawNews, generateDomesticCupMatchNews, generateMonthlyAwardsNews, generateYearlyAwardsNews, getQualitativeRating } from '../utils/newsGenerator';
-import { checkMonthConclusion, generateMatchEvents, recordMatchEventsInStats, calculateMonthlyAwards, calculateYearlyAwards, awardManagerTitle } from '../utils/awardsManager';
-import { loadSeasonRosters, cleanStale1To5Rosters, scaleStatTo10, getTeamDetailsSync } from '../data/rosters/rosterRegistry';
+import { generateInitialNews, generateMatchdayNews, generateDomesticCupDrawNews, generateDomesticCupMatchNews, generateMonthlyAwardsNews, generateYearlyAwardsNews, generateRetirementNews, getQualitativeRating } from '../utils/newsGenerator';
+import { checkMonthConclusion, generateMatchEvents, recordMatchEventsInStats, calculateMonthlyAwards, calculateYearlyAwards, awardManagerTitle, repairCareerAwardManagerNames } from '../utils/awardsManager';
+import { loadSeasonRosters, cleanStale1To5Rosters, scaleStatTo10, getTeamDetailsSync, getPrebuiltRoster, getTransferMarketPool, advancePlayerSquadForNextSeason, calculateSquadTacticalAverages, clearCareerTransferLedger } from '../data/rosters/rosterRegistry';
 import { applyTeamTheme } from '../utils/themeManager';
 import { simulateFixture as simulateFixtureEngine } from '../utils/matchEngine';
+import {
+  isUefaCountryBanned,
+  determineEuropeanQualifier,
+  generateDynamicSchedules,
+  pickQualifierOpponent,
+  buildEuropeanCupSetup,
+  insertEuropeanEventsIntoCalendar,
+  resolveTwoLegTie,
+  getQualifierCompetitionTitle
+} from '../utils/europeanQualifierHelper';
 
 const SA_COUNTRIES = new Set(["argentina", "brazil", "colombia"]);
 
@@ -236,105 +246,6 @@ const generateRoundRobinFixtures = (teamsList) => {
   }
 
   return fixtures;
-};
-
-const generateDynamicSchedules = (totalRounds, rules) => {
-  if (!rules || !rules.calendarSchedules) return [];
-
-  // Deep copy the original schedules so we don't mutate the rules module
-  const schedules = JSON.parse(JSON.stringify(rules.calendarSchedules));
-
-  // 1. Classify autumn vs spring stages
-  const groupSlots = schedules.filter(s => s.stage === "group_stage" || s.stage === "league_stage");
-  const totalGroupMatchdays = groupSlots.length;
-
-  const isAutumn = (slot) => {
-    if (slot.stage === "group_stage" || slot.stage === "league_stage") {
-      if (totalGroupMatchdays === 12) {
-        return slot.matchday <= 6;
-      }
-      return true;
-    }
-    if (rules.format === "pure_knockout") {
-      const uniqueStages = (rules.stages || []).filter(s => s !== "final");
-      if (uniqueStages.length >= 4) {
-        return slot.stage === uniqueStages[0] || slot.stage === uniqueStages[1];
-      }
-      if (uniqueStages.length === 3) {
-        return slot.stage === uniqueStages[0];
-      }
-      return false;
-    }
-    return false;
-  };
-
-  const autumnSlots = schedules.filter(s => isAutumn(s));
-  const springSlots = schedules.filter(s => !isAutumn(s) && s.stage !== "final");
-  const finalSlot = schedules.find(s => s.stage === "final");
-
-  // 2. Schedule Autumn slots forwards
-  const A = autumnSlots.length;
-  if (A > 6) {
-    autumnSlots.forEach((slot, i) => {
-      slot.offset = 2 + i * 2 + (i >= 4 ? 1 : 0);
-    });
-  } else if (A > 0) {
-    autumnSlots.forEach((slot, i) => {
-      if (i === 0) {
-        slot.offset = 2;
-      } else {
-        const prevSlot = autumnSlots[i - 1];
-        if (prevSlot.stage === slot.stage && prevSlot.matchday === 1 && slot.matchday === 2) {
-          slot.offset = prevSlot.offset + 2;
-        } else {
-          slot.offset = prevSlot.offset + 3;
-        }
-      }
-    });
-  }
-
-  // 3. Schedule Spring slots backwards (excluding final)
-  let currentR = totalRounds;
-  for (let i = springSlots.length - 1; i >= 0; i--) {
-    const slot = springSlots[i];
-    const hasLeg2 = springSlots.some(s => s.stage === slot.stage && s.matchday === 2);
-    if (slot.matchday === 2 || !hasLeg2) {
-      currentR = currentR - 2;
-    } else {
-      currentR = currentR - 1;
-    }
-    slot.offset = currentR;
-  }
-
-  // 4. Resolve Overlap
-  if (A > 0 && springSlots.length > 0) {
-    const lastAutumnOffset = autumnSlots[autumnSlots.length - 1].offset;
-    const firstSpringOffset = springSlots[0].offset;
-    const minGap = 2;
-    if (firstSpringOffset < lastAutumnOffset + minGap) {
-      const diff = (lastAutumnOffset + minGap) - firstSpringOffset;
-      springSlots.forEach(slot => {
-        slot.offset += diff;
-      });
-      if (finalSlot) {
-        finalSlot.offset += diff;
-      }
-    }
-  }
-
-  // Assign Final offset (if final slot exists and wasn't shifted)
-  if (finalSlot && finalSlot.offset === undefined) {
-    if (springSlots.length > 0) {
-      finalSlot.offset = springSlots[springSlots.length - 1].offset + 2;
-    } else {
-      finalSlot.offset = totalRounds;
-    }
-  }
-
-  // Combine back and sort chronologically
-  const result = [...autumnSlots, ...springSlots];
-  if (finalSlot) result.push(finalSlot);
-  return result;
 };
 
 // Inline premium vector Team Flag component
@@ -765,12 +676,14 @@ export default function LeagueDashboard() {
 
     // 1. Generate goalscorers and assists for any played fixture in this round that doesn't have them yet
     rFixtures.forEach(f => {
-      if (f.played && (!f.scorers || f.scorers.length === 0)) {
+      const needsEvents = !f.scorersRecorded && (!f.scorers || (f.scorers.length === 0 && ((f.homeScore || 0) + (f.awayScore || 0)) > 0));
+      if (f.played && needsEvents) {
         const hTeam = (career.teams || []).find(t => t.idnum === f.homeId)?.name || f.homeTeamName || `Team ${f.homeId}`;
         const aTeam = (career.teams || []).find(t => t.idnum === f.awayId)?.name || f.awayTeamName || `Team ${f.awayId}`;
         const { scorers, assists } = generateMatchEvents(hTeam, aTeam, f.homeScore || 0, f.awayScore || 0, career.season);
         f.scorers = scorers;
         f.assists = assists;
+        f.scorersRecorded = true;
         career.playerStats = recordMatchEventsInStats(career.playerStats, scorers, assists);
       }
     });
@@ -793,7 +706,8 @@ export default function LeagueDashboard() {
           endRound: monthCheck.endRound,
           monthName: monthCheck.monthName,
           userManagerName: finalManagerName,
-          userTeamName
+          userTeamName,
+          season: career.season
         });
 
         career.monthlyAwards.push({
@@ -834,7 +748,8 @@ export default function LeagueDashboard() {
         monthlyAwardsHistory: career.monthlyAwards || [],
         playerStats: career.playerStats || {},
         userManagerName: finalManagerName,
-        userTeamName
+        userTeamName,
+        season: career.season
       });
 
       career.yearlyAwards = yearlyAwards;
@@ -957,7 +872,20 @@ export default function LeagueDashboard() {
     }
     const parsedCareer = JSON.parse(raw);
     if (parsedCareer.season) {
-      loadSeasonRosters(parsedCareer.season).catch(() => { });
+      loadSeasonRosters(parsedCareer.season).then(() => {
+        try {
+          const latestRaw = localStorage.getItem("retro_league_career");
+          if (!latestRaw) return;
+          const latestCareer = JSON.parse(latestRaw);
+          const { changed, career: repairedCareer } = repairCareerAwardManagerNames(latestCareer);
+          if (changed) {
+            localStorage.setItem("retro_league_career", JSON.stringify(repairedCareer));
+            setLeagueState(repairedCareer);
+          }
+        } catch (err) {
+          console.warn("[LeagueDashboard] Could not repair award manager names:", err);
+        }
+      }).catch(() => { });
     }
 
     // Auto-upgrade teams to 1-10 scale if needed
@@ -1098,12 +1026,14 @@ export default function LeagueDashboard() {
       parsedCareer.fixtures.forEach(rFixtures => {
         if (Array.isArray(rFixtures)) {
           rFixtures.forEach(f => {
-            if (f.played && (!f.scorers || f.scorers.length === 0)) {
+            const needsEvents = !f.scorersRecorded && (!f.scorers || (f.scorers.length === 0 && ((f.homeScore || 0) + (f.awayScore || 0)) > 0));
+            if (f.played && needsEvents) {
               const hTeam = (parsedCareer.teams || []).find(t => t.idnum === f.homeId)?.name || f.homeTeamName || `Team ${f.homeId}`;
               const aTeam = (parsedCareer.teams || []).find(t => t.idnum === f.awayId)?.name || f.awayTeamName || `Team ${f.awayId}`;
               const { scorers, assists } = generateMatchEvents(hTeam, aTeam, f.homeScore || 0, f.awayScore || 0, parsedCareer.season);
               f.scorers = scorers;
               f.assists = assists;
+              f.scorersRecorded = true;
               parsedCareer.playerStats = recordMatchEventsInStats(parsedCareer.playerStats, scorers, assists);
             }
           });
@@ -1808,7 +1738,7 @@ export default function LeagueDashboard() {
     }
   }, [leagueState]);
 
-  const handleSignContract = (selectedTeamId, customPlayerTeam = null) => {
+  const handleSignContract = async (selectedTeamId, customPlayerTeam = null) => {
     if (!leagueState || nextSeasonTeams.length === 0) return;
 
     // 1. Sort Standings Table (domestic league)
@@ -1991,8 +1921,10 @@ export default function LeagueDashboard() {
     // 4. European/SA Qualification Settings
     let nextEuropeanCup = null;
     let nextEuropeanCupState = null;
+    let nextEuropeanQualifierState = null;
     let nextCalendar = null;
     const isSAFinalCountry = SA_COUNTRIES.has(finalCountry);
+    const pPosPrev = currentStandings.findIndex(t => t.idnum === playerTeamId) + 1;
 
     if (nextDivision === 1) {
       if (finalCountry === country && currentDivision === 1) {
@@ -2010,7 +1942,7 @@ export default function LeagueDashboard() {
           } else if (csudTeamNames.includes(selectedTeamName)) {
             nextEuropeanCup = "uefa";
           }
-        } else {
+        } else if (!isUefaCountryBanned(country, nextStartYr, 'all')) {
           const activeQuals = qualifiersBySeason[startYrStr];
           const numClSpots = (activeQuals && activeQuals.cl && activeQuals.cl[country]) ? activeQuals.cl[country].length : 1;
           const numUefaSpots = (activeQuals && activeQuals.uefa && activeQuals.uefa[country]) ? activeQuals.uefa[country].length : 3;
@@ -2018,7 +1950,7 @@ export default function LeagueDashboard() {
           const clTeamNames = currentStandings.slice(0, numClSpots).map(t => t.name);
           const uefaTeamNames = currentStandings.slice(numClSpots, numClSpots + numUefaSpots).map(t => t.name);
           const ueclTeamNames = currentStandings.slice(numClSpots + numUefaSpots, numClSpots + numUefaSpots + numUeclSpots).map(t => t.name);
-          if (clTeamNames.includes(selectedTeamName)) {
+          if (clTeamNames.includes(selectedTeamName) && !isUefaCountryBanned(country, nextStartYr, 'cl')) {
             nextEuropeanCup = "cl";
           } else if (uefaTeamNames.includes(selectedTeamName)) {
             nextEuropeanCup = "uefa";
@@ -2039,13 +1971,13 @@ export default function LeagueDashboard() {
               nextEuropeanCup = "uefa";
             }
           }
-        } else {
+        } else if (!isUefaCountryBanned(finalCountry, nextStartYr, 'all')) {
           const nextQualifiers = qualifiersBySeason[String(nextStartYr)];
           if (nextQualifiers) {
             const clQuals = nextQualifiers.cl[finalCountry] || [];
             const uefaQuals = nextQualifiers.uefa[finalCountry] || [];
             const ueclQuals = (nextQualifiers.uecl && nextQualifiers.uecl[finalCountry]) || [];
-            if (clQuals.includes(selectedTeamName)) {
+            if (clQuals.includes(selectedTeamName) && !isUefaCountryBanned(finalCountry, nextStartYr, 'cl')) {
               nextEuropeanCup = "cl";
             } else if (uefaQuals.includes(selectedTeamName)) {
               nextEuropeanCup = "uefa";
@@ -2053,6 +1985,48 @@ export default function LeagueDashboard() {
               nextEuropeanCup = "uecl";
             }
           }
+        }
+      }
+
+      // Check 2-leg UEFA Qualifying Play-Off eligibility when D1 Champion/Runner-up missed direct spots
+      if (!isSAFinalCountry && finalCountry === country && currentDivision === 1) {
+        const qualComp = determineEuropeanQualifier({
+          country: finalCountry,
+          currentDivision,
+          nextDivision,
+          playerPosition: pPosPrev,
+          nextEuropeanCup,
+          nextStartYr,
+          isSA: isSAFinalCountry
+        });
+        if (qualComp) {
+          const qualOpp = pickQualifierOpponent({
+            competition: qualComp,
+            seasonYear: nextStartYr,
+            playerTeamName: selectedTeamName,
+            domesticTeams: finalNextSeasonTeams
+          });
+          nextEuropeanCup = null;
+          nextEuropeanCupState = null;
+          nextEuropeanQualifierState = {
+            competition: qualComp,
+            competitionLabel: getQualifierCompetitionTitle(qualComp, nextSeasonStr),
+            season: nextSeasonStr,
+            opponent: qualOpp,
+            opponentTeamKey: qualOpp.idnum,
+            leg1HomeId: selectedTeamId,
+            leg1AwayId: qualOpp.idnum,
+            leg1HomeScore: 0,
+            leg1AwayScore: 0,
+            leg1Played: false,
+            leg2HomeId: qualOpp.idnum,
+            leg2AwayId: selectedTeamId,
+            leg2HomeScore: 0,
+            leg2AwayScore: 0,
+            leg2Played: false,
+            completed: false,
+            qualified: false
+          };
         }
       }
     }
@@ -2329,6 +2303,13 @@ export default function LeagueDashboard() {
     const nextSelectedTeam = finalNextSeasonTeams.find(t => t.idnum === selectedTeamId);
     const nextDomesticCupExpectation = getDomesticCupExpectation(nextSelectedTeam || {}, nextDomesticCupState.bracketSize);
 
+    if (!nextCalendar) {
+      nextCalendar = [];
+      for (let r = 1; r <= nextTotalRounds; r++) {
+        nextCalendar.push({ type: "league", index: r });
+      }
+    }
+
     if (nextDomesticCupState.calendarSchedules) {
       const domSlots = [...nextDomesticCupState.calendarSchedules].sort((a, b) => b.offset - a.offset);
       domSlots.forEach(slot => {
@@ -2341,7 +2322,72 @@ export default function LeagueDashboard() {
       });
     }
 
-    // 7. Construct final new season object
+    if (nextEuropeanQualifierState) {
+      nextCalendar.unshift(
+        { type: "europe_qualifier", leg: 1, competition: nextEuropeanQualifierState.competition },
+        { type: "europe_qualifier", leg: 2, competition: nextEuropeanQualifierState.competition }
+      );
+    }
+
+    // 7. Preload next season rosters + market pool so squad continuity, skill progression,
+    // ledger filtering (no duplicates), and 36-40+ retirements process cleanly
+    await Promise.all([
+      loadSeasonRosters(nextStartYearStr),
+      getTransferMarketPool(nextStartYearStr)
+    ]);
+
+    let retirementNews = [];
+    let teamsForNextState = finalNextSeasonTeams;
+
+    if (isPlayerRenewing) {
+      const continuity = advancePlayerSquadForNextSeason({
+        teamName: selectedTeamName,
+        prevSeason: season,
+        nextSeason: nextSeasonStr
+      });
+      if (continuity && Array.isArray(continuity.squad) && continuity.squad.length > 0) {
+        const updatedAverages = calculateSquadTacticalAverages(continuity.squad);
+        if (updatedAverages) {
+          teamsForNextState = finalNextSeasonTeams.map(t =>
+            t.idnum === selectedTeamId
+              ? { ...t, attack: updatedAverages.attack, midfield: updatedAverages.midfield, defense: updatedAverages.defense }
+              : t
+          );
+        }
+      }
+      if (continuity && Array.isArray(continuity.retiredPlayers) && continuity.retiredPlayers.length > 0) {
+        retirementNews = generateRetirementNews({
+          retirees: continuity.retiredPlayers,
+          teamName: selectedTeamName,
+          season: nextSeasonStr,
+          round: 1
+        });
+      }
+    } else {
+      // Player switched clubs: load the new club's roster filtered by global transfer ledger
+      const newClubRoster = await getPrebuiltRoster(selectedTeamName, nextSeasonStr);
+      if (Array.isArray(newClubRoster) && newClubRoster.length > 0) {
+        const updatedAverages = calculateSquadTacticalAverages(newClubRoster);
+        if (updatedAverages) {
+          teamsForNextState = finalNextSeasonTeams.map(t =>
+            t.idnum === selectedTeamId
+              ? { ...t, attack: updatedAverages.attack, midfield: updatedAverages.midfield, defense: updatedAverages.defense }
+              : t
+          );
+        }
+      }
+    }
+
+    const openerNews = generateInitialNews({
+      teamName: selectedTeamName,
+      managerName: editName || managerProfile.name,
+      expectation: newBoardExpectation || { text: "Avoid Relegation", rank: 17, desc: "Avoid Relegation" },
+      budget: nextBudget,
+      season: nextSeasonStr
+    });
+    const initialNextNewsFeed = [...retirementNews, ...(Array.isArray(openerNews) ? openerNews : [])];
+
+    // 8. Construct final new season object
     const nextLeagueState = {
       season: nextSeasonStr,
       country: finalCountry,
@@ -2352,10 +2398,11 @@ export default function LeagueDashboard() {
       domesticCupExpectation: nextDomesticCupExpectation,
       domesticCupState: nextDomesticCupState,
       currentRound: 1,
-      teams: finalNextSeasonTeams,
+      teams: teamsForNextState,
       fixtures: nextFixtures,
       europeanCup: nextEuropeanCup,
       europeanCupState: nextEuropeanCupState,
+      europeanQualifierState: nextEuropeanQualifierState,
       calendar: nextCalendar,
       calendarIndex: 0,
       fanConfidence: selectedTeamId === leagueState.playerTeamId ? (leagueState.fanConfidence !== undefined ? leagueState.fanConfidence : 50) : 50,
@@ -2364,6 +2411,7 @@ export default function LeagueDashboard() {
       division: nextDivision,
       budget: nextBudget,
       payrollBudget: nextPayrollBudget,
+      newsFeed: initialNextNewsFeed,
       lastTransferWindow: ""
     };
 
@@ -2673,7 +2721,7 @@ export default function LeagueDashboard() {
   if (!isSeasonOver && currentEvent.type === "europe") {
     isEuropeanMatchNext = true;
     const cupState = europeanCupState;
-    const pId = cupState.europeanPlayerTeamId;
+    const pId = cupState?.europeanPlayerTeamId;
     const toCamelCase = (str) => str.replace(/_([a-z0-9])/g, (g) => g[1].toUpperCase());
 
     const hasGroupStage = rules && (
@@ -2682,12 +2730,15 @@ export default function LeagueDashboard() {
     );
     isEuropeanGroupStageNext = !!hasGroupStage;
 
-    if (hasGroupStage) {
-      clPlayerFixture = cupState.fixtures[currentEvent.matchday - 1]?.find(f => f.homeId === pId || f.awayId === pId);
+    if (!cupState || !pId) {
+      isRestWeek = true;
+    } else if (hasGroupStage) {
+      clPlayerFixture = cupState.fixtures[currentEvent.matchday - 1]?.find(f => !f.played && (f.homeId === pId || f.awayId === pId));
       if (clPlayerFixture) {
         europeanIsHome = clPlayerFixture.homeId === pId;
         const oppId = europeanIsHome ? clPlayerFixture.awayId : clPlayerFixture.homeId;
         europeanOpponent = cupState.teams.find(t => t.idnum === oppId);
+        if (!europeanOpponent) isRestWeek = true;
       } else {
         isRestWeek = true;
       }
@@ -2696,7 +2747,7 @@ export default function LeagueDashboard() {
       const stage = currentEvent.stage;
       const matchday = currentEvent.matchday;
       const kStateKey = toCamelCase(stage) + (stage !== "final" ? "Leg" + matchday : "");
-      const bracket = cupState.knockoutState[kStateKey];
+      const bracket = cupState.knockoutState?.[kStateKey];
       if (bracket) {
         const match = bracket.find(f => f.homeId === pId || f.awayId === pId);
         if (match && !match.played) {
@@ -2704,6 +2755,7 @@ export default function LeagueDashboard() {
           europeanIsHome = match.homeId === pId;
           const oppId = europeanIsHome ? match.awayId : match.homeId;
           europeanOpponent = cupState.teams.find(t => t.idnum === oppId);
+          if (!europeanOpponent) isRestWeek = true;
         } else {
           isRestWeek = true;
         }
@@ -2752,9 +2804,18 @@ export default function LeagueDashboard() {
   let opponentTeamObj = null;
   let isHome = true;
   const isDomesticCupNext = !isSeasonOver && currentEvent && (currentEvent.type === "domestic_cup" || currentEvent.isDomesticCup);
+  const isEuropeanQualifierNext = !isSeasonOver && currentEvent && currentEvent.type === "europe_qualifier" && Boolean(leagueState?.europeanQualifierState);
 
   if (!isSeasonOver) {
-    if (currentEvent.type === "league") {
+    if (isEuropeanQualifierNext) {
+      const qualState = leagueState.europeanQualifierState;
+      const isLeg1 = currentEvent.leg === 1;
+      isHome = isLeg1;
+      opponentTeamObj = qualState.opponent;
+      playerFixture = isLeg1
+        ? { homeId: qualState.leg1HomeId, awayId: qualState.leg1AwayId, played: false, homeScore: 0, awayScore: 0 }
+        : { homeId: qualState.leg2HomeId, awayId: qualState.leg2AwayId, played: false, homeScore: 0, awayScore: 0 };
+    } else if (currentEvent.type === "league") {
       const roundFixtures = fixtures[currentEvent.index - 1];
       if (roundFixtures) {
         playerFixture = roundFixtures.find(f => f.homeId === playerTeamId || f.awayId === playerTeamId);
@@ -2768,14 +2829,30 @@ export default function LeagueDashboard() {
       const domCup = leagueState.domesticCupState;
       const stage = currentEvent.stage;
       const stageMatches = domCup.knockoutState ? (domCup.knockoutState[stage] || []) : [];
-      playerFixture = stageMatches.find(m => m.homeId === playerTeamId || m.awayId === playerTeamId);
+      playerFixture = stageMatches.find(m => !m.played && (m.homeId === playerTeamId || m.awayId === playerTeamId));
       if (playerFixture) {
         isHome = playerFixture.homeId === playerTeamId;
         const opponentId = isHome ? playerFixture.awayId : playerFixture.homeId;
         opponentTeamObj = (domCup.participatingTeams && domCup.participatingTeams.find(t => t.idnum === opponentId)) || teams.find(t => t.idnum === opponentId);
       }
     }
-  }  // UEFA CL standings dynamically calculated
+  }
+
+  const isDomesticCupEliminated = Boolean(
+    isDomesticCupNext &&
+    !opponentTeamObj &&
+    leagueState?.domesticCupState?.knockoutState &&
+    Object.values(leagueState.domesticCupState.knockoutState).some(stageArr =>
+      Array.isArray(stageArr) && stageArr.some(m => {
+        if (!m.played || (m.homeId !== playerTeamId && m.awayId !== playerTeamId)) return false;
+        if (m.winnerId !== undefined && m.winnerId !== null) return m.winnerId !== playerTeamId;
+        const isH = m.homeId === playerTeamId;
+        const pScore = (isH ? m.homeScore : m.awayScore) + ((isH ? m.penaltyHomeScore : m.penaltyAwayScore) || 0);
+        const oScore = (isH ? m.awayScore : m.homeScore) + ((isH ? m.penaltyAwayScore : m.penaltyHomeScore) || 0);
+        return pScore < oScore;
+      })
+    )
+  );  // UEFA CL standings dynamically calculated
   const getCLGroupStandings = (groupLetter) => {
     const seasonShort = season.split("/")[0];
     const rules = getRules(europeanCup, seasonShort);
@@ -3782,7 +3859,7 @@ export default function LeagueDashboard() {
       } else {
         simulateCLUEFAKnockoutRound(stateCopy, currentEvent);
       }
-    } else if (isUEFA) {
+    } else if (isUEFA || isUECL) {
       simulateCLUEFAKnockoutRound(stateCopy, currentEvent);
     }
 
@@ -4019,7 +4096,14 @@ export default function LeagueDashboard() {
     let stateCopy = JSON.parse(JSON.stringify(leagueState));
     if (!stateCopy || !stateCopy.domesticCupState) return;
     const domCup = stateCopy.domesticCupState;
-    if (domCup.isCompleted) return;
+    if (domCup.isCompleted) {
+      if (stateCopy.calendar) {
+        stateCopy.calendarIndex += 1;
+        localStorage.setItem("retro_league_career", JSON.stringify(stateCopy));
+        setLeagueState(stateCopy);
+      }
+      return;
+    }
 
     const stage = domCup.stage;
     const matches = domCup.knockoutState[stage] || [];
@@ -4082,10 +4166,171 @@ export default function LeagueDashboard() {
     setResultsModalOpen(true);
   };
 
+  const simulateEuropeanQualifierLeg = () => {
+    const stateCopy = JSON.parse(JSON.stringify(leagueState));
+    const qualState = stateCopy?.europeanQualifierState;
+    const ev = stateCopy?.calendar?.[stateCopy.calendarIndex];
+    if (!qualState || !ev) return;
+
+    const pId = stateCopy.playerTeamId;
+    const pTeam = stateCopy.teams.find(t => t.idnum === pId);
+    const opp = qualState.opponent;
+    if (!pTeam || !opp) return;
+
+    const isLeg1 = ev.leg === 1;
+    const homeTeam = isLeg1 ? pTeam : opp;
+    const awayTeam = isLeg1 ? opp : pTeam;
+    const { homeGoals, awayGoals } = simulateFixture(homeTeam, awayTeam);
+
+    let legResultFixture = {
+      homeId: homeTeam.idnum,
+      awayId: awayTeam.idnum,
+      homeScore: homeGoals,
+      awayScore: awayGoals,
+      played: true
+    };
+    let modalTitle = `${qualState.competitionLabel} 3RD QUALIFYING ROUND - LEG ${ev.leg}`;
+
+    if (isLeg1) {
+      qualState.leg1HomeScore = homeGoals;
+      qualState.leg1AwayScore = awayGoals;
+      qualState.leg1Played = true;
+    } else {
+      let l2H = homeGoals;
+      let l2A = awayGoals;
+      let penH = null;
+      let penA = null;
+
+      let tieRes = resolveTwoLegTie({
+        playerTeamId: pId,
+        leg1HomeId: qualState.leg1HomeId,
+        leg1HomeScore: qualState.leg1HomeScore,
+        leg1AwayScore: qualState.leg1AwayScore,
+        leg2HomeId: qualState.leg2HomeId,
+        leg2HomeScore: l2H,
+        leg2AwayScore: l2A,
+        seasonStr: stateCopy.season,
+        isSA: false
+      });
+
+      if (tieRes.needsET) {
+        if (Math.random() < 0.35) l2H += 1;
+        if (Math.random() < 0.35) l2A += 1;
+        tieRes = resolveTwoLegTie({
+          playerTeamId: pId,
+          leg1HomeId: qualState.leg1HomeId,
+          leg1HomeScore: qualState.leg1HomeScore,
+          leg1AwayScore: qualState.leg1AwayScore,
+          leg2HomeId: qualState.leg2HomeId,
+          leg2HomeScore: l2H,
+          leg2AwayScore: l2A,
+          seasonStr: stateCopy.season,
+          isSA: false
+        });
+      }
+
+      if (tieRes.needsET) {
+        penH = Math.random() < 0.5 ? 5 : 4;
+        penA = penH === 5 ? 4 : 5;
+        tieRes = resolveTwoLegTie({
+          playerTeamId: pId,
+          leg1HomeId: qualState.leg1HomeId,
+          leg1HomeScore: qualState.leg1HomeScore,
+          leg1AwayScore: qualState.leg1AwayScore,
+          leg2HomeId: qualState.leg2HomeId,
+          leg2HomeScore: l2H,
+          leg2AwayScore: l2A,
+          leg2PenHome: penH,
+          leg2PenAway: penA,
+          seasonStr: stateCopy.season,
+          isSA: false
+        });
+      }
+
+      qualState.leg2HomeScore = l2H;
+      qualState.leg2AwayScore = l2A;
+      qualState.leg2Played = true;
+      if (penH !== null) {
+        qualState.leg2PenaltyHomeScore = penH;
+        qualState.leg2PenaltyAwayScore = penA;
+      }
+      qualState.completed = true;
+      qualState.qualified = tieRes.playerWon;
+      qualState.tieSummary = tieRes;
+
+      legResultFixture = {
+        homeId: homeTeam.idnum,
+        awayId: awayTeam.idnum,
+        homeScore: l2H,
+        awayScore: l2A,
+        penaltyHomeScore: penH !== null ? penH : undefined,
+        penaltyAwayScore: penA !== null ? penA : undefined,
+        played: true
+      };
+
+      const decNote = tieRes.decidedBy === 'penalties'
+        ? `on penalties (${tieRes.playerPen}-${tieRes.oppPen})`
+        : (tieRes.decidedBy === 'away_goals' ? 'on away goals' : 'on aggregate');
+
+      if (tieRes.playerWon) {
+        const setup = buildEuropeanCupSetup({
+          competition: qualState.competition,
+          seasonStr: stateCopy.season,
+          isSA: false,
+          selectedTeamObj: pTeam,
+          nextSeasonTeams: stateCopy.teams,
+          targetReplaceTeamName: opp.name
+        });
+        stateCopy.europeanCup = setup.europeanCup;
+        stateCopy.europeanCupState = setup.europeanCupState;
+        stateCopy.calendar = insertEuropeanEventsIntoCalendar(stateCopy.calendar, setup.dynamicSchedules, 2);
+
+        stateCopy.newsFeed = [{
+          id: `news_qual_win_${Date.now()}`,
+          round: 1,
+          dateStr: '3rd Qualifying Round',
+          category: 'cup',
+          categoryLabel: '🏆 QUALIFIED FOR EUROPE',
+          title: `✅ ${pTeam.name} Qualify for ${qualState.competitionLabel}!`,
+          summary: `${pTeam.name} defeated ${opp.name} (${tieRes.playerAgg}-${tieRes.oppAgg} agg, ${decNote}) to claim their place in the ${qualState.competitionLabel}.`,
+          body: `Celebrations are underway after ${pTeam.name} overcame ${opp.name} across two intense qualifying legs (${tieRes.playerAgg}-${tieRes.oppAgg} on aggregate, winning ${decNote})!\n\n${pTeam.name} have officially taken ${opp.name}'s place in this season's ${qualState.competitionLabel}.`,
+          isRead: false,
+          timestamp: Date.now()
+        }, ...(stateCopy.newsFeed || [])];
+      } else {
+        stateCopy.europeanCup = null;
+        stateCopy.europeanCupState = null;
+        stateCopy.newsFeed = [{
+          id: `news_qual_loss_${Date.now()}`,
+          round: 1,
+          dateStr: '3rd Qualifying Round',
+          category: 'cup',
+          categoryLabel: '🇪🇺 QUALIFYING EXIT',
+          title: `❌ ${pTeam.name} Eliminated from ${qualState.competitionLabel} Qualifying`,
+          summary: `${pTeam.name} fell to ${opp.name} (${tieRes.playerAgg}-${tieRes.oppAgg} agg, lost ${decNote}) and will focus on domestic competitions this season.`,
+          body: `Heartbreak in the 3rd Qualifying Round as ${pTeam.name} fell short against ${opp.name} (${tieRes.playerAgg}-${tieRes.oppAgg} on aggregate).\n\nFocus now shifts to the domestic league and cup campaign.`,
+          isRead: false,
+          timestamp: Date.now()
+        }, ...(stateCopy.newsFeed || [])];
+      }
+    }
+
+    stateCopy.calendarIndex += 1;
+    localStorage.setItem('retro_league_career', JSON.stringify(stateCopy));
+    setLeagueState(stateCopy);
+
+    setResultsModalFixtures([legResultFixture]);
+    setResultsModalTitle(modalTitle);
+    setResultsModalTheme("#ffd700");
+    setResultsModalOpen(true);
+  };
+
   const handleSimulateRound = () => {
     if (isSeasonOver) return;
 
-    if (currentEvent && (currentEvent.type === "domestic_cup" || currentEvent.isDomesticCup)) {
+    if (isEuropeanQualifierNext) {
+      simulateEuropeanQualifierLeg();
+    } else if (currentEvent && (currentEvent.type === "domestic_cup" || currentEvent.isDomesticCup)) {
       simulateDomesticCupRound();
     } else if (isEuropeanMatchNext) {
       simulateRestWeek();
@@ -4096,7 +4341,9 @@ export default function LeagueDashboard() {
 
   const handleKickOff = () => {
     if (isSeasonOver) return;
-    const willPlayMatch = isEuropeanMatchNext ? !isRestWeek : Boolean(opponentTeamObj);
+    const hasEuroMatch = isEuropeanMatchNext && !isRestWeek && Boolean(clPlayerFixture) && Boolean(europeanOpponent);
+    const hasDomesticMatch = !isEuropeanMatchNext && Boolean(playerFixture) && Boolean(opponentTeamObj);
+    const willPlayMatch = isEuropeanMatchNext ? hasEuroMatch : hasDomesticMatch;
     if (willPlayMatch && playerTeamObj?.name) {
       try {
         const lineupRaw = localStorage.getItem(`retro_lineup_${playerTeamObj.name}_${season}`);
@@ -4124,11 +4371,13 @@ export default function LeagueDashboard() {
     }
 
     if (isEuropeanMatchNext) {
-      if (isRestWeek) {
+      if (!hasEuroMatch) {
         simulateRestWeek();
       } else {
         navigate(`/pre-match?europe`);
       }
+    } else if (!hasDomesticMatch) {
+      handleSimulateRound();
     } else {
       navigate(`/pre-match?league`);
     }
@@ -4138,6 +4387,13 @@ export default function LeagueDashboard() {
     if (window.confirm("Are you sure you want to end this career and start a new league?")) {
       localStorage.removeItem("retro_league_career");
       localStorage.removeItem("retro_manager_profile");
+      clearCareerTransferLedger();
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith("retro_roster_") || key.startsWith("retro_lineup_") || key.startsWith("retro_roles_") || key.startsWith("retro_formation_") || key.startsWith("retro_captain_"))) {
+          localStorage.removeItem(key);
+        }
+      }
       navigate("/league");
     }
   };
@@ -4189,12 +4445,14 @@ export default function LeagueDashboard() {
 
           {!isSeasonOver ? (
             calendar ? (
-              <div className="round-badge animated-slide-in" style={{ borderColor: isEuropeanMatchNext ? '#00e5ff' : (isDomesticCupNext ? '#ff0055' : '#00ff64') }}>
-                <span className="round-badge-title" style={{ color: isEuropeanMatchNext ? '#00e5ff' : (isDomesticCupNext ? '#ff0055' : '#00ff64') }}>
-                  {isEuropeanMatchNext ? "MIDWEEK" : (isDomesticCupNext ? "DOMESTIC CUP" : "WEEKEND")}
+              <div className="round-badge animated-slide-in" style={{ borderColor: isEuropeanQualifierNext ? '#ffd700' : (isEuropeanMatchNext ? '#00e5ff' : (isDomesticCupNext ? '#ff0055' : '#00ff64')) }}>
+                <span className="round-badge-title" style={{ color: isEuropeanQualifierNext ? '#ffd700' : (isEuropeanMatchNext ? '#00e5ff' : (isDomesticCupNext ? '#ff0055' : '#00ff64')) }}>
+                  {isEuropeanQualifierNext ? "UEFA PLAY-OFF" : (isEuropeanMatchNext ? "MIDWEEK" : (isDomesticCupNext ? "DOMESTIC CUP" : "WEEKEND"))}
                 </span>
-                <span className="round-badge-num" style={{ color: '#fff', fontSize: isDomesticCupNext ? '11px' : '18px' }}>
-                  {isEuropeanMatchNext ? `CUP MD ${currentEvent.matchday}` : (isDomesticCupNext ? (CUP_STAGE_NAMES[currentEvent?.stage] || currentEvent?.stage || "CUP ROUND") : `LEAGUE ${currentEvent?.index}`)}
+                <span className="round-badge-num" style={{ color: '#fff', fontSize: (isDomesticCupNext || isEuropeanQualifierNext) ? '11px' : '18px' }}>
+                  {isEuropeanQualifierNext
+                    ? `3RD QUAL. LEG ${currentEvent.leg}`
+                    : (isEuropeanMatchNext ? `CUP MD ${currentEvent.matchday}` : (isDomesticCupNext ? (CUP_STAGE_NAMES[currentEvent?.stage] || currentEvent?.stage || "CUP ROUND") : `LEAGUE ${currentEvent?.index}`))}
                 </span>
               </div>
             ) : (
@@ -5509,13 +5767,24 @@ export default function LeagueDashboard() {
                             : "UEFA CONFERENCE LEAGUE NIGHT"))}
                     </h3>
 
-                    {isRestWeek ? (
+                    {(isRestWeek || !clPlayerFixture || !europeanOpponent) ? (
                       <div style={{ margin: '15px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <span style={{ fontSize: '32px' }}>💤</span>
-                        <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>REST WEEK - SQUAD RESTED</span>
-                        <span style={{ fontSize: '11px', color: '#aaa', padding: '0 15px', lineHeight: '1.4' }}>
-                          Your team did not qualify for this knockout stage. Click below to simulate the midweek matches.
-                        </span>
+                        {(() => {
+                          const isEuroOut = Boolean(getPlayerCupStatus(leagueState, isSouthAmerica)?.isEliminated);
+                          return (
+                            <>
+                              <span style={{ fontSize: '32px' }}>{isEuroOut ? '❌' : '💤'}</span>
+                              <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>
+                                {isEuroOut ? 'ELIMINATED FROM COMPETITION' : 'REST WEEK - SQUAD RESTED'}
+                              </span>
+                              <span style={{ fontSize: '11px', color: '#aaa', padding: '0 15px', lineHeight: '1.4' }}>
+                                {isEuroOut
+                                  ? 'Your team was eliminated in a previous round. Click below to simulate this stage and view the results.'
+                                  : 'Your team does not have a fixture in this continental stage. Click below to simulate the midweek matches.'}
+                              </span>
+                            </>
+                          );
+                        })()}
                       </div>
                     ) : (
                       <div className="versus-preview" style={{ display: 'flex', width: '100%', justifyContent: 'space-around', alignItems: 'center', margin: '10px 0' }}>
@@ -5535,7 +5804,7 @@ export default function LeagueDashboard() {
                       </div>
                     )}
 
-                    {!isRestWeek && (() => {
+                    {(!isRestWeek && clPlayerFixture && europeanOpponent) && (() => {
                       const playerCupTeam = europeanCupState?.teams?.find(t => t.idnum === europeanCupState?.europeanPlayerTeamId);
                       const clGroupStandings = (isEuropeanGroupStageNext && playerCupTeam?.group && typeof getCLGroupStandings === 'function')
                         ? getCLGroupStandings(playerCupTeam.group)
@@ -5580,11 +5849,11 @@ export default function LeagueDashboard() {
                       );
                     })()}
 
-                    {isRestWeek ? (
+                    {(isRestWeek || !clPlayerFixture || !europeanOpponent) ? (
                       <button
                         className="match-control-btn kickoff-theme-btn glowing-btn pulse"
                         style={{ width: '95%', background: 'linear-gradient(135deg, #0091ff, #00e5ff)', borderColor: '#00e5ff' }}
-                        onClick={handleKickOff}
+                        onClick={handleSimulateRound}
                       >
                         SIMULATE MIDWEEK ROUND ➔
                       </button>
@@ -5609,18 +5878,26 @@ export default function LeagueDashboard() {
                   </>
                 ) : (
                   <>
-                    <h3 className="team-card-title" style={{ color: isDomesticCupNext ? '#ff0055' : '#00ff64' }}>
-                      {isDomesticCupNext ? `🥊 ${leagueState?.domesticCupState?.cupName?.toUpperCase() || 'DOMESTIC CUP'} MATCH` : "NEXT MATCH FIXTURE"}
+                    <h3 className="team-card-title" style={{ color: isEuropeanQualifierNext ? '#ffd700' : (isDomesticCupNext ? '#ff0055' : '#00ff64') }}>
+                      {isEuropeanQualifierNext
+                        ? `🏆 ${leagueState?.europeanQualifierState?.competitionLabel || 'UEFA'} 3RD QUALIFYING ROUND (LEG ${currentEvent.leg}/2)`
+                        : (isDomesticCupNext ? `🥊 ${leagueState?.domesticCupState?.cupName?.toUpperCase() || 'DOMESTIC CUP'} MATCH` : "NEXT MATCH FIXTURE")}
                     </h3>
 
-                    {!opponentTeamObj ? (
+                    {(!playerFixture || !opponentTeamObj) ? (
                       <div style={{ margin: '15px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <span style={{ fontSize: '32px' }}>🥊</span>
+                        <span style={{ fontSize: '32px' }}>{isDomesticCupEliminated ? '❌' : '🥊'}</span>
                         <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>
-                          {isDomesticCupNext ? "REST / NEUTRAL CUP ROUND" : "NO UPCOMING FIXTURE"}
+                          {isDomesticCupNext
+                            ? (isDomesticCupEliminated ? "ELIMINATED FROM CUP" : "REST / NEUTRAL CUP ROUND")
+                            : "NO UPCOMING FIXTURE"}
                         </span>
                         <span style={{ fontSize: '11px', color: '#aaa', padding: '0 15px', lineHeight: '1.4' }}>
-                          {isDomesticCupNext ? "Your team has no match in this stage. Click below to simulate the round." : "No upcoming match scheduled."}
+                          {isDomesticCupNext
+                            ? (isDomesticCupEliminated
+                              ? "You were eliminated in an earlier round. Click below to simulate this cup round and view the results."
+                              : "Your team has no match in this stage. Click below to simulate the round.")
+                            : "No upcoming match scheduled."}
                         </span>
                       </div>
                     ) : (
@@ -5632,7 +5909,7 @@ export default function LeagueDashboard() {
                             <span style={{ fontSize: '9px', color: '#888' }}>{isHome ? "HOME" : "AWAY"}</span>
                           </div>
 
-                          <div style={{ fontFamily: 'Orbitron', fontWeight: 'bold', fontSize: '16px', color: isDomesticCupNext ? '#ff0055' : '#ff4500' }}>VS</div>
+                          <div style={{ fontFamily: 'Orbitron', fontWeight: 'bold', fontSize: '16px', color: isEuropeanQualifierNext ? '#ffd700' : (isDomesticCupNext ? '#ff0055' : '#ff4500') }}>VS</div>
 
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
                             <TeamFlag primaryColor={isHome ? opponentTeamObj.primaryColor : playerTeamObj.primaryColor} secondaryColor={isHome ? opponentTeamObj.secondaryColor : playerTeamObj.secondaryColor} size={80} />
@@ -5641,7 +5918,20 @@ export default function LeagueDashboard() {
                           </div>
                         </div>
 
-                        {(() => {
+                        {isEuropeanQualifierNext ? (
+                          <div className="stats-box" style={{ width: '90%', padding: '10px 14px', fontSize: '11px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ color: '#ffd700', fontWeight: 'bold', fontFamily: 'Orbitron', letterSpacing: '0.5px' }}>
+                              {currentEvent.leg === 2
+                                ? `LEG 1: ${playerTeamObj.name} ${leagueState.europeanQualifierState.leg1HomeScore} - ${leagueState.europeanQualifierState.leg1AwayScore} ${opponentTeamObj.name}`
+                                : `WINNER ENTERS GROUP / LEAGUE STAGE (REPLACES ${opponentTeamObj.name.toUpperCase()})`}
+                            </span>
+                            <span style={{ color: '#9aa', fontSize: '10px' }}>
+                              {parseInt((season || '2001').split('/')[0], 10) < 2021
+                                ? '2-Leg Aggregate (Away Goals Rule Active • ET & Penalties if Tied)'
+                                : '2-Leg Aggregate (No Away Goals • ET & Penalties if Tied)'}
+                            </span>
+                          </div>
+                        ) : (() => {
                           const oppPosition = opponentTeamObj ? (standings.findIndex(t => t.idnum === opponentTeamObj.idnum || t.name === opponentTeamObj.name) + 1) : 0;
                           const homeTablePos = isHome ? playerPosition : (oppPosition > 0 ? oppPosition : null);
                           const awayTablePos = isHome ? (oppPosition > 0 ? oppPosition : null) : playerPosition;
@@ -5665,18 +5955,41 @@ export default function LeagueDashboard() {
                       </>
                     )}
 
-                    <div style={{ display: 'flex', width: '95%', gap: '10px', justifyContent: 'center' }}>
-                      <button className="match-control-btn kickoff-theme-btn glowing-btn pulse" style={{ flex: 1, background: isDomesticCupNext ? 'linear-gradient(135deg, #ff0055, #ff4081)' : undefined, borderColor: isDomesticCupNext ? '#ff0055' : undefined }} onClick={handleKickOff}>
-                        {isDomesticCupNext ? `PLAY CUP MATCH ➔` : `PLAY ROUND ${currentEvent.index}`}
-                      </button>
+                    {(!playerFixture || !opponentTeamObj) ? (
                       <button
-                        className="match-control-btn"
-                        style={{ width: '35%', fontSize: '11px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.02)', color: '#aaa', cursor: 'pointer' }}
+                        className="match-control-btn kickoff-theme-btn glowing-btn pulse"
+                        style={{ width: '95%', background: isDomesticCupNext ? 'linear-gradient(135deg, #ff0055, #ff4081)' : undefined, borderColor: isDomesticCupNext ? '#ff0055' : undefined }}
                         onClick={handleSimulateRound}
                       >
-                        SIM ROUND
+                        {isDomesticCupNext ? "SIMULATE CUP ROUND ➔" : "SIMULATE ROUND ➔"}
                       </button>
-                    </div>
+                    ) : (
+                      <div style={{ display: 'flex', width: '95%', gap: '10px', justifyContent: 'center' }}>
+                        <button
+                          className="match-control-btn kickoff-theme-btn glowing-btn pulse"
+                          style={{
+                            flex: 1,
+                            background: isEuropeanQualifierNext
+                              ? 'linear-gradient(135deg, #ffb300, #ffd700)'
+                              : (isDomesticCupNext ? 'linear-gradient(135deg, #ff0055, #ff4081)' : undefined),
+                            borderColor: isEuropeanQualifierNext ? '#ffd700' : (isDomesticCupNext ? '#ff0055' : undefined),
+                            color: isEuropeanQualifierNext ? '#121217' : undefined
+                          }}
+                          onClick={handleKickOff}
+                        >
+                          {isEuropeanQualifierNext
+                            ? `PLAY QUALIFIER LEG ${currentEvent.leg} ➔`
+                            : (isDomesticCupNext ? `PLAY CUP MATCH ➔` : `PLAY ROUND ${currentEvent.index}`)}
+                        </button>
+                        <button
+                          className="match-control-btn"
+                          style={{ width: '35%', fontSize: '11px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.02)', color: '#aaa', cursor: 'pointer' }}
+                          onClick={handleSimulateRound}
+                        >
+                          {isEuropeanQualifierNext ? "SIM LEG" : "SIM ROUND"}
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -6181,7 +6494,12 @@ export default function LeagueDashboard() {
       <RoundResultsModal
         isOpen={resultsModalOpen}
         fixtures={resultsModalFixtures}
-        teams={resultsModalTheme === "#00e5ff" ? leagueState?.europeanCupState?.teams : leagueState?.teams}
+        teams={resultsModalTheme === "#00e5ff"
+          ? leagueState?.europeanCupState?.teams
+          : [
+              ...(leagueState?.teams || []),
+              ...(leagueState?.europeanQualifierState?.opponent ? [leagueState.europeanQualifierState.opponent] : [])
+            ]}
         playerTeamId={resultsModalTheme === "#00e5ff" ? leagueState?.europeanCupState?.europeanPlayerTeamId : leagueState?.playerTeamId}
         roundTitle={resultsModalTitle}
         themeColor={resultsModalTheme}

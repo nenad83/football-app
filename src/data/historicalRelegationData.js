@@ -272,11 +272,18 @@ export const historicalRelegated = {
     italy: ["Monza", "Empoli", "Venezia"]
   },
   "2025": {
-    england: ["Burnley", "Leeds United", "Sunderland"],
-    spain: ["Levante", "Elche", "Real Oviedo"],
-    germany: ["1. FC Köln", "Hamburger SV", "Heidenheim"],
-    france: ["Lorient", "Paris FC", "Metz"],
-    italy: ["Sassuolo", "Pisa", "Cremonese"]
+    england: ["West Ham", "Burnley", "Wolves"],
+    spain: ["Mallorca", "Girona", "Real Oviedo"],
+    germany: ["Wolfsburg", "Heidenheim", "St. Pauli"],
+    france: ["Metz", "Nantes"],
+    italy: ["Cremonese", "Hellas Verona", "Pisa"]
+  },
+  "2026": {
+    england: ["West Ham", "Burnley", "Wolves"],
+    spain: ["Mallorca", "Girona", "Real Oviedo"],
+    germany: ["Wolfsburg", "Heidenheim", "St. Pauli"],
+    france: ["Metz", "Nantes"],
+    italy: ["Cremonese", "Hellas Verona", "Pisa"]
   }
 };
 
@@ -549,18 +556,18 @@ export const historicalPromoted = {
     italy: ["Sassuolo", "Pisa", "Cremonese"]
   },
   "2025": {
-    england: ["Leicester City", "Ipswich Town", "Southampton"],
-    spain: ["Las Palmas", "Valladolid", "Leganes"],
-    germany: ["VfL Bochum", "Holstein Kiel", "Heidenheim"],
-    france: ["Stade de Reims", "Montpellier", "Saint-Etienne"],
-    italy: ["Monza", "Empoli", "Venezia"]
+    england: ["Coventry City", "Ipswich Town", "Hull City"],
+    spain: ["Racing Santander", "Deportivo La Coruna", "Malaga"],
+    germany: ["Schalke 04", "Elversberg", "Paderborn"],
+    france: ["Troyes", "Le Mans"],
+    italy: ["Venezia", "Frosinone", "Monza"]
   },
   "2026": {
-    england: ["Leicester City", "Ipswich Town", "Everton"],
-    spain: ["Levante", "Elche", "Real Oviedo"],
-    germany: ["St. Pauli", "1. FC Köln", "Hamburger SV"],
-    france: ["Auxerre", "Angers", "Saint-Etienne"],
-    italy: ["Monza", "Empoli", "Venezia"]
+    england: ["Coventry City", "Ipswich Town", "Hull City"],
+    spain: ["Racing Santander", "Deportivo La Coruna", "Malaga"],
+    germany: ["Schalke 04", "Elversberg", "Paderborn"],
+    france: ["Troyes", "Le Mans"],
+    italy: ["Venezia", "Frosinone", "Monza"]
   }
 };
 

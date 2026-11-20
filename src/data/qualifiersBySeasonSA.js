@@ -447,14 +447,14 @@ export const qualifiersBySeasonSA = {
   },
   "2026": {
     cl: {
-      argentina: ["Estudiantes (LP)", "Independiente Rivadavia", "Boca Juniors", "Lanús", "San Lorenzo", "River Plate"],
-      brazil: ["Flamengo", "Fluminense", "Cruzeiro", "Palmeiras", "Mirassol"],
-      colombia: ["Independiente Medellín", "Deportes Tolima", "Junior"]
+      argentina: ["Estudiantes (LP)", "Independiente Rivadavia", "Boca Juniors", "Lanús", "Platense", "Rosario Central"],
+      brazil: ["Flamengo", "Fluminense", "Cruzeiro", "Palmeiras", "Corinthians", "Mirassol"],
+      colombia: ["Independiente Medellín", "Deportes Tolima", "Junior", "Santa Fe"]
     },
     uefa: {
-      argentina: ["Racing Club", "Defensa y Justicia", "Huracán", "Newell's Old Boys", "Argentinos Juniors", "Unión", "Tigre"],
-      brazil: ["Internacional", "Fortaleza", "Grêmio", "Red Bull Bragantino", "Vitória", "Atlético Mineiro", "São Paulo", "Vasco da Gama"],
-      colombia: []
+      argentina: ["Tigre", "San Lorenzo", "Racing Club", "Deportivo Riestra", "Barracas Central", "River Plate"],
+      brazil: ["Atletico Mineiro", "Sao Paulo", "Santos", "Botafogo", "Gremio", "Vasco da Gama", "Red Bull Bragantino"],
+      colombia: ["América de Cali", "Millonarios"]
     }
   }
 };

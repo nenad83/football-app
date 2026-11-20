@@ -124,7 +124,9 @@ export const TacticsPanel = ({
   lineup = {},
   formation = '4-4-2',
   playerRoles = {},
-  onToggleRole = null
+  onToggleRole = null,
+  captainName = '',
+  onSelectCaptain = null
 }) => {
   const normTactic = normalizeMentality(tactic);
   const isMentalityDisabled = disabled;
@@ -158,6 +160,12 @@ export const TacticsPanel = ({
     });
 
   const activeCpuRoles = disabled ? summarizeActiveRoles(lineup, formation, playerRoles) : [];
+  const pitchPlayers = rawSlots
+    .map(s => lineup && lineup[s.id])
+    .filter(Boolean);
+  const resolvedCaptainName = pitchPlayers.some(p => p.name === captainName)
+    ? captainName
+    : (pitchPlayers[0]?.name || '');
 
   return (
     <div
@@ -244,6 +252,49 @@ export const TacticsPanel = ({
           ⚔️ ATT
         </button>
       </div>
+
+      {/* Match Captain Selector */}
+      {!disabled && onSelectCaptain && pitchPlayers.length > 0 && (
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          paddingTop: '8px',
+          marginBottom: '8px',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px'
+        }}>
+          <span className="roll-label" style={{ fontSize: '9px', color: '#ffd700', whiteSpace: 'nowrap' }}>
+            ©️ CAPTAIN
+          </span>
+          <select
+            value={resolvedCaptainName}
+            onChange={(e) => onSelectCaptain(e.target.value)}
+            title="Select on-field match captain"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              background: 'rgba(255, 215, 0, 0.1)',
+              color: '#ffd700',
+              border: '1px solid rgba(255, 215, 0, 0.35)',
+              borderRadius: '4px',
+              padding: '4px 6px',
+              fontSize: '10px',
+              fontFamily: 'Orbitron, sans-serif',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              outline: 'none'
+            }}
+          >
+            {pitchPlayers.map(p => (
+              <option key={p.name} value={p.name} style={{ background: '#0c1614', color: '#fff' }}>
+                {p.name} ({p.position})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Player Tactical Roles Section */}
       {!disabled && outfieldSlots.length > 0 && (

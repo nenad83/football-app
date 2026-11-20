@@ -1,7 +1,57 @@
 // src/utils/awardsManager.js
 // Complete Engine for Goalscorers, Assists, Monthly Awards & Yearly Awards
 
-import { getPrebuiltRosterSync } from '../data/rosters/rosterRegistry';
+import { getPrebuiltRosterSync, getTeamDetailsSync } from '../data/rosters/rosterRegistry';
+import { pickWeightedGoalScorerAndAssister } from './tacticalRoleEngine';
+import { getCPUFormation } from '../components/FormationTactics';
+
+const FALLBACK_MANAGER_NAMES = [
+  "Graham Taylor", "Terry Yorath", "John Gregory", "Alan Curbishley",
+  "George Burley", "David Jones", "Peter Reid", "Joe Royle",
+  "Brian Little", "Howard Kendall", "Ray Wilkins", "Steve Bruce",
+  "Glenn Hoddle", "Gerry Francis", "Mick McCarthy", "Nigel Worthington",
+  "Paul Jewell", "Phil Brown", "Gary Megson", "Dave Bassett",
+  "Trevor Francis", "Glenn Roeder", "Lawrie Sanchez", "Colin Todd"
+];
+
+export const isPlaceholderManagerName = (name, teamName = "") => {
+  if (!name || typeof name !== "string") return true;
+  const trimmed = name.trim();
+  if (!trimmed) return true;
+  if (teamName && trimmed.toLowerCase() === `manager ${teamName}`.toLowerCase()) return true;
+  return /^Manager\s+/i.test(trimmed);
+};
+
+/**
+ * Resolves the authentic manager name for a team in a season (or deterministic fallback if missing).
+ */
+export const resolveClubManagerName = (teamObjOrName, season, userTeamName = "", userManagerName = "") => {
+  const teamName = typeof teamObjOrName === "string"
+    ? teamObjOrName
+    : (teamObjOrName?.name || teamObjOrName?.teamName || "");
+  if (!teamName) return "Head Coach";
+
+  if (userTeamName && teamName === userTeamName) {
+    return userManagerName || "Sir Alex";
+  }
+
+  if (typeof teamObjOrName === "object" && teamObjOrName?.managerName && !isPlaceholderManagerName(teamObjOrName.managerName, teamName)) {
+    return teamObjOrName.managerName;
+  }
+
+  if (season) {
+    const det = getTeamDetailsSync(teamName, season);
+    if (det?.manager?.name && det.manager.name.trim()) {
+      return det.manager.name.trim();
+    }
+  }
+
+  let hash = 0;
+  for (let i = 0; i < teamName.length; i++) {
+    hash = ((hash * 31) + teamName.charCodeAt(i)) >>> 0;
+  }
+  return FALLBACK_MANAGER_NAMES[hash % FALLBACK_MANAGER_NAMES.length];
+};
 
 /**
  * Get dynamic month schedule based on total league rounds
@@ -127,68 +177,61 @@ export const getSquadForTeam = (teamName, season) => {
 };
 
 /**
- * Pick goalscorer and assister based on player position and rating
+ * Pick goalscorer and assister based on tactical role, position, and effective skill.
  */
-const pickScorerAndAssister = (squad, teamName) => {
-  if (!squad || squad.length === 0) {
+const pickScorerAndAssister = (squad, teamName, season = "1995") => {
+  let savedLineup = null;
+  let savedRoles = {};
+  let formation = "4-4-2";
+
+  try {
+    const rawLineup = typeof localStorage !== "undefined"
+      ? localStorage.getItem(`retro_lineup_${teamName}_${season}`)
+      : null;
+    if (rawLineup) {
+      const parsed = JSON.parse(rawLineup);
+      if (parsed && typeof parsed === "object" && Object.values(parsed).some(Boolean)) {
+        savedLineup = parsed;
+      }
+    }
+    const rawRoles = typeof localStorage !== "undefined"
+      ? localStorage.getItem(`retro_roles_${teamName}_${season}`)
+      : null;
+    if (rawRoles) {
+      savedRoles = JSON.parse(rawRoles) || {};
+    }
+    if (savedLineup) {
+      formation = (typeof localStorage !== "undefined" && localStorage.getItem("retro_player_formation"))
+        || getCPUFormation({ name: teamName }, null, season)
+        || "4-4-2";
+    }
+  } catch (e) {
+    // fallback to squad array weights
+  }
+
+  const inputPool = savedLineup || squad;
+  if (!inputPool || (Array.isArray(inputPool) && inputPool.length === 0)) {
     return {
-      scorer: { name: `${teamName} Striker`, position: "FW", team: teamName },
+      scorer: { name: `${teamName} Striker`, position: "ST", team: teamName },
       assister: null
     };
   }
 
-  // Weight scorers: Forwards heavy, Midfielders medium, Defenders rare, Goalkeepers never
-  const scorerCandidates = squad.filter(p => p.position !== "GK");
-  const scorerWeights = scorerCandidates.map(p => {
-    const pos = (p.position || "FW").toUpperCase();
-    const r = p.rating || 3;
-    let base = 1;
-    if (pos.includes("FW") || pos.includes("CF") || pos.includes("ST")) base = 6;
-    else if (pos.includes("MF") || pos.includes("AM") || pos.includes("LM") || pos.includes("RM") || pos.includes("CM")) base = 2.5;
-    else if (pos.includes("DF") || pos.includes("CB") || pos.includes("LB") || pos.includes("RB")) base = 0.6;
-    return Math.max(0.1, base * r);
-  });
-
-  const totalScorerWeight = scorerWeights.reduce((a, b) => a + b, 0);
-  let randScorer = Math.random() * totalScorerWeight;
-  let scorer = scorerCandidates[0];
-  for (let i = 0; i < scorerCandidates.length; i++) {
-    randScorer -= scorerWeights[i];
-    if (randScorer <= 0) {
-      scorer = scorerCandidates[i];
-      break;
+  const { scorer, assister } = pickWeightedGoalScorerAndAssister(
+    inputPool,
+    teamName,
+    formation,
+    savedRoles,
+    {
+      includeAssist: true,
+      assistChance: 0.76,
+      squadRotationMode: !savedLineup
     }
-  }
-
-  // 70% chance of an assist from a different player
-  let assister = null;
-  if (Math.random() < 0.72) {
-    const assistCandidates = squad.filter(p => p.name !== scorer.name && p.position !== "GK");
-    if (assistCandidates.length > 0) {
-      const assistWeights = assistCandidates.map(p => {
-        const pos = (p.position || "MF").toUpperCase();
-        const r = p.rating || 3;
-        let base = 1;
-        if (pos.includes("MF") || pos.includes("AM") || pos.includes("LM") || pos.includes("RM") || pos.includes("CM") || pos.includes("W")) base = 5.5;
-        else if (pos.includes("FW") || pos.includes("CF") || pos.includes("ST")) base = 2.5;
-        else if (pos.includes("DF") || pos.includes("LB") || pos.includes("RB")) base = 1.8;
-        return Math.max(0.1, base * r);
-      });
-      const totalAssistWeight = assistWeights.reduce((a, b) => a + b, 0);
-      let randAssist = Math.random() * totalAssistWeight;
-      for (let i = 0; i < assistCandidates.length; i++) {
-        randAssist -= assistWeights[i];
-        if (randAssist <= 0) {
-          assister = assistCandidates[i];
-          break;
-        }
-      }
-    }
-  }
+  );
 
   return {
-    scorer: { name: scorer.name, position: scorer.position, team: teamName },
-    assister: assister ? { name: assister.name, position: assister.position, team: teamName } : null
+    scorer: { name: scorer.name, position: scorer.position || "ST", team: teamName },
+    assister: assister ? { name: assister.name, position: assister.position || "MC", team: teamName } : null
   };
 };
 
@@ -204,14 +247,14 @@ export const generateMatchEvents = (homeTeamName, awayTeamName, homeGoals, awayG
 
   for (let i = 0; i < homeGoals; i++) {
     const minute = Math.min(90, Math.floor(Math.random() * 88) + 2);
-    const { scorer, assister } = pickScorerAndAssister(homeSquad, homeTeamName);
+    const { scorer, assister } = pickScorerAndAssister(homeSquad, homeTeamName, season);
     scorers.push({ ...scorer, minute });
     if (assister) assists.push({ ...assister, minute });
   }
 
   for (let i = 0; i < awayGoals; i++) {
     const minute = Math.min(90, Math.floor(Math.random() * 88) + 2);
-    const { scorer, assister } = pickScorerAndAssister(awaySquad, awayTeamName);
+    const { scorer, assister } = pickScorerAndAssister(awaySquad, awayTeamName, season);
     scorers.push({ ...scorer, minute });
     if (assister) assists.push({ ...assister, minute });
   }
@@ -272,13 +315,14 @@ export const calculateMonthlyAwards = ({
   endRound,
   monthName,
   userManagerName,
-  userTeamName
+  userTeamName,
+  season
 }) => {
   const teamRecords = {};
   (standings || []).forEach(t => {
     teamRecords[t.name] = {
       teamName: t.name,
-      managerName: t.name === userTeamName ? (userManagerName || "Sir Alex") : `Manager ${t.name}`,
+      managerName: resolveClubManagerName(t, season, userTeamName, userManagerName),
       isUser: t.name === userTeamName,
       played: 0,
       won: 0,
@@ -417,12 +461,13 @@ export const calculateYearlyAwards = ({
   monthlyAwardsHistory = [],
   playerStats = {},
   userManagerName,
-  userTeamName
+  userTeamName,
+  season
 }) => {
   // 1. Manager of the Year: Most MotM awards, tiebreaker: total league points
   const managerCounts = {};
   (standings || []).forEach(t => {
-    const mgrName = t.name === userTeamName ? (userManagerName || "Sir Alex") : `Manager ${t.name}`;
+    const mgrName = resolveClubManagerName(t, season, userTeamName, userManagerName);
     managerCounts[t.name] = {
       teamName: t.name,
       managerName: mgrName,
@@ -512,4 +557,124 @@ export const awardManagerTitle = (awardType, details) => {
   } catch (err) {
     console.warn("[awardsManager] Failed to update manager profile", err);
   }
+};
+
+/**
+ * Repairs saved monthly/yearly awards and news items whose CPU manager names used placeholder "Manager <Team>".
+ */
+export const repairCareerAwardManagerNames = (career) => {
+  if (!career || !career.season) return { changed: false, career };
+  let changed = false;
+
+  const pTeam = (career.teams || []).find(t => t.idnum === career.playerTeamId);
+  const userTeamName = pTeam ? pTeam.name : "";
+  const userManagerName = career.managerName || "Sir Alex";
+  const season = career.season;
+
+  const fixEntry = (entry) => {
+    if (!entry || !entry.teamName) return entry;
+    if (!isPlaceholderManagerName(entry.managerName, entry.teamName)) return entry;
+    const resolved = resolveClubManagerName(entry.teamName, season, userTeamName, userManagerName);
+    if (resolved && resolved !== entry.managerName) {
+      changed = true;
+      return { ...entry, managerName: resolved };
+    }
+    return entry;
+  };
+
+  const nextMonthly = Array.isArray(career.monthlyAwards)
+    ? career.monthlyAwards.map(m => {
+        if (!m?.motm) return m;
+        return {
+          ...m,
+          motm: {
+            ...m.motm,
+            winner: fixEntry(m.motm.winner),
+            runnersUp: Array.isArray(m.motm.runnersUp) ? m.motm.runnersUp.map(fixEntry) : m.motm.runnersUp
+          }
+        };
+      })
+    : career.monthlyAwards;
+
+  let nextYearly = career.yearlyAwards;
+  if (nextYearly?.moty) {
+    nextYearly = {
+      ...nextYearly,
+      moty: {
+        ...nextYearly.moty,
+        winner: fixEntry(nextYearly.moty.winner),
+        runnersUp: Array.isArray(nextYearly.moty.runnersUp) ? nextYearly.moty.runnersUp.map(fixEntry) : nextYearly.moty.runnersUp
+      }
+    };
+  }
+
+  const nextNewsFeed = Array.isArray(career.newsFeed)
+    ? career.newsFeed.map(item => {
+        const aw = item?.awardWidget;
+        if (!aw || (aw.type !== "motm" && aw.type !== "moty")) return item;
+
+        let itemChanged = false;
+        let nextWinner = aw.winner;
+        let nextTitle = item.title || "";
+        let nextSummary = item.summary || "";
+        let nextBody = item.body || "";
+
+        if (aw.team && isPlaceholderManagerName(aw.winner, aw.team)) {
+          const resolvedWinner = resolveClubManagerName(aw.team, season, userTeamName, userManagerName);
+          if (resolvedWinner && resolvedWinner !== aw.winner) {
+            const oldPlaceholder = aw.winner;
+            nextWinner = resolvedWinner;
+            if (oldPlaceholder) {
+              nextTitle = nextTitle.split(oldPlaceholder).join(resolvedWinner);
+              nextSummary = nextSummary.split(oldPlaceholder).join(resolvedWinner);
+              nextBody = nextBody.split(oldPlaceholder).join(resolvedWinner);
+            }
+            itemChanged = true;
+          }
+        }
+
+        const nextRunnersUp = Array.isArray(aw.runnersUp)
+          ? aw.runnersUp.map(ru => {
+              if (!ru || !ru.teamName || !isPlaceholderManagerName(ru.managerName, ru.teamName)) return ru;
+              const resolved = resolveClubManagerName(ru.teamName, season, userTeamName, userManagerName);
+              if (resolved && resolved !== ru.managerName) {
+                const oldName = ru.managerName;
+                if (oldName) {
+                  nextBody = nextBody.split(oldName).join(resolved);
+                  nextSummary = nextSummary.split(oldName).join(resolved);
+                }
+                itemChanged = true;
+                return { ...ru, managerName: resolved };
+              }
+              return ru;
+            })
+          : aw.runnersUp;
+
+        if (!itemChanged) return item;
+        changed = true;
+        return {
+          ...item,
+          title: nextTitle,
+          summary: nextSummary,
+          body: nextBody,
+          awardWidget: {
+            ...aw,
+            winner: nextWinner,
+            runnersUp: nextRunnersUp
+          }
+        };
+      })
+    : career.newsFeed;
+
+  if (!changed) return { changed: false, career };
+
+  return {
+    changed: true,
+    career: {
+      ...career,
+      monthlyAwards: nextMonthly,
+      yearlyAwards: nextYearly,
+      newsFeed: nextNewsFeed
+    }
+  };
 };

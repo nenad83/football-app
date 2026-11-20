@@ -14,6 +14,8 @@
  * Outputs commentary strings paired with authentic CM 01/02 sound triggers.
  */
 
+import { pickWeightedGoalScorerAndAssister } from '../utils/tacticalRoleEngine';
+
 export class CommentaryResult {
   constructor(text, sound = null, side = null) {
     this.text = text;
@@ -170,6 +172,21 @@ const CM_GOAL = [
   { text: "GOAL FOR {team}!! <p1> curls a magnificent strike into the far corner beyond the reach of <p2>!", sound: "goal11.wav" }
 ];
 
+const CM_GOAL_SUPPORT = [
+  { text: "GOAL FOR {team}!! From 25 yards out, <p1> bends a gorgeous strike past <p2> into the top corner!", sound: "goal10.wav" },
+  { text: "GOAL!! Thunderous long-range effort! <p1> unleashes from distance and beats <p2>!", sound: "goalmono.wav" },
+  { text: "GOAL FOR {team}!! Late surging run into the box by <p1>, who sweeps it calmly past <p2>!", sound: "goal11.wav" },
+  { text: "GOAL!! <p1> steals in from midfield to nod a glancing header past <p2>!", sound: "goalmono.wav" },
+  { text: "GOAL FOR {team}!! <p1> picks up the loose ball on the edge of the box and fires past <p2>!", sound: "goal10.wav" }
+];
+
+const CM_GOAL_DEFENSE = [
+  { text: "GOAL FOR {team}!! <p1> rises highest from the corner kick and thumps a towering header past <p2>!", sound: "goal11.wav" },
+  { text: "GOAL!! Unlikely hero! <p1> charges in at the back post to power a header beyond <p2>!", sound: "goalmono.wav" },
+  { text: "GOAL FOR {team}!! Set-piece perfection! <p1> meets the delivery with a bullet header past <p2>!", sound: "goal10.wav" },
+  { text: "GOAL!! What a strike from deep! <p1> catches a 30-yard thunderbolt clean past <p2>!", sound: "goal11.wav" }
+];
+
 const CM_SAVE = [
   { text: "WHAT A SAVE!! <p1> dives at full stretch to tip <p2>'s venomous drive around the post!", sound: "ooh4mono.wav" },
   { text: "DENIED!! <p1> pulls off a world-class reflex stop to keep out <p2>'s close-range effort!", sound: "oohmono.wav" },
@@ -291,11 +308,12 @@ export function getMidfieldDrawCommentary(teamA, teamB, lineupA = null, lineupB 
   return new CommentaryResult(text, tpl.sound, 'neutral');
 }
 
-export function getAttackSuccessCommentary(attackerTeam, defenderTeam, attackerLineup = null, defenderLineup = null) {
+export function getAttackSuccessCommentary(attackerTeam, defenderTeam, attackerLineup = null, defenderLineup = null, attackerFormation = '4-4-2', attackerRoles = {}) {
   const attPool = extractPlayersFromLineup(attackerLineup, attackerTeam);
   const defPool = extractPlayersFromLineup(defenderLineup, defenderTeam);
 
-  const p1 = pickPlayer(attPool.att.length > 0 ? attPool.att : attPool.mid, `${attackerTeam} Forward`);
+  const picked = pickWeightedGoalScorerAndAssister(attackerLineup, attackerTeam, attackerFormation, attackerRoles, { includeAssist: false });
+  const p1 = picked?.scorer || pickPlayer(attPool.att.length > 0 ? attPool.att : attPool.mid, `${attackerTeam} Forward`);
   const p2 = pickPlayer(defPool.def.length > 0 ? defPool.def : defPool.all, `${defenderTeam} Defender`);
 
   const tpl = getRandomElement(CM_ATTACK_SUCCESS);
@@ -323,28 +341,48 @@ export function getAttackFailCommentary(defenderTeam, attackerTeam, defenderLine
   return new CommentaryResult(text, tpl.sound, null);
 }
 
-export function getGoalCommentary(attackerTeam, defenderTeam, attackerLineup = null, defenderLineup = null) {
-  const attPool = extractPlayersFromLineup(attackerLineup, attackerTeam);
+export function getGoalCommentary(attackerTeam, defenderTeam, attackerLineup = null, defenderLineup = null, attackerFormation = '4-4-2', attackerRoles = {}) {
   const defPool = extractPlayersFromLineup(defenderLineup, defenderTeam);
 
-  const p1 = pickPlayer(attPool.att.length > 0 ? attPool.att : attPool.all, `${attackerTeam} Forward`);
+  const picked = pickWeightedGoalScorerAndAssister(
+    attackerLineup,
+    attackerTeam,
+    attackerFormation,
+    attackerRoles,
+    { includeAssist: true, assistChance: 0.76 }
+  );
+  const p1 = picked?.scorer || { name: `${attackerTeam} Forward`, position: 'ST' };
+  const assister = picked?.assister || null;
+  const scorerTier = picked?.scorerTier || 'attacking';
+
   const p2 = pickPlayer(defPool.gk.length > 0 ? defPool.gk : [{ name: `${defenderTeam} Goalkeeper` }], `${defenderTeam} Goalkeeper`);
 
-  const tpl = getRandomElement(CM_GOAL);
-  const text = tpl.text
+  const bank = scorerTier === 'defense'
+    ? CM_GOAL_DEFENSE
+    : (scorerTier === 'support' ? CM_GOAL_SUPPORT : CM_GOAL);
+  const tpl = getRandomElement(bank);
+  let text = tpl.text
     .replace(/<p1>/g, p1.name)
     .replace(/<p2>/g, p2.name)
     .replace(/{team}/g, attackerTeam.toUpperCase());
 
-  return new CommentaryResult(text, tpl.sound, null);
+  if (assister && assister.name) {
+    text += ` (Assist: ${assister.name})`;
+  }
+
+  const res = new CommentaryResult(text, tpl.sound, null);
+  res.scorer = p1;
+  res.assister = assister;
+  return res;
 }
 
-export function getSaveCommentary(defenderTeam, attackerTeam, defenderLineup = null, attackerLineup = null) {
+export function getSaveCommentary(defenderTeam, attackerTeam, defenderLineup = null, attackerLineup = null, attackerFormation = '4-4-2', attackerRoles = {}) {
   const defPool = extractPlayersFromLineup(defenderLineup, defenderTeam);
   const attPool = extractPlayersFromLineup(attackerLineup, attackerTeam);
 
   const p1 = pickPlayer(defPool.gk.length > 0 ? defPool.gk : [{ name: `${defenderTeam} Goalkeeper` }], `${defenderTeam} Goalkeeper`);
-  const p2 = pickPlayer(attPool.att.length > 0 ? attPool.att : attPool.all, `${attackerTeam} Forward`);
+  const picked = pickWeightedGoalScorerAndAssister(attackerLineup, attackerTeam, attackerFormation, attackerRoles, { includeAssist: false });
+  const p2 = picked?.scorer || pickPlayer(attPool.att.length > 0 ? attPool.att : attPool.all, `${attackerTeam} Forward`);
 
   const tpl = getRandomElement(CM_SAVE);
   const text = tpl.text
@@ -355,11 +393,12 @@ export function getSaveCommentary(defenderTeam, attackerTeam, defenderLineup = n
   return new CommentaryResult(text, tpl.sound, null);
 }
 
-export function getPenaltyGoalCommentary(attackerTeam, defenderTeam, attackerLineup = null, defenderLineup = null) {
+export function getPenaltyGoalCommentary(attackerTeam, defenderTeam, attackerLineup = null, defenderLineup = null, attackerFormation = '4-4-2', attackerRoles = {}) {
   const attPool = extractPlayersFromLineup(attackerLineup, attackerTeam);
   const defPool = extractPlayersFromLineup(defenderLineup, defenderTeam);
 
-  const p1 = pickPlayer(attPool.att.length > 0 ? attPool.att : attPool.all, `${attackerTeam} Striker`);
+  const picked = pickWeightedGoalScorerAndAssister(attackerLineup, attackerTeam, attackerFormation, attackerRoles, { includeAssist: false, onlyAttackersIfAvailable: true });
+  const p1 = picked?.scorer || pickPlayer(attPool.att.length > 0 ? attPool.att : attPool.all, `${attackerTeam} Striker`);
   const p2 = pickPlayer(defPool.gk.length > 0 ? defPool.gk : [{ name: `${defenderTeam} Goalkeeper` }], `${defenderTeam} Goalkeeper`);
 
   const tpl = getRandomElement(CM_PENALTY_GOAL);
@@ -368,15 +407,18 @@ export function getPenaltyGoalCommentary(attackerTeam, defenderTeam, attackerLin
     .replace(/<p2>/g, p2.name)
     .replace(/{team}/g, attackerTeam.toUpperCase());
 
-  return new CommentaryResult(text, tpl.sound, null);
+  const res = new CommentaryResult(text, tpl.sound, null);
+  res.scorer = p1;
+  return res;
 }
 
-export function getPenaltyMissCommentary(attackerTeam, defenderTeam, attackerLineup = null, defenderLineup = null) {
+export function getPenaltyMissCommentary(attackerTeam, defenderTeam, attackerLineup = null, defenderLineup = null, attackerFormation = '4-4-2', attackerRoles = {}) {
   const attPool = extractPlayersFromLineup(attackerLineup, attackerTeam);
   const defPool = extractPlayersFromLineup(defenderLineup, defenderTeam);
 
   const p1 = pickPlayer(defPool.gk.length > 0 ? defPool.gk : [{ name: `${defenderTeam} Goalkeeper` }], `${defenderTeam} Goalkeeper`);
-  const p2 = pickPlayer(attPool.att.length > 0 ? attPool.att : attPool.all, `${attackerTeam} Striker`);
+  const picked = pickWeightedGoalScorerAndAssister(attackerLineup, attackerTeam, attackerFormation, attackerRoles, { includeAssist: false, onlyAttackersIfAvailable: true });
+  const p2 = picked?.scorer || pickPlayer(attPool.att.length > 0 ? attPool.att : attPool.all, `${attackerTeam} Striker`);
 
   const tpl = getRandomElement(CM_PENALTY_MISS);
   const text = tpl.text

@@ -269,6 +269,48 @@ export const getSavedFormation = () => {
   return saved || '4-4-2';
 };
 
+// Captain storage & resolution helpers
+export const getSavedCaptain = (teamName, season) => {
+  if (!teamName || !season) return '';
+  try {
+    return localStorage.getItem(`retro_captain_${teamName}_${season}`) || '';
+  } catch (e) {
+    return '';
+  }
+};
+
+export const saveCaptain = (teamName, season, captainName) => {
+  if (!teamName || !season) return;
+  try {
+    if (captainName) {
+      localStorage.setItem(`retro_captain_${teamName}_${season}`, captainName);
+    } else {
+      localStorage.removeItem(`retro_captain_${teamName}_${season}`);
+    }
+  } catch (e) {
+    // Non-fatal
+  }
+};
+
+export const resolveValidCaptain = (lineupObj, preferredName = '') => {
+  const onPitch = lineupObj ? Object.values(lineupObj).filter(Boolean) : [];
+  if (onPitch.length === 0) return '';
+
+  if (preferredName && onPitch.some(p => p.name === preferredName)) {
+    return preferredName;
+  }
+
+  // Prefer outfield players sorted by highest rating then age (experience), fallback to GK if needed
+  const outfield = onPitch.filter(p => String(p.position || '').toUpperCase() !== 'GK');
+  const pool = outfield.length > 0 ? outfield : onPitch;
+  const sorted = [...pool].sort((a, b) => {
+    const rDiff = (Number(b.rating) || 0) - (Number(a.rating) || 0);
+    if (rDiff !== 0) return rDiff;
+    return (Number(b.age) || 25) - (Number(a.age) || 25);
+  });
+  return sorted[0]?.name || '';
+};
+
 // Resolve a club's historical/manager preferred formation for a given season
 export const getPreferredTeamFormation = (teamName, season, detailsObj = null) => {
   if (!teamName || !season) return '4-4-2';
@@ -1407,6 +1449,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
   const [animatingOut, setAnimatingOut] = useState(false);
   const [squad, setSquad] = useState([]);
   const [lineup, setLineup] = useState({});
+  const [captainName, setCaptainName] = useState("");
   const [playerRoles, setPlayerRoles] = useState({});
   const [loading, setLoading] = useState(false);
   const [draggedPlayer, setDraggedPlayer] = useState(null);
@@ -1718,6 +1761,13 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
     setPlayerRoles(activeRoles);
     updateTeamStatsInStorage(activeLineup, activeFormation, activeRoles);
 
+    const savedCap = getSavedCaptain(info.name, info.season);
+    const validCap = resolveValidCaptain(activeLineup, savedCap);
+    setCaptainName(validCap);
+    if (validCap && validCap !== savedCap) {
+      saveCaptain(info.name, info.season, validCap);
+    }
+
     // Load selected bench names
     const benchKey = `retro_bench_${info.name}_${info.season}`;
     const cachedBench = localStorage.getItem(benchKey);
@@ -1802,9 +1852,17 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
       setLineup(newLineup);
       const lineupKey = `retro_lineup_${teamInfo.name}_${teamInfo.season}`;
       localStorage.setItem(lineupKey, JSON.stringify(newLineup));
+      const validCap = resolveValidCaptain(newLineup, captainName);
+      setCaptainName(validCap);
+      saveCaptain(teamInfo.name, teamInfo.season, validCap);
     }
     setSelectedRosterPlayer(null);
     updateTeamStatsInStorage(newLineup, formationKey, newRoles);
+  };
+
+  const handleSelectCaptain = (nextCaptain) => {
+    setCaptainName(nextCaptain);
+    saveCaptain(teamInfo.name, teamInfo.season, nextCaptain);
   };
 
   const handleToggleSlotRole = (e, slot, assignedPlayer) => {
@@ -1862,6 +1920,12 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
     const lineupKey = `retro_lineup_${teamInfo.name}_${teamInfo.season}`;
     localStorage.setItem(lineupKey, JSON.stringify(newLineup));
     updateTeamStatsInStorage(newLineup, selectedFormation, playerRoles);
+
+    const validCap = resolveValidCaptain(newLineup, captainName);
+    if (validCap !== captainName) {
+      setCaptainName(validCap);
+      saveCaptain(teamInfo.name, teamInfo.season, validCap);
+    }
 
     // Automatically remove any starting player from selectedBenchNames or sync all non-starters if unlimited
     const startingNames = new Set(Object.values(newLineup).filter(Boolean).map(p => p.name));
@@ -2428,6 +2492,25 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
             {player.name}
           </span>
 
+          {captainName === player.name && (
+            <span
+              style={{
+                fontSize: '7.5px',
+                fontWeight: 'bold',
+                fontFamily: 'Orbitron',
+                color: '#121217',
+                background: 'linear-gradient(135deg, #ffd700, #ffb300)',
+                borderRadius: '3px',
+                padding: '0.5px 4px',
+                flexShrink: 0,
+                boxShadow: '0 0 6px rgba(255, 215, 0, 0.5)'
+              }}
+              title="Team Captain"
+            >
+              C
+            </span>
+          )}
+
           {renderSeasonCardPills(player)}
 
           {/* Tactical role badge if starting */}
@@ -2856,6 +2939,37 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                       ✕ CLEAR
                     </button>
 
+                    {/* Captain Selector */}
+                    {Object.values(lineup).filter(Boolean).length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '9px', color: '#ffd700', fontFamily: 'Orbitron', fontWeight: 'bold' }} title="Team Captain">©️</span>
+                        <select
+                          value={captainName}
+                          onChange={(e) => handleSelectCaptain(e.target.value)}
+                          style={{
+                            background: 'rgba(255, 215, 0, 0.08)',
+                            border: '1px solid rgba(255, 215, 0, 0.45)',
+                            borderRadius: '5px',
+                            color: '#ffd700',
+                            fontFamily: 'Orbitron',
+                            fontSize: '9px',
+                            fontWeight: 'bold',
+                            padding: '4px 6px',
+                            cursor: 'pointer',
+                            outline: 'none',
+                            maxWidth: '135px'
+                          }}
+                          title="Choose Team Captain from Starting XI"
+                        >
+                          {slots.map(s => lineup[s.id]).filter(Boolean).map(p => (
+                            <option key={p.name} value={p.name} style={{ background: '#121217', color: '#fff' }}>
+                              ©️ {getLastName(p.name)} ({p.position})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
                     {/* Sort Order Selector */}
                     <select
                       value={squadSortMode}
@@ -3118,8 +3232,8 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                     borderRadius: '8px',
                     border: '1px solid rgba(255,255,255,0.04)'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '10px', color: '#888', fontFamily: 'Orbitron' }}>FORMATION:</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      <span style={{ fontSize: '10px', color: '#888', fontFamily: 'Orbitron', whiteSpace: 'nowrap' }}>FORMATION:</span>
                       <button
                         type="button"
                         onClick={() => setShowFormationModal(true)}
@@ -3137,22 +3251,48 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                           display: 'flex',
                           alignItems: 'center',
                           gap: '6px',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
                           boxShadow: '0 0 10px rgba(0, 255, 100, 0.15)',
                           transition: 'all 0.2s ease'
                         }}
                         title="Click to select team formation"
                       >
                         <span>⚽ {selectedFormation}</span>
-                        {FORMATIONS[selectedFormation]?.era && (
-                          <span style={{ fontSize: '8.5px', color: '#ffd700', opacity: 0.85 }}>
-                            ({FORMATIONS[selectedFormation].era})
-                          </span>
-                        )}
-                        <span style={{ fontSize: '8.5px', color: '#00ff64', marginLeft: '2px' }}>▼ CHANGE</span>
                       </button>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      {/* Captain Selector */}
+                      {Object.values(lineup).filter(Boolean).length > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '9px', color: '#ffd700', fontFamily: 'Orbitron', fontWeight: 'bold' }}>©️ CAPTAIN:</span>
+                          <select
+                            value={captainName}
+                            onChange={(e) => handleSelectCaptain(e.target.value)}
+                            style={{
+                              background: 'rgba(255, 215, 0, 0.1)',
+                              border: '1px solid rgba(255, 215, 0, 0.45)',
+                              borderRadius: '4px',
+                              color: '#ffd700',
+                              fontFamily: 'Orbitron',
+                              fontSize: '9px',
+                              fontWeight: 'bold',
+                              padding: '3px 6px',
+                              cursor: 'pointer',
+                              outline: 'none',
+                              maxWidth: '140px'
+                            }}
+                            title="Select Team Captain from Starting XI"
+                          >
+                            {slots.map(s => lineup[s.id]).filter(Boolean).map(p => (
+                              <option key={p.name} value={p.name} style={{ background: '#121217', color: '#fff' }}>
+                                {getLastName(p.name)} ({p.position})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                       <button
                         onClick={handleAutoFill}
                         style={{
@@ -3350,9 +3490,33 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                                 whiteSpace: 'nowrap',
                                 marginTop: '1px',
                                 marginBottom: '1px',
-                                textShadow: '0 1px 3px rgba(0,0,0,0.8)'
+                                textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '3px'
                               }}>
-                                {getLastName(assignedPlayer.name)}
+                                {captainName === assignedPlayer.name && (
+                                  <span
+                                    style={{
+                                      fontSize: '7.5px',
+                                      fontWeight: 'bold',
+                                      fontFamily: 'Orbitron',
+                                      color: '#121217',
+                                      background: 'linear-gradient(135deg, #ffd700, #ffb300)',
+                                      borderRadius: '3px',
+                                      padding: '0 3px',
+                                      lineHeight: 1.3,
+                                      flexShrink: 0,
+                                      boxShadow: '0 0 5px rgba(255, 215, 0, 0.55)'
+                                    }}
+                                    title="Team Captain"
+                                  >
+                                    C
+                                  </span>
+                                )}
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {getLastName(assignedPlayer.name)}
+                                </span>
                               </span>
                               {slot.role !== 'gk' && roleMeta && (
                                 <button

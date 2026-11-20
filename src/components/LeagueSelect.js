@@ -481,10 +481,11 @@ export default function LeagueSelect() {
     // Preload the selected season roster into memory in the background
     loadSeasonRosters(season);
 
-    // Clear all previous rosters and lineups from localStorage to start fresh
+    // Clear all previous rosters, lineups, and career transfer ledger from localStorage to start fresh
+    localStorage.removeItem("retro_career_transfers");
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith("retro_roster_") || key.startsWith("retro_lineup_") || key.startsWith("retro_roles_") || key.startsWith("retro_formation_"))) {
+      if (key && (key.startsWith("retro_roster_") || key.startsWith("retro_lineup_") || key.startsWith("retro_roles_") || key.startsWith("retro_formation_") || key.startsWith("retro_captain_"))) {
         localStorage.removeItem(key);
       }
     }
@@ -1089,9 +1090,9 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
     navigate("/league/dashboard");
   };
 
-  // Generate Year Array (1989/90 to 2025/26)
+  // Generate Year Array (1989/90 to 2026/27)
   const seasonsList = [];
-  for (let y = 1989; y <= 2025; y++) {
+  for (let y = 1989; y <= 2026; y++) {
     seasonsList.push(`${y}`);
   }
 
@@ -1104,12 +1105,12 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
   return (
     <div className="Match team-select-container">
 
-      {/* STEP 1: Season Year Selector (1989/90 - 2025/26) */}
+      {/* STEP 1: Season Year Selector (1989/90 - 2026/27) */}
       {step === "season" && (
         <div className="animated-slide-in" style={{ width: '100%', maxWidth: '880px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
           <div className="matchheader selector-header">
             <h1 className="glowing-header-text">CHOOSE SEASON</h1>
-            <p className="lobby-subtitle">SELECT STARTING CAMPAIGN YEAR (1989/90 – 2025/26)</p>
+            <p className="lobby-subtitle">SELECT STARTING CAMPAIGN YEAR (1989/90 – 2026/27)</p>
           </div>
 
           <div className="team-select-card" style={{ width: '100%', padding: '26px', maxWidth: '880px' }}>

@@ -7,6 +7,98 @@
 const seasonRosterCache = new Map();
 const seasonDetailsCache = new Map();
 const seasonTransferCache = new Map();
+const seasonCatalogCache = new Map();
+const normalizedNameCache = new Map();
+
+let cachedLedgerRaw = null;
+let cachedLedgerObj = {};
+
+export const CAREER_TRANSFERS_KEY = "retro_career_transfers";
+
+export function normalizePlayerNameKey(name) {
+  const raw = String(name || "");
+  if (!raw) return "";
+  const hit = normalizedNameCache.get(raw);
+  if (hit !== undefined) return hit;
+  // Fast ASCII path avoids costly NFD Unicode decomposition for most names
+  let normalized;
+  if (/^[\x20-\x7E]+$/.test(raw)) {
+    normalized = raw.toLowerCase().replace(/\s+/g, " ").trim();
+  } else {
+    normalized = raw
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  if (normalizedNameCache.size < 60000) {
+    normalizedNameCache.set(raw, normalized);
+  }
+  return normalized;
+}
+
+export function clubsMatch(clubA, clubB) {
+  if (!clubA || !clubB) return false;
+  return String(clubA).toLowerCase().trim() === String(clubB).toLowerCase().trim();
+}
+
+export function getCareerTransferLedger() {
+  if (typeof window === "undefined" || !window.localStorage) return {};
+  try {
+    const raw = localStorage.getItem(CAREER_TRANSFERS_KEY);
+    if (!raw) {
+      cachedLedgerRaw = null;
+      cachedLedgerObj = {};
+      return cachedLedgerObj;
+    }
+    if (raw === cachedLedgerRaw) {
+      return cachedLedgerObj;
+    }
+    const parsed = JSON.parse(raw);
+    cachedLedgerRaw = raw;
+    cachedLedgerObj = parsed && typeof parsed === "object" ? parsed : {};
+    return cachedLedgerObj;
+  } catch (e) {
+    return {};
+  }
+}
+
+export function saveCareerTransferLedger(ledger) {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    const nextObj = ledger || {};
+    const raw = JSON.stringify(nextObj);
+    localStorage.setItem(CAREER_TRANSFERS_KEY, raw);
+    cachedLedgerRaw = raw;
+    cachedLedgerObj = nextObj;
+  } catch (e) {}
+}
+
+export function clearCareerTransferLedger() {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    localStorage.removeItem(CAREER_TRANSFERS_KEY);
+    cachedLedgerRaw = null;
+    cachedLedgerObj = {};
+  } catch (e) {}
+}
+
+export function recordCareerTransfer({ player, fromClub, toClub, retired = false }) {
+  if (!player || !player.name) return;
+  const key = normalizePlayerNameKey(player.name);
+  if (!key) return;
+  const ledger = getCareerTransferLedger();
+  const prevEntry = ledger[key];
+  ledger[key] = {
+    name: player.name,
+    club: retired ? "__RETIRED__" : (toClub || "Free Agent"),
+    fromClub: fromClub || prevEntry?.fromClub || player.currentClub || null,
+    retired: Boolean(retired),
+    snapshot: { ...player }
+  };
+  saveCareerTransferLedger(ledger);
+}
 
 const ROSTER_BASE_URL = (process.env.REACT_APP_ROSTER_DATA_URL || "https://pub-6fad1cd62b6f435eb0e2677d784e497c.r2.dev").replace(/\/+$/, "");
 
@@ -274,28 +366,250 @@ export function normalizeSeasonYear(season) {
 }
 
 /**
- * Synchronizes in-memory season roster data with any saved localStorage club rosters
- * so transferred players never appear on two teams simultaneously.
+ * Builds and caches a lookup map of normalized player name -> { player, club }
+ * from a season's raw DB and market pool (invalidated cleanly when either source loads).
  */
-function syncSeasonDataWithLocalStorage(seasonData, season) {
-  if (!seasonData || typeof window === 'undefined' || !window.localStorage) return seasonData;
-  const year = normalizeSeasonYear(season);
-  const sStr = String(season);
+function buildSeasonPlayerCatalog(year) {
+  const cached = seasonCatalogCache.get(year);
+  const rawSeasonData = seasonRosterCache.get(year);
+  const rawMarket = seasonTransferCache.get(year);
+  if (
+    cached &&
+    cached.seasonRef === rawSeasonData &&
+    cached.marketRef === rawMarket
+  ) {
+    return cached.map;
+  }
 
-  // Collect all localStorage roster overrides for this season
-  for (const teamName of Object.keys(seasonData)) {
-    const rawExact = localStorage.getItem(`retro_roster_${teamName}_${sStr}`) ||
-                     localStorage.getItem(`retro_roster_${teamName}_${year}`);
-    if (rawExact) {
-      try {
-        const parsed = JSON.parse(rawExact);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          seasonData[teamName] = parsed;
+  const catalog = new Map();
+  if (rawSeasonData && typeof rawSeasonData === "object") {
+    for (const [clubKey, squad] of Object.entries(rawSeasonData)) {
+      if (!Array.isArray(squad)) continue;
+      for (const p of squad) {
+        if (!p || !p.name) continue;
+        const key = normalizePlayerNameKey(p.name);
+        if (!catalog.has(key)) {
+          catalog.set(key, { player: p, club: clubKey });
         }
-      } catch (e) {}
+      }
     }
   }
-  return seasonData;
+  if (Array.isArray(rawMarket)) {
+    for (const p of rawMarket) {
+      if (!p || !p.name) continue;
+      const key = normalizePlayerNameKey(p.name);
+      if (!catalog.has(key)) {
+        catalog.set(key, { player: p, club: p.currentClub || "Free Agent" });
+      }
+    }
+  }
+  seasonCatalogCache.set(year, {
+    seasonRef: rawSeasonData,
+    marketRef: rawMarket,
+    map: catalog
+  });
+  return catalog;
+}
+
+/**
+ * Produces a next-season player object with updated rating/age/value/wage from the next DB if available,
+ * resetting transient match conditions and season accumulators.
+ */
+function refreshPlayerForNextSeason(prevPlayer, dbMatchPlayer, nextSeason) {
+  const nextYear = normalizeSeasonYear(nextSeason);
+  const prevAge = Number(prevPlayer.age) || 24;
+  const nextAge = dbMatchPlayer && Number(dbMatchPlayer.age) > 0
+    ? Number(dbMatchPlayer.age)
+    : prevAge + 1;
+
+  const updated = {
+    ...prevPlayer,
+    age: nextAge,
+    condition: 100,
+    injured: false,
+    injuryWeeks: 0,
+    goals: 0,
+    assists: 0,
+    yellows: 0,
+    reds: 0
+  };
+
+  if (dbMatchPlayer) {
+    if (dbMatchPlayer.currentAbility) {
+      updated.currentAbility = dbMatchPlayer.currentAbility;
+    }
+    if (dbMatchPlayer.rating !== undefined && dbMatchPlayer.rating !== null) {
+      updated.rating = dbMatchPlayer.rating;
+    }
+    if (Array.isArray(dbMatchPlayer.positions) && dbMatchPlayer.positions.length > 0) {
+      updated.positions = dbMatchPlayer.positions;
+    }
+    if (dbMatchPlayer.position) {
+      updated.position = dbMatchPlayer.position;
+    }
+    if (dbMatchPlayer.value !== undefined) {
+      updated.value = dbMatchPlayer.value;
+    }
+    if (dbMatchPlayer.wage !== undefined) {
+      updated.wage = dbMatchPlayer.wage;
+    }
+    if (dbMatchPlayer.nationality && !updated.nationality) {
+      updated.nationality = dbMatchPlayer.nationality;
+    }
+  }
+
+  calibratePlayerRating(updated, nextYear);
+  return updated;
+}
+
+/**
+ * Applies the global career transfer & retirement ledger to a club's squad array
+ * without mutating cached DB arrays:
+ * - Removes anyone retired or currently registered at a different club
+ * - Injects anyone registered to this club (refreshing skills from the target season's DB when loaded)
+ */
+export function applyCareerLedgerToSquad(teamName, rawSquad, season, preloadedLedger = null) {
+  if (!Array.isArray(rawSquad) && !teamName) return rawSquad;
+  const ledger = preloadedLedger || getCareerTransferLedger();
+  const ledgerKeys = ledger ? Object.keys(ledger) : [];
+  if (ledgerKeys.length === 0) {
+    return rawSquad;
+  }
+
+  const baseList = Array.isArray(rawSquad) ? rawSquad : [];
+  const lowerTeam = teamName ? String(teamName).toLowerCase().trim() : "";
+
+  // Collect only ledger entries destined for this club
+  const incomingEntries = [];
+  if (lowerTeam) {
+    for (let i = 0; i < ledgerKeys.length; i++) {
+      const k = ledgerKeys[i];
+      const entry = ledger[k];
+      if (entry && !entry.retired && entry.club && String(entry.club).toLowerCase().trim() === lowerTeam) {
+        incomingEntries.push([k, entry]);
+      }
+    }
+  }
+
+  // Fast check: does any player in baseList appear in ledger?
+  let hasOutgoingOrCollision = false;
+  for (let i = 0; i < baseList.length; i++) {
+    const p = baseList[i];
+    if (!p || !p.name) continue;
+    const key = normalizePlayerNameKey(p.name);
+    if (ledger[key]) {
+      hasOutgoingOrCollision = true;
+      break;
+    }
+  }
+
+  if (!hasOutgoingOrCollision && incomingEntries.length === 0) {
+    return rawSquad;
+  }
+
+  const year = (incomingEntries.length > 0 && season) ? normalizeSeasonYear(season) : null;
+  const catalog = year ? buildSeasonPlayerCatalog(year) : null;
+
+  const seen = new Set();
+  const result = [];
+
+  for (let i = 0; i < baseList.length; i++) {
+    const p = baseList[i];
+    if (!p || !p.name) continue;
+    const key = normalizePlayerNameKey(p.name);
+    if (!key || seen.has(key)) continue;
+
+    const entry = ledger[key];
+    if (entry && (entry.retired || !clubsMatch(entry.club, teamName))) {
+      continue;
+    }
+    seen.add(key);
+    result.push({ ...p });
+  }
+
+  for (let i = 0; i < incomingEntries.length; i++) {
+    const [key, entry] = incomingEntries[i];
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const dbMatch = catalog ? catalog.get(key)?.player : null;
+    const baseSnap = entry.snapshot ? { ...entry.snapshot } : { name: entry.name, position: "MC", rating: 6, age: 25 };
+    if (dbMatch && year) {
+      result.push(refreshPlayerForNextSeason(baseSnap, dbMatch, year));
+    } else {
+      result.push(baseSnap);
+    }
+  }
+
+  return result;
+}
+
+export function applyCareerLedgerToSeasonData(seasonData, season) {
+  if (!seasonData || typeof seasonData !== "object") return seasonData;
+  const ledger = getCareerTransferLedger();
+  if (!ledger || Object.keys(ledger).length === 0) return seasonData;
+  const cloned = {};
+  for (const [clubName, squad] of Object.entries(seasonData)) {
+    cloned[clubName] = Array.isArray(squad)
+      ? applyCareerLedgerToSquad(clubName, squad, season, ledger)
+      : squad;
+  }
+  return cloned;
+}
+
+/**
+ * Synchronizes in-memory season roster data with any saved localStorage club rosters
+ * and global career transfer ledger so transferred/retired players never duplicate across teams.
+ */
+function syncSeasonDataWithLocalStorage(seasonData, season) {
+  if (!seasonData) return seasonData;
+  const year = normalizeSeasonYear(season);
+  const sStr = String(season);
+  const ledger = getCareerTransferLedger();
+  const hasLedger = ledger && Object.keys(ledger).length > 0;
+
+  // Scan localStorage once instead of calling getItem 2x per club across 1,000+ clubs
+  const localOverrides = new Map();
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const suffixExact = `_${sStr}`;
+    const suffixYear = `_${year}`;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith("retro_roster_")) continue;
+      let clubPart = null;
+      let priority = 0;
+      if (k.endsWith(suffixExact)) {
+        clubPart = k.slice("retro_roster_".length, k.length - suffixExact.length);
+        priority = 2;
+      } else if (k.endsWith(suffixYear)) {
+        clubPart = k.slice("retro_roster_".length, k.length - suffixYear.length);
+        priority = 1;
+      }
+      if (!clubPart) continue;
+      const existing = localOverrides.get(clubPart);
+      if (!existing || priority > existing.priority) {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(k));
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localOverrides.set(clubPart, { parsed, priority });
+          }
+        } catch (e) {}
+      }
+    }
+  }
+
+  if (localOverrides.size === 0 && !hasLedger) {
+    return seasonData;
+  }
+
+  const synced = {};
+  for (const teamName of Object.keys(seasonData)) {
+    const ov = localOverrides.get(teamName);
+    const baseSquad = ov ? ov.parsed : seasonData[teamName];
+    synced[teamName] = (hasLedger && Array.isArray(baseSquad))
+      ? applyCareerLedgerToSquad(teamName, baseSquad, season, ledger)
+      : baseSquad;
+  }
+  return synced;
 }
 
 /**
@@ -324,9 +638,8 @@ export async function loadSeasonRosters(season) {
         data[team].forEach(p => calibratePlayerRating(p, year));
       }
     }
-    syncSeasonDataWithLocalStorage(data, season);
     seasonRosterCache.set(year, data);
-    return data;
+    return syncSeasonDataWithLocalStorage(data, season);
   }
 
   return null;
@@ -350,36 +663,20 @@ export async function getPrebuiltRoster(teamName, season) {
       try {
         const savedParsed = JSON.parse(savedRaw);
         if (Array.isArray(savedParsed) && savedParsed.length > 0) {
-          return savedParsed;
+          return applyCareerLedgerToSquad(teamName, savedParsed, season);
         }
       } catch (e) {}
     }
   }
 
-  let seasonData = seasonRosterCache.get(year);
-  if (!seasonData) {
-    seasonData = await loadSeasonRosters(year);
+  if (!seasonRosterCache.has(year)) {
+    await loadSeasonRosters(year);
   }
+  const seasonData = seasonRosterCache.get(year);
   if (!seasonData) return null;
 
-  if (seasonData[teamName]) {
-    return seasonData[teamName];
-  }
-
-  const lowerName = teamName.toLowerCase().trim();
-  for (const [key, squad] of Object.entries(seasonData)) {
-    if (key.toLowerCase().trim() === lowerName) {
-      return squad;
-    }
-  }
-  for (const [key, squad] of Object.entries(seasonData)) {
-    const k = key.toLowerCase().trim();
-    if (k.includes(lowerName) || lowerName.includes(k)) {
-      return squad;
-    }
-  }
-
-  return null;
+  const matched = findSquadForTeam(seasonData, teamName);
+  return matched ? applyCareerLedgerToSquad(teamName, matched, season) : null;
 }
 
 /**
@@ -399,7 +696,7 @@ export function getPrebuiltRosterSync(teamName, season) {
       try {
         const savedParsed = JSON.parse(savedRaw);
         if (Array.isArray(savedParsed) && savedParsed.length > 0) {
-          return savedParsed;
+          return applyCareerLedgerToSquad(teamName, savedParsed, season);
         }
       } catch (e) {}
     }
@@ -408,22 +705,195 @@ export function getPrebuiltRosterSync(teamName, season) {
   const seasonData = seasonRosterCache.get(year);
   if (!seasonData) return null;
 
-  if (seasonData[teamName]) return seasonData[teamName];
+  const matched = findSquadForTeam(seasonData, teamName);
+  return matched ? applyCareerLedgerToSquad(teamName, matched, season) : null;
+}
 
-  const lowerName = teamName.toLowerCase().trim();
-  for (const [key, squad] of Object.entries(seasonData)) {
-    if (key.toLowerCase().trim() === lowerName) {
-      return squad;
+/**
+ * Computes annual retirement probability for players aged 36+.
+ */
+export function getRetirementChance(age, position, isAbsentFromNextDb = false) {
+  const a = Number(age) || 25;
+  if (a < 36) return 0;
+  if (a >= 42) return 1.0;
+
+  const isGK = position === "GK";
+  let baseChance = 0;
+  if (a === 36) baseChance = isGK ? 0.08 : 0.16;
+  else if (a === 37) baseChance = isGK ? 0.16 : 0.30;
+  else if (a === 38) baseChance = isGK ? 0.30 : 0.50;
+  else if (a === 39) baseChance = isGK ? 0.50 : 0.72;
+  else baseChance = isGK ? 0.75 : 0.90;
+
+  if (isAbsentFromNextDb) {
+    baseChance = Math.min(0.96, baseChance + 0.10);
+  }
+  return baseChance;
+}
+
+/**
+ * Carries over the player's squad from prevSeason to nextSeason:
+ * - Preserves all bought players & keeps sold players excluded
+ * - Updates ratings/ages/values from nextSeason's DB when present (or age+1 otherwise)
+ * - Rolls realistic 36-40+ retirements and logs retirees in retro_career_transfers
+ * - Safeguards minimum GK (2) and squad depth (16) from the club's next-season DB newcomers
+ * - Persists retro_roster_*, retro_lineup_*, retro_roles_*, and retro_captain_* for nextSeason
+ */
+export function advancePlayerSquadForNextSeason({ teamName, prevSeason, nextSeason }) {
+  if (!teamName || !prevSeason || !nextSeason) {
+    return { squad: [], retiredPlayers: [] };
+  }
+
+  const prevYear = normalizeSeasonYear(prevSeason);
+  const nextYear = normalizeSeasonYear(nextSeason);
+  const catalog = buildSeasonPlayerCatalog(nextYear);
+
+  // 1. Load outgoing squad from prevSeason (localStorage first, fallback to DB)
+  let outgoingRaw = null;
+  if (typeof window !== "undefined" && window.localStorage) {
+    const savedPrev = localStorage.getItem(`retro_roster_${teamName}_${prevSeason}`) ||
+                      localStorage.getItem(`retro_roster_${teamName}_${prevYear}`);
+    if (savedPrev) {
+      try {
+        const parsed = JSON.parse(savedPrev);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          outgoingRaw = parsed;
+        }
+      } catch (e) {}
     }
   }
-  for (const [key, squad] of Object.entries(seasonData)) {
-    const k = key.toLowerCase().trim();
-    if (k.includes(lowerName) || lowerName.includes(k)) {
-      return squad;
+  if (!outgoingRaw) {
+    outgoingRaw = getPrebuiltRosterSync(teamName, prevSeason) || [];
+  }
+
+  // Apply ledger against prevSeason before rolling into nextSeason
+  const cleanedOutgoing = applyCareerLedgerToSquad(teamName, outgoingRaw, prevSeason) || [];
+
+  // 2. Refresh skills/ages from nextSeason DB & collect retirement candidates
+  const updatedCandidates = cleanedOutgoing.map((p, idx) => {
+    const key = normalizePlayerNameKey(p.name);
+    const dbEntry = catalog.get(key);
+    const refreshed = refreshPlayerForNextSeason(p, dbEntry?.player || null, nextSeason);
+    return {
+      player: refreshed,
+      absentFromNextDb: !dbEntry,
+      origIndex: idx
+    };
+  });
+
+  // Never retire the sole remaining GK if squad would otherwise have 0 GKs
+  const totalGKs = updatedCandidates.filter(c => c.player.position === "GK").length;
+  let survivingGKs = totalGKs;
+
+  const retiredPlayers = [];
+  const keptSquad = [];
+
+  for (const item of updatedCandidates) {
+    const p = item.player;
+    const chance = getRetirementChance(p.age, p.position, item.absentFromNextDb);
+    const canRetireGK = p.position !== "GK" || survivingGKs > 1;
+
+    if (chance > 0 && canRetireGK && Math.random() < chance) {
+      if (p.position === "GK") survivingGKs--;
+      retiredPlayers.push(p);
+      recordCareerTransfer({ player: p, fromClub: teamName, toClub: "__RETIRED__", retired: true });
+    } else {
+      keptSquad.push(p);
     }
   }
 
-  return null;
+  // 3. Safeguard minimum GK (2) and squad size (16) from club's next-season DB newcomers
+  const rawNextSeasonData = seasonRosterCache.get(nextYear);
+  const rawNextClubDb = rawNextSeasonData ? findSquadForTeam(rawNextSeasonData, teamName) : null;
+  if (Array.isArray(rawNextClubDb) && rawNextClubDb.length > 0) {
+    const ledger = getCareerTransferLedger();
+    const existingKeys = new Set(keptSquad.map(p => normalizePlayerNameKey(p.name)));
+    const availableNewcomers = rawNextClubDb.filter(p => {
+      if (!p || !p.name) return false;
+      const key = normalizePlayerNameKey(p.name);
+      if (existingKeys.has(key)) return false;
+      const entry = ledger[key];
+      if (entry && (entry.retired || !clubsMatch(entry.club, teamName))) return false;
+      return true;
+    });
+
+    while (keptSquad.filter(p => p.position === "GK").length < 2) {
+      const gk = availableNewcomers.find(p => p.position === "GK" && !existingKeys.has(normalizePlayerNameKey(p.name)));
+      if (!gk) break;
+      const key = normalizePlayerNameKey(gk.name);
+      existingKeys.add(key);
+      keptSquad.push({ ...gk, condition: 100, injured: false, injuryWeeks: 0, goals: 0, assists: 0 });
+    }
+
+    // Prefer younger prospects / squad players if total size dipped below 16
+    const sortedRepl = [...availableNewcomers].sort((a, b) => (Number(a.age) || 25) - (Number(b.age) || 25));
+    for (const cand of sortedRepl) {
+      if (keptSquad.length >= 16) break;
+      const key = normalizePlayerNameKey(cand.name);
+      if (existingKeys.has(key)) continue;
+      existingKeys.add(key);
+      keptSquad.push({ ...cand, condition: 100, injured: false, injuryWeeks: 0, goals: 0, assists: 0 });
+    }
+  }
+
+  // 4. Persist squad, lineup, roles, and captain for nextSeason
+  if (typeof window !== "undefined" && window.localStorage) {
+    localStorage.setItem(`retro_roster_${teamName}_${nextSeason}`, JSON.stringify(keptSquad));
+
+    const survivorByKey = new Map(keptSquad.map(p => [normalizePlayerNameKey(p.name), p]));
+
+    // Carry over Starting Lineup (updating player stats to nextSeason versions, clearing retirees)
+    const prevLineupRaw = localStorage.getItem(`retro_lineup_${teamName}_${prevSeason}`) ||
+                          localStorage.getItem(`retro_lineup_${teamName}_${prevYear}`);
+    if (prevLineupRaw) {
+      try {
+        const parsedLineup = JSON.parse(prevLineupRaw);
+        const migratedLineup = {};
+        for (const [slotId, slotPlayer] of Object.entries(parsedLineup)) {
+          if (slotPlayer && slotPlayer.name) {
+            const survivor = survivorByKey.get(normalizePlayerNameKey(slotPlayer.name));
+            migratedLineup[slotId] = survivor ? { ...survivor } : null;
+          } else {
+            migratedLineup[slotId] = null;
+          }
+        }
+        localStorage.setItem(`retro_lineup_${teamName}_${nextSeason}`, JSON.stringify(migratedLineup));
+      } catch (e) {}
+    }
+
+    // Carry over Roles (removing retired players)
+    const prevRolesRaw = localStorage.getItem(`retro_roles_${teamName}_${prevSeason}`) ||
+                         localStorage.getItem(`retro_roles_${teamName}_${prevYear}`);
+    if (prevRolesRaw) {
+      try {
+        const parsedRoles = JSON.parse(prevRolesRaw);
+        const migratedRoles = {};
+        for (const [roleKey, playerName] of Object.entries(parsedRoles)) {
+          migratedRoles[roleKey] = (playerName && survivorByKey.has(normalizePlayerNameKey(playerName)))
+            ? survivorByKey.get(normalizePlayerNameKey(playerName)).name
+            : "";
+        }
+        localStorage.setItem(`retro_roles_${teamName}_${nextSeason}`, JSON.stringify(migratedRoles));
+      } catch (e) {}
+    }
+
+    // Carry over Captain (replacing if retired)
+    const prevCap = localStorage.getItem(`retro_captain_${teamName}_${prevSeason}`) ||
+                    localStorage.getItem(`retro_captain_${teamName}_${prevYear}`);
+    if (prevCap) {
+      const capSurvivor = survivorByKey.get(normalizePlayerNameKey(prevCap));
+      if (capSurvivor) {
+        localStorage.setItem(`retro_captain_${teamName}_${nextSeason}`, capSurvivor.name);
+      } else if (keptSquad.length > 0) {
+        const nextCap = [...keptSquad].sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0))[0];
+        if (nextCap && nextCap.name) {
+          localStorage.setItem(`retro_captain_${teamName}_${nextSeason}`, nextCap.name);
+        }
+      }
+    }
+  }
+
+  return { squad: keptSquad, retiredPlayers };
 }
 
 /**
@@ -432,6 +902,7 @@ export function getPrebuiltRosterSync(teamName, season) {
  */
 export function transferPlayerBetweenClubs({ player, fromClub, toClub, season }) {
   if (!player || !player.name || !season) return;
+  recordCareerTransfer({ player, fromClub, toClub, retired: false });
   const year = normalizeSeasonYear(season);
   const pNameLower = player.name.toLowerCase().trim();
   const seasonData = seasonRosterCache.get(year);
@@ -687,19 +1158,32 @@ export function calculateMatchAttendance(homeTeam, awayTeam, stadiumCapacity, ma
  * @param {string|number} season - Season identifier
  * @returns {Promise<Array>} Array of real CM transfer-listed and free agent targets
  */
+function filterMarketPoolWithLedger(pool) {
+  if (!Array.isArray(pool)) return [];
+  const ledger = getCareerTransferLedger();
+  if (!ledger || Object.keys(ledger).length === 0) return pool;
+  return pool.filter(p => {
+    if (!p || !p.name) return false;
+    const entry = ledger[normalizePlayerNameKey(p.name)];
+    if (!entry) return true;
+    if (entry.retired) return false;
+    return entry.club === "Free Agent" || entry.club === "Other Club";
+  });
+}
+
 export async function getTransferMarketPool(season) {
   if (!season) return [];
   const year = normalizeSeasonYear(season);
 
   if (seasonTransferCache.has(year)) {
-    return seasonTransferCache.get(year);
+    return filterMarketPoolWithLedger(seasonTransferCache.get(year));
   }
 
   const data = await fetchRosterData(`transferMarket${year}.json`);
   if (Array.isArray(data)) {
     data.forEach(p => calibratePlayerRating(p, year));
     seasonTransferCache.set(year, data);
-    return data;
+    return filterMarketPoolWithLedger(data);
   }
 
   return [];
