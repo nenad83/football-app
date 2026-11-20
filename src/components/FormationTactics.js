@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { getSubstituteLimit } from '../utils/matchRules';
-import { getPrebuiltRoster } from '../data/rosters/rosterRegistry';
+import {
+  getPrebuiltRoster,
+  getTeamDetails,
+  getTeamDetailsSync,
+  resolveHistoricalFormationOverride
+} from '../data/rosters/rosterRegistry';
 import {
   calculateTeamTacticalStats,
   getRoleMetadata,
@@ -264,9 +269,41 @@ export const getSavedFormation = () => {
   return saved || '4-4-2';
 };
 
-// Determine formation for CPU opponents based on team statistics, opponent statistics, and season year
+// Resolve a club's historical/manager preferred formation for a given season
+export const getPreferredTeamFormation = (teamName, season, detailsObj = null) => {
+  if (!teamName || !season) return '4-4-2';
+  const det = detailsObj || getTeamDetailsSync(teamName, season);
+  const override = resolveHistoricalFormationOverride(teamName, det?.manager?.name, season);
+  if (override && FORMATIONS[override]) return override;
+  const mgrPref = det?.manager?.preferredFormation;
+  if (mgrPref && FORMATIONS[mgrPref]) return mgrPref;
+  const teamPref = det?.preferredFormation;
+  if (teamPref && FORMATIONS[teamPref]) return teamPref;
+  return '4-4-2';
+};
+
+// Determine formation for CPU opponents based on manager/team preferredFormation in CM database, historical overrides, or era fallback
 export const getCPUFormation = (team, opp, year) => {
   if (!team || !opp) return '4-4-2';
+
+  if (team.name && year) {
+    const details = getTeamDetailsSync(team.name, year);
+    const override = resolveHistoricalFormationOverride(team.name, details?.manager?.name, year);
+    if (override && FORMATIONS[override]) {
+      return override;
+    }
+    const managerPref = details?.manager?.preferredFormation;
+    if (managerPref && FORMATIONS[managerPref]) {
+      return managerPref;
+    }
+    const teamPref = details?.preferredFormation;
+    if (teamPref && FORMATIONS[teamPref]) {
+      return teamPref;
+    }
+  }
+  if (team.preferredFormation && FORMATIONS[team.preferredFormation]) {
+    return team.preferredFormation;
+  }
 
   const teamStrength = (team.attack || 3) + (team.midfield || 3) + (team.defense || 3);
   const oppStrength = (opp.attack || 3) + (opp.midfield || 3) + (opp.defense || 3);
@@ -1623,6 +1660,19 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
 
     setSquad(activeRoster);
 
+    // Resolve team+season preferred formation if not explicitly chosen for this club & season yet
+    const teamFormationKey = `retro_formation_${info.name}_${info.season}`;
+    let activeFormation = localStorage.getItem(teamFormationKey);
+    if (!activeFormation || !FORMATIONS[activeFormation]) {
+      const det = await getTeamDetails(info.name, info.season);
+      activeFormation = getPreferredTeamFormation(info.name, info.season, det);
+      localStorage.setItem(teamFormationKey, activeFormation);
+      localStorage.setItem('retro_player_formation', activeFormation);
+    } else if (localStorage.getItem('retro_player_formation') !== activeFormation) {
+      localStorage.setItem('retro_player_formation', activeFormation);
+    }
+    setSelectedFormation(activeFormation);
+
     // Lineup loading
     let activeLineup = {};
     const cachedLineup = localStorage.getItem(lineupKey);
@@ -1630,8 +1680,9 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
       try {
         const parsed = JSON.parse(cachedLineup);
         const squadNames = new Set(activeRoster.map(p => p.name));
+        const validSlotIds = new Set(getFormationSlots(activeFormation).map(s => s.id));
         Object.entries(parsed).forEach(([slotId, player]) => {
-          if (player && squadNames.has(player.name)) {
+          if (player && squadNames.has(player.name) && validSlotIds.has(slotId)) {
             // Find player in activeRoster to keep stats in sync
             const rosterPlayer = activeRoster.find(p => p.name === player.name);
             activeLineup[slotId] = rosterPlayer || player;
@@ -1645,9 +1696,9 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
       }
     }
 
-    // Auto-fill starting lineup if not yet set
-    if (Object.keys(activeLineup).length === 0 && activeRoster.length >= 11) {
-      activeLineup = generateDefaultLineup(activeRoster, selectedFormation);
+    // Auto-fill starting lineup in the team's active formation if not yet set (or if formation slots didn't match)
+    if (Object.keys(activeLineup).filter(k => activeLineup[k]).length < 11 && activeRoster.length >= 11) {
+      activeLineup = generateDefaultLineup(activeRoster, activeFormation);
       localStorage.setItem(lineupKey, JSON.stringify(activeLineup));
     }
 
@@ -1665,7 +1716,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
 
     setLineup(activeLineup);
     setPlayerRoles(activeRoles);
-    updateTeamStatsInStorage(activeLineup, getSavedFormation(), activeRoles);
+    updateTeamStatsInStorage(activeLineup, activeFormation, activeRoles);
 
     // Load selected bench names
     const benchKey = `retro_bench_${info.name}_${info.season}`;
@@ -1720,6 +1771,9 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
   const handleSelectFormation = (formationKey) => {
     setSelectedFormation(formationKey);
     localStorage.setItem('retro_player_formation', formationKey);
+    if (teamInfo?.name && teamInfo?.season) {
+      localStorage.setItem(`retro_formation_${teamInfo.name}_${teamInfo.season}`, formationKey);
+    }
 
     // Clean up current lineup to remove slots that don't exist in the new formation
     const newSlots = getFormationSlots(formationKey);

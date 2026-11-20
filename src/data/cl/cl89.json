@@ -1,6 +1,6 @@
 [
   { "idnum": 0, "id": "cl89", "name": "AC Milan", "attack": 5, "midfield": 5, "defense": 5, "kit": "cl90/0.png", "primaryColor": "#FB090B", "secondaryColor": "#000000" },
-  { "idnum": 1, "id": "cl89", "name": "Internazionale", "attack": 5, "midfield": 5, "defense": 4, "kit": "ecu93/1.png", "primaryColor": "#005FA8", "secondaryColor": "#000000" },
+  { "idnum": 1, "id": "cl89", "name": "Inter Milan", "attack": 5, "midfield": 5, "defense": 4, "kit": "ecu93/1.png", "primaryColor": "#005FA8", "secondaryColor": "#000000" },
   { "idnum": 2, "id": "cl89", "name": "Bayern Munich", "attack": 5, "midfield": 5, "defense": 5, "kit": "cl90/3.png", "primaryColor": "#DC052D", "secondaryColor": "#0066B2" },
   { "idnum": 3, "id": "cl89", "name": "Real Madrid", "attack": 5, "midfield": 5, "defense": 5, "kit": "cl90/2.png", "primaryColor": "#FFFFFF", "secondaryColor": "#FFFFFF" },
   { "idnum": 4, "id": "cl89", "name": "Olympique Marseille", "attack": 5, "midfield": 5, "defense": 5, "kit": "cl90/4.png", "primaryColor": "#00A6FF", "secondaryColor": "#FFFFFF" },

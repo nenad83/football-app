@@ -1,5 +1,5 @@
 [
-  { "idnum": 0, "id": "ita88", "name": "Internazionale", "attack": 5, "midfield": 5, "defense": 5, "kit": "ecu93/1.png", "primaryColor": "#005FA8", "secondaryColor": "#000000" },
+  { "idnum": 0, "id": "ita88", "name": "Inter Milan", "attack": 5, "midfield": 5, "defense": 5, "kit": "ecu93/1.png", "primaryColor": "#005FA8", "secondaryColor": "#000000" },
   { "idnum": 1, "id": "ita88", "name": "Napoli", "attack": 5, "midfield": 5, "defense": 4, "kit": "swe92/5.png", "primaryColor": "#87CEEB", "secondaryColor": "#FFFFFF" },
   { "idnum": 2, "id": "ita88", "name": "AC Milan", "attack": 5, "midfield": 5, "defense": 5, "kit": "fra84/1.png", "primaryColor": "#FB090B", "secondaryColor": "#000000" },
   { "idnum": 3, "id": "ita88", "name": "Juventus", "attack": 4, "midfield": 4, "defense": 4, "kit": "ecu93/3.png", "primaryColor": "#000000", "secondaryColor": "#FFFFFF" },

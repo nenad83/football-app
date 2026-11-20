@@ -415,6 +415,7 @@ function loadCMDatabase(cmDir) {
 
   // Find Player Block in staff.dat
   const PLAYER_REC_LEN = 70;
+  const NON_PLAYER_REC_LEN = 68;
   const staffBlockBytes = staffCount * STAFF_REC_LEN;
 
   let playerBlockOffset = -1;
@@ -432,7 +433,23 @@ function loadCMDatabase(cmDir) {
     playerBlockOffset = (STAFF_REC_LEN === 157) ? 28613922 : 21058266;
   }
 
-  console.log(`   ⚡ Loaded ${clubs.length} clubs with authentic finances, ${staffCount} staff, ${playerCount} players (${((Date.now() - t0) / 1000).toFixed(2)}s)`);
+  const nonPlayerBlockOffset = staffBlockBytes;
+  const nonPlayerCount = Math.max(0, Math.floor((playerBlockOffset - nonPlayerBlockOffset) / NON_PLAYER_REC_LEN));
+  const nonPlayerPtrOffset = (STAFF_REC_LEN === 157) ? 0x99 : 0x69;
+
+  const CM_FORMATION_ENUM = {
+    1: '5-3-2',     // 5-3-2 Sweeper
+    2: '5-3-2',     // 5-3-2
+    3: '4-4-2',     // 4-4-2
+    4: '4-3-3',     // 4-3-3
+    5: '4-2-4',     // 4-2-4
+    6: '3-5-2',     // 3-5-2
+    7: '4-1-2-1-2', // 4-1-2-1-2
+    8: '4-5-1',     // 4-5-1
+    9: '3-4-3'      // 3-4-3
+  };
+
+  console.log(`   ⚡ Loaded ${clubs.length} clubs with authentic finances, ${staffCount} staff, ${nonPlayerCount} non-players, ${playerCount} players (${((Date.now() - t0) / 1000).toFixed(2)}s)`);
 
   return {
     clubs,
@@ -441,10 +458,22 @@ function loadCMDatabase(cmDir) {
     staffCount,
     staffRecLen: STAFF_REC_LEN,
     playerPtrOffset: (STAFF_REC_LEN === 157) ? 0x91 : 0x61,
+    nonPlayerPtrOffset,
+    nonPlayerBlockOffset,
+    nonPlayerCount,
     playerBlockOffset,
     playerCount,
     getNation,
     getStadium,
+    getNonPlayerFormation(staffOffset) {
+      if (staffOffset + nonPlayerPtrOffset + 4 > staffBuf.length) return null;
+      const npPtr = staffBuf.readInt32LE(staffOffset + nonPlayerPtrOffset);
+      if (npPtr < 0 || npPtr >= nonPlayerCount) return null;
+      const npOff = nonPlayerBlockOffset + npPtr * NON_PLAYER_REC_LEN;
+      if (npOff + 68 > staffBuf.length) return null;
+      const formByte = staffBuf.readUInt8(npOff + 67);
+      return CM_FORMATION_ENUM[formByte] || null;
+    },
     readName(fnId, snId, cnId) {
       const common = readStringTable(cnBuf, cnId);
       if (common) return common;
@@ -453,6 +482,148 @@ function loadCMDatabase(cmDir) {
       return `${fn} ${sn}`.trim() || "Unknown Player";
     }
   };
+}
+
+/**
+ * Curated historical formation overrides for clubs/managers where CM01/02's 9-formation
+ * enum could not distinguish sub-formations (e.g. 4-2-3-1, 3-4-2-1, 4-3-1-2, 4-3-2-1)
+ * or where SI's original database had a known formation typo (e.g. Hitzfeld's 4-2-4 code).
+ */
+function resolveHistoricalFormationOverride(teamName, managerName, seasonYear) {
+  const yr = parseInt(seasonYear, 10) || 2001;
+  const t = String(teamName || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const m = String(managerName || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // 1. Fix SI DB typo for Ottmar Hitzfeld (byte 5 = 4-2-4 instead of 3-5-2 / 5-3-2)
+  if (m.includes('hitzfeld')) {
+    return yr <= 1997 ? '3-5-2' : '5-3-2';
+  }
+  if ((t.includes('dortmund')) && yr >= 1991 && yr <= 1997) return '3-5-2';
+
+  // 2. Liverpool historical eras
+  if (t === 'liverpool') {
+    if (yr >= 2005 && yr <= 2009) return '4-2-3-1'; // Rafa Benítez
+    if (yr >= 2016 && yr <= 2023) return '4-3-3';   // Jürgen Klopp
+    if (yr >= 2024) return '4-2-3-1';               // Arne Slot
+  }
+
+  // 3. Manchester United
+  if (t.includes('manchester united') || t === 'man utd') {
+    if (yr >= 1989 && yr <= 2006) return '4-4-2';   // Sir Alex Ferguson classic 4-4-2
+    if (yr >= 2014 && yr <= 2024) return '4-2-3-1'; // van Gaal / Mourinho / Solskjaer / ten Hag
+    if (yr >= 2025 || m.includes('amorim')) return '3-4-2-1'; // Rúben Amorim
+  }
+
+  // 4. Manchester City
+  if (t.includes('manchester city') || t === 'man city') {
+    if (yr >= 2011 && yr <= 2015) return '4-2-3-1'; // Mancini / Pellegrini
+    if (yr >= 2016) return '4-3-3';                 // Pep Guardiola
+  }
+
+  // 5. Arsenal
+  if (t === 'arsenal') {
+    if (yr >= 1989 && yr <= 2005) return '4-4-2';   // George Graham / Wenger Invincibles 4-4-2
+    if (yr >= 2009 && yr <= 2016) return '4-2-3-1'; // Wenger 4-2-3-1 era
+    if (yr === 2020) return '3-4-3';                // Arteta 2020 FA Cup 3-4-3
+    if (yr >= 2021 && yr <= 2022) return '4-2-3-1'; // Arteta transition 4-2-3-1
+    if (yr >= 2023) return '4-3-3';                 // Arteta modern 4-3-3
+  }
+
+  // 6. Chelsea
+  if (t === 'chelsea') {
+    if (yr >= 2004 && yr <= 2007) return '4-3-3';   // Mourinho 1st spell
+    if (yr === 2009) return '4-1-2-1-2';            // Ancelotti Diamond
+    if (yr >= 2011 && yr <= 2015) return '4-2-3-1'; // Di Matteo / Mourinho 2nd spell
+    if (yr >= 2016 && yr <= 2017) return '3-4-3';   // Antonio Conte title-winning 3-4-3
+    if (yr >= 2020 && yr <= 2022) return '3-4-2-1'; // Thomas Tuchel CL-winning 3-4-2-1
+    if (yr >= 2023) return '4-2-3-1';               // Pochettino / Maresca
+  }
+
+  // 7. Tottenham Hotspur
+  if (t.includes('tottenham')) {
+    if (yr >= 2014 && yr <= 2020) return '4-2-3-1'; // Pochettino / Mourinho
+    if (yr >= 2021 && yr <= 2022) return '3-4-3';   // Conte
+    if (yr >= 2023) return '4-2-3-1';               // Postecoglou
+  }
+
+  // 8. AC Milan
+  if (t.includes('milan') && !t.includes('inter')) {
+    if (yr >= 1989 && yr <= 1995) return '4-4-2';   // Sacchi / Capello 4-4-2
+    if (yr >= 2002 && yr <= 2006) return '4-3-1-2'; // Ancelotti Rui Costa / Kaká diamond
+    if (yr >= 2007 && yr <= 2008) return '4-3-2-1'; // Ancelotti Christmas Tree (Kaká + Seedorf behind Inzaghi)
+    if (yr >= 2010 && yr <= 2012) return '4-3-1-2'; // Allegri Scudetto
+    if (yr >= 2020 && yr <= 2024) return '4-2-3-1'; // Pioli Scudetto 4-2-3-1
+  }
+
+  // 9. Inter Milan
+  if (t === 'inter' || t === 'inter milan' || t === 'internazionale') {
+    if (yr >= 2006 && yr <= 2008) return '4-3-1-2'; // Mancini
+    if (yr === 2009) return '4-2-3-1';              // Mourinho Treble 2009/10
+    if (yr >= 2019) return '3-5-2';                 // Conte / Simone Inzaghi
+  }
+
+  // 10. Juventus
+  if (t.includes('juventus')) {
+    if (yr >= 1996 && yr <= 1998) return '4-3-1-2'; // Lippi (Zidane behind Del Piero & Inzaghi/Boksic)
+    if (yr >= 2001 && yr <= 2003) return '4-3-1-2'; // Lippi (Nedved behind Del Piero & Trezeguet)
+    if (yr >= 2011 && yr <= 2014) return '3-5-2';   // Conte BBC 3-5-2
+    if (yr >= 2016 && yr <= 2017) return '4-2-3-1'; // Allegri Mandzukic-Dybala-Cuadrado-Higuain
+  }
+
+  // 11. Roma & Napoli & Atalanta
+  if ((t === 'roma' || t === 'as roma') && yr >= 2005 && yr <= 2008) return '4-2-3-1'; // Spalletti Totti false 9
+  if (t.includes('atalanta') && yr >= 2017) return '3-4-1-2'; // Gasperini
+  if (t.includes('napoli') && yr >= 2015 && yr <= 2018) return '4-3-3'; // Sarri
+
+  // 12. Real Madrid & Barcelona
+  if (t.includes('real madrid')) {
+    if (yr >= 2000 && yr <= 2002) return '4-2-3-1'; // Del Bosque
+    if (yr >= 2010 && yr <= 2013) return '4-2-3-1'; // José Mourinho
+    if (yr >= 2014 && yr <= 2022) return '4-3-3';   // Ancelotti / Zidane BBC 4-3-3
+    if (yr === 2023) return '4-3-1-2';              // Ancelotti Bellingham diamond
+    if (yr >= 2024) return '4-3-3';
+  }
+  if (t.includes('barcelona') && !t.includes('sc') && !t.includes('guayaquil')) {
+    if (yr >= 1989 && yr <= 1996) return '4-3-3';   // Cruyff Dream Team
+    if (yr >= 2004 && yr <= 2023) return '4-3-3';   // Rijkaard / Guardiola / Luis Enrique / Xavi
+    if (yr >= 2024) return '4-2-3-1';               // Hansi Flick 4-2-3-1
+  }
+
+  // 13. Bayern Munich, Borussia Dortmund & Bayer Leverkusen
+  if (t.includes('bayern')) {
+    if (yr >= 1989 && yr <= 1998) return '5-3-2';   // German Libero era
+    if (yr >= 2010 && yr <= 2012) return '4-2-3-1'; // van Gaal / Heynckes Treble
+    if (yr >= 2013 && yr <= 2015) return '4-1-4-1'; // Guardiola Bayern
+    if (yr >= 2016) return '4-2-3-1';               // Heynckes / Flick Sextuple / Nagelsmann / Tuchel / Kompany
+  }
+  if (t.includes('dortmund')) {
+    if (yr >= 2010 && yr <= 2016) return '4-2-3-1'; // Klopp & Tuchel 4-2-3-1
+    if (yr >= 2018 && yr <= 2019) return '4-2-3-1'; // Favre
+  }
+  if (t.includes('leverkusen')) {
+    if (yr >= 2001 && yr <= 2002) return '4-1-4-1'; // Toppmöller 2002 CL finalists
+    if (yr >= 2022) return '3-4-2-1';               // Xabi Alonso invincible 3-4-2-1
+  }
+
+  // 14. Manager-based signature overrides across clubs
+  if (m.includes('amorim')) return '3-4-2-1';
+  if (m.includes('gasperini') && yr >= 2016) return '3-4-1-2';
+  if (m.includes('xabi alonso') && t.includes('leverkusen')) return '3-4-2-1';
+
+  return null;
+}
+
+function getDefaultEraRegionFormation(region, seasonYear) {
+  const yr = parseInt(seasonYear, 10) || 2001;
+  const r = String(region || '').toLowerCase();
+  if (r.includes('netherlands')) return '4-3-3';
+  if (r.includes('germany') && yr <= 1998) return '5-3-2';
+  if (r.includes('italy') && yr <= 1996) return '4-4-2';
+  if ((r.includes('argentina') || r.includes('brazil') || r.includes('colombia') || r.includes('south_america')) && yr <= 2004) {
+    return '4-3-1-2';
+  }
+  if (yr >= 2012) return '4-2-3-1';
+  return '4-4-2';
 }
 
 // ---------------------------------------------------------------------------
@@ -815,14 +986,17 @@ async function main() {
   const STAFF_REC_LEN = cmDb.staffRecLen;
   const eraMult = getEraFinancialMultiplier(seasonFullYear);
 
-  // 1. Group Managers by Club ID
-  console.log("⏳ Grouping CM managers by club...");
+  // 1. Group Managers by Club ID (Job 5 = Manager, Job 12 = Player/Manager; Job 6/8 = Assistant/Coach formation fallback)
+  console.log("⏳ Grouping CM managers & preferred formations by club...");
   const managersByClubId = new Map();
+  const assistantFormationByClubId = new Map();
   for (let i = 0; i < cmDb.staffCount; i++) {
     const off = i * STAFF_REC_LEN;
     const clubId = cmDb.staffBuf.readInt32LE(off + 0x39);
     const job = cmDb.staffBuf.readUInt8(off + 0x3D);
-    if (clubId > 0 && job === 5) {
+    if (clubId <= 0) continue;
+
+    if (job === 5 || (job === 12 && !managersByClubId.has(clubId))) {
       const fnId = cmDb.staffBuf.readInt32LE(off + 0x04);
       const snId = cmDb.staffBuf.readInt32LE(off + 0x08);
       const cnId = cmDb.staffBuf.readInt32LE(off + 0x0C);
@@ -830,13 +1004,24 @@ async function main() {
       const birthYear = cmDb.staffBuf.readInt16LE(off + 0x12);
       const refYear = seasonFullYear > 2001 ? 2001 : seasonFullYear;
       let age = birthYear > 1900 ? (refYear - birthYear) : 52;
-      if (isNaN(age) || age < 25 || age > 85) age = 52;
+      if (isNaN(age) || age < 22 || age > 85) age = 52;
       const natId = cmDb.staffBuf.readInt32LE(off + 0x1A);
       const nationality = cmDb.getNation(natId);
-      managersByClubId.set(clubId, { name, age, nationality });
+      const preferredFormation = cmDb.getNonPlayerFormation(off);
+      managersByClubId.set(clubId, {
+        name,
+        age,
+        nationality,
+        ...(preferredFormation ? { preferredFormation } : {})
+      });
+    } else if ((job === 6 || job === 8) && !assistantFormationByClubId.has(clubId)) {
+      const staffFormation = cmDb.getNonPlayerFormation(off);
+      if (staffFormation) {
+        assistantFormationByClubId.set(clubId, staffFormation);
+      }
     }
   }
-  console.log(`   ⚡ Found ${managersByClubId.size} authentic club managers.`);
+  console.log(`   ⚡ Found ${managersByClubId.size} authentic club managers (including player-managers).`);
 
   // 2. Group active players by club & collect transfer market pool
   console.log("⏳ Grouping CM players by club (1-10 scale) & building transfer pool...");
@@ -987,10 +1172,22 @@ async function main() {
         stadium = { name: `${team.name} Stadium`, capacity: 18000, seating: 12000 };
       }
 
-      // Manager metadata
-      let manager = (!isSyntheticClub && managersByClubId.get(matchedClub.id)) || null;
-      if (!manager || manager.name === "Unknown Manager") {
+      // Manager metadata & preferred formation resolution
+      const rawManager = (!isSyntheticClub && managersByClubId.get(matchedClub.id)) || null;
+      let manager = rawManager ? { ...rawManager } : { name: "Unknown Manager", age: 50, nationality: "Unknown" };
+      if (!manager.name || manager.name === "Unknown Player") {
         manager = { name: "Unknown Manager", age: 50, nationality: "Unknown" };
+      }
+
+      const historicalOverride = resolveHistoricalFormationOverride(team.name, manager.name, seasonFullYear);
+      const assistantFallback = !isSyntheticClub ? assistantFormationByClubId.get(matchedClub.id) : null;
+      const resolvedFormation = historicalOverride
+        || manager.preferredFormation
+        || assistantFallback
+        || getDefaultEraRegionFormation(region, seasonFullYear);
+
+      if (manager.name !== "Unknown Manager") {
+        manager.preferredFormation = resolvedFormation;
       }
 
       // Realistic Scaled Finances
@@ -1013,6 +1210,7 @@ async function main() {
 
       teamDetailsMap[team.name] = {
         manager,
+        preferredFormation: resolvedFormation,
         stadium,
         finances: {
           transferBudget: Math.max(0.2, budgetM),         // Budget in Millions (£M)

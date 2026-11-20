@@ -552,6 +552,7 @@ import ita89D2Data from './leagues/ita/ita89_d2.json';
 
 
 // scotland
+import sco89Data from './leagues/sco/sco89.json';
 import sco90Data from './leagues/sco/sco90.json';
 import sco91Data from './leagues/sco/sco91.json';
 import sco92Data from './leagues/sco/sco92.json';
@@ -632,7 +633,7 @@ export const leagueDataMap = {
   "1985": { england: eng85Data, germany: ger85Data, spain: esp85Data, italy: ita85Data, france: fra85Data },
   "1987": { england: eng87Data, germany: ger87Data, spain: esp87Data, italy: ita87Data, france: fra87Data, portugal: por87Data, netherlands: ned87Data },
   "1988": { england: eng88Data, germany: ger88Data, spain: esp88Data, italy: ita88Data, france: fra88Data, portugal: por88Data, netherlands: ned88Data },
-  "1989": { england: eng89Data, germany: ger89Data, spain: esp89Data, italy: ita89Data, france: fra89Data, portugal: por89Data, netherlands: ned89Data },
+  "1989": { england: eng89Data, germany: ger89Data, spain: esp89Data, italy: ita89Data, france: fra89Data, portugal: por89Data, netherlands: ned89Data, scotland: sco89Data },
   "1990": { england: eng90Data, germany: ger90Data, spain: esp90Data, italy: ita90Data, france: fra90Data, portugal: por90Data, netherlands: ned90Data, scotland: sco90Data },
   "1991": { england: eng91Data, germany: ger91Data, spain: esp91Data, italy: ita91Data, france: fra91Data, portugal: por91Data, netherlands: ned91Data, scotland: sco91Data, ukraine: ukr91Data },
   "1992": { england: eng92Data, germany: ger92Data, spain: esp92Data, italy: ita92Data, france: fra92Data, russia: rus92Data, portugal: por92Data, netherlands: ned92Data, scotland: sco92Data, ukraine: ukr92Data },

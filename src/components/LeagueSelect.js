@@ -19,6 +19,7 @@ import {
   calculateSquadTacticalAverages,
   findSquadForTeam
 } from '../data/rosters/rosterRegistry';
+import { getPreferredTeamFormation } from './FormationTactics';
 import { applyTeamTheme } from '../utils/themeManager';
 
 
@@ -55,18 +56,19 @@ const TeamFlag = ({ primaryColor, secondaryColor, size = 120 }) => {
   );
 };
 
-// Berger tables generator
+// Berger tables generator (inserts a bye slot when teamsList.length is odd)
 const generateRoundRobinFixtures = (teamsList) => {
-  const n = teamsList.length; // 22 teams
+  const list = teamsList.length % 2 === 0 ? [...teamsList] : [...teamsList, null];
+  const n = list.length;
   const fixtures = [];
-  const list = [...teamsList];
 
-  // First Leg (21 Rounds)
+  // First Leg
   for (let round = 0; round < n - 1; round++) {
     const roundFixtures = [];
     for (let i = 0; i < n / 2; i++) {
       const home = list[i];
       const away = list[n - 1 - i];
+      if (!home || !away) continue;
       if (round % 2 === 0) {
         roundFixtures.push({ homeId: home.idnum, awayId: away.idnum, played: false, homeScore: 0, awayScore: 0 });
       } else {
@@ -77,7 +79,7 @@ const generateRoundRobinFixtures = (teamsList) => {
     list.splice(1, 0, list.pop());
   }
 
-  // Second Leg (21 Rounds, swapped home/away)
+  // Second Leg (swapped home/away)
   for (let round = 0; round < n - 1; round++) {
     const roundFixtures = fixtures[round].map(f => ({
       homeId: f.awayId,
@@ -482,7 +484,7 @@ export default function LeagueSelect() {
     // Clear all previous rosters and lineups from localStorage to start fresh
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith("retro_roster_") || key.startsWith("retro_lineup_") || key.startsWith("retro_roles_"))) {
+      if (key && (key.startsWith("retro_roster_") || key.startsWith("retro_lineup_") || key.startsWith("retro_roles_") || key.startsWith("retro_formation_"))) {
         localStorage.removeItem(key);
       }
     }
@@ -490,8 +492,10 @@ export default function LeagueSelect() {
     let startingBudget = 10.0;
     let startingPayrollBudget = null;
     let startingWageCap = null;
+    let startingFormation = "4-4-2";
     try {
       const details = await getTeamDetails(activeTeamObj.name, season);
+      startingFormation = getPreferredTeamFormation(activeTeamObj.name, season, details);
       if (details && details.finances) {
         if (typeof details.finances.transferBudget === 'number') {
           startingBudget = details.finances.transferBudget;
@@ -587,7 +591,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
         const rules = europeanCup === "cl" ? clibRules[season] : csudRules[season];
 
         if (rules) {
-          const totalDomesticRounds = (roster.length - 1) * 2;
+          const totalDomesticRounds = fixtures.length;
           const dynamicSchedules = generateDynamicSchedules(totalDomesticRounds, rules);
           calendar = [];
           for (let r = 1; r <= totalDomesticRounds; r++) {
@@ -726,7 +730,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
         const rules = europeanCup === "cl" ? clRules[season] : (europeanCup === "uefa" ? uefaRules[season] : ueclRules[season]);
 
         // Initialize Calendar
-        const totalDomesticRounds = (roster.length - 1) * 2;
+        const totalDomesticRounds = fixtures.length;
         const dynamicSchedules = generateDynamicSchedules(totalDomesticRounds, rules);
         calendar = [];
         for (let r = 1; r <= totalDomesticRounds; r++) {
@@ -1001,7 +1005,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
       } // end if (europeanCup && activeQualifiers)
     } // end else (European Cup)
 
-    const totalDomesticRounds = (roster.length - 1) * 2;
+    const totalDomesticRounds = fixtures.length;
     if (!calendar) {
       calendar = [];
       for (let r = 1; r <= totalDomesticRounds; r++) {
@@ -1076,6 +1080,8 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
       lastTransferWindow: ""
     };
 
+    localStorage.setItem("retro_player_formation", startingFormation);
+    localStorage.setItem(`retro_formation_${activeTeamObj.name}_${leagueState.season}`, startingFormation);
     localStorage.removeItem("retro_manager_profile");
     localStorage.setItem("retro_league_career", JSON.stringify(leagueState));
     applyTeamTheme(leagueState.teams?.find(t => t.idnum === leagueState.playerTeamId));
@@ -1083,9 +1089,9 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
     navigate("/league/dashboard");
   };
 
-  // Generate Year Array (1990/91 to 2025/26)
+  // Generate Year Array (1989/90 to 2025/26)
   const seasonsList = [];
-  for (let y = 1990; y <= 2025; y++) {
+  for (let y = 1989; y <= 2025; y++) {
     seasonsList.push(`${y}`);
   }
 
@@ -1098,12 +1104,12 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
   return (
     <div className="Match team-select-container">
 
-      {/* STEP 1: Season Year Selector (1990/91 - 2025/26) */}
+      {/* STEP 1: Season Year Selector (1989/90 - 2025/26) */}
       {step === "season" && (
         <div className="animated-slide-in" style={{ width: '100%', maxWidth: '880px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
           <div className="matchheader selector-header">
             <h1 className="glowing-header-text">CHOOSE SEASON</h1>
-            <p className="lobby-subtitle">SELECT STARTING CAMPAIGN YEAR (1990/91 – 2025/26)</p>
+            <p className="lobby-subtitle">SELECT STARTING CAMPAIGN YEAR (1989/90 – 2025/26)</p>
           </div>
 
           <div className="team-select-card" style={{ width: '100%', padding: '26px', maxWidth: '880px' }}>

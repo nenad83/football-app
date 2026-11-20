@@ -1,7 +1,12 @@
 // src/utils/newsGenerator.js
 // Utility to generate Football Manager-style dynamic news stories
 
-import { getPrebuiltRosterSync } from '../data/rosters/rosterRegistry';
+import {
+  getPrebuiltRosterSync,
+  getTeamDetailsSync,
+  resolveHistoricalFormationOverride
+} from '../data/rosters/rosterRegistry';
+import { getCPUFormation } from '../components/FormationTactics';
 
 export const CATEGORY_CONFIG = {
   match: { label: 'MATCH RECAP', color: '#00ff64', icon: '⚽' },
@@ -1095,7 +1100,7 @@ Points dropped and gained this round will have significant implications as clubs
     }
   }
 
-  // 7. Tactical Preview for Next Opponent (Qualitative ratings + Key players list)
+  // 7. Tactical Preview for Next Opponent (Qualitative ratings + Preferred Tactic + Key players list)
   if (nextOpponent) {
     const nName = nextOpponent.name || "Next Opponent";
     const attNum = nextOpponent.attack || 3;
@@ -1106,15 +1111,27 @@ Points dropped and gained this round will have significant implications as clubs
     const midLabel = getQualitativeRating(midNum);
     const defLabel = getQualitativeRating(defNum);
 
+    const oppDetails = getTeamDetailsSync(nName, season);
+    const oppManagerName = (oppDetails?.manager?.name && oppDetails.manager.name !== "Unknown Manager")
+      ? oppDetails.manager.name
+      : null;
+    const seasonYrNum = parseInt(String(season || "2001").split("/")[0], 10) || 2001;
+    const oppFormation = nextOpponent.preferredFormation
+      || resolveHistoricalFormationOverride(nName, oppManagerName, seasonYrNum)
+      || oppDetails?.manager?.preferredFormation
+      || oppDetails?.preferredFormation
+      || getCPUFormation(nextOpponent, { attack: 6, midfield: 6, defense: 6 }, seasonYrNum)
+      || "4-4-2";
+
     const keyPlayers = nextOpponent.keyPlayers || getKeyOpponentPlayers(nName, season);
 
     let tacticalAdvice = "Maintain a balanced tactical shape.";
     if (attNum > defNum && attNum > midNum) {
-      tacticalAdvice = `${nName} boast a dangerous, attack-minded setup. Disciplined defensive screening and caution on turnovers will be essential.`;
+      tacticalAdvice = `${nName} boast a dangerous, attack-minded setup in their ${oppFormation} system. Disciplined defensive screening and caution on turnovers will be essential.`;
     } else if (defNum > attNum && defNum > midNum) {
-      tacticalAdvice = `${nName} rely on a disciplined and stubborn defensive low block. Quick wing progression and high pressing will be crucial to break them down.`;
+      tacticalAdvice = `${nName} rely on a disciplined and stubborn defensive low block in a ${oppFormation} shape. Quick wing progression and high pressing will be crucial to break them down.`;
     } else if (midNum >= attNum && midNum >= defNum) {
-      tacticalAdvice = `${nName} feature a commanding midfield unit. Competing for second balls and maintaining possession tempo will decide the match.`;
+      tacticalAdvice = `${nName} feature a commanding midfield unit operating in a ${oppFormation} formation. Competing for second balls and maintaining possession tempo will decide the match.`;
     }
 
     let keyPlayersText = "";
@@ -1129,9 +1146,11 @@ Points dropped and gained this round will have significant implications as clubs
       dateStr: `Matchday ${round}`,
       category: "preview",
       categoryLabel: CATEGORY_CONFIG.preview.label,
-      title: `Tactical Scouting Report: Preparing for ${nName}`,
-      summary: `Scouting analysis on ${nName}: Attack is ${attLabel}, Midfield is ${midLabel}, Defense is ${defLabel}.`,
+      title: `Tactical Scouting Report: Preparing for ${nName} (${oppFormation})`,
+      summary: `Scouting analysis on ${nName} (Preferred Tactic: ${oppFormation}): Attack is ${attLabel}, Midfield is ${midLabel}, Defense is ${defLabel}.`,
       body: `Scouts have submitted their tactical dossier on our upcoming opponents, ${nName}.
+
+📐 Expected Tactical Formation: ${nName}${oppManagerName ? ` (under ${oppManagerName})` : ""} are expected to line up in their preferred ${oppFormation} formation.
 
 Our analysts rate their attacking threat as ${attLabel}, their midfield balance as ${midLabel}, and their defensive unit as ${defLabel}.
 
@@ -1140,6 +1159,8 @@ ${tacticalAdvice}${keyPlayersText}
 Manager ${managerName} is expected to adjust training routines this week to exploit their tactical vulnerabilities.`,
       previewWidget: {
         opponentName: nName,
+        formation: oppFormation,
+        managerName: oppManagerName,
         attackLabel: attLabel,
         midfieldLabel: midLabel,
         defenseLabel: defLabel,

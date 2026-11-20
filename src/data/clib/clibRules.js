@@ -1,3 +1,4 @@
+import clib89Data from './clib89.json';
 import clib90Data from './clib90.json';
 import clib91Data from './clib91.json';
 import clib92Data from './clib92.json';
@@ -53,6 +54,12 @@ const standardSchedule = [
 ];
 
 export const clibRules = {
+  "1989": {
+    teamsData: clib89Data,
+    format: "group_then_knockout",
+    stages: ["group_stage", "round_of_16", "quarter_finals", "semi_finals", "final"],
+    calendarSchedules: standardSchedule
+  },
   "1990": {
     teamsData: clib90Data,
     format: "group_then_knockout",

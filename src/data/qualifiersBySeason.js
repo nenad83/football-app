@@ -15,7 +15,7 @@ export const qualifiersBySeason = {
       england: [],
       spain: ["Barcelona", "Espanyol"],
       germany: ["Werder Bremen", "Borussia Dortmund", "Bayer Leverkusen"],
-      italy: ["Juventus", "AC Milan", "Internazionale", "Hellas Verona"],
+      italy: ["Juventus", "AC Milan", "Inter Milan", "Hellas Verona"],
       france: ["Toulouse"],
       portugal: ["Chaves", "Vitória de Guimarães"],
       netherlands: ["Feyenoord", "FC Utrecht"]
@@ -35,7 +35,7 @@ export const qualifiersBySeason = {
       england: [],
       spain: ["Real Sociedad"],
       germany: ["1. FC Köln", "VfB Stuttgart", "Bayern Munich"],
-      italy: ["Napoli", "Roma", "Internazionale"],
+      italy: ["Napoli", "Roma", "Inter Milan"],
       france: ["Girondins Bordeaux"],
       portugal: ["Benfica", "Sporting CP", "Belenenses"],
       netherlands: ["FC Groningen"]
@@ -46,10 +46,11 @@ export const qualifiersBySeason = {
       england: [],
       spain: ["Real Madrid"],
       germany: ["Bayern Munich"],
-      italy: ["Internazionale", "AC Milan"],
+      italy: ["Inter Milan", "AC Milan"],
       france: ["Olympique Marseille"],
       portugal: ["Benfica"],
-      netherlands: ["PSV"]
+      netherlands: ["PSV"],
+      scotland: ["Rangers"]
     },
     uefa: {
       england: [],
@@ -58,7 +59,8 @@ export const qualifiersBySeason = {
       italy: ["Juventus", "Napoli", "Fiorentina"],
       france: ["Paris Saint-Germain", "AJ Auxerre", "Sochaux"],
       portugal: ["Porto"],
-      netherlands: []
+      netherlands: [],
+      scotland: ["Dundee United", "Hibernian"]
     }
   },
   "1990": {
@@ -101,7 +103,7 @@ export const qualifiersBySeason = {
       england: ["Liverpool"],
       spain: ["Real Madrid", "Atletico Madrid", "Osasuna", "Real Oviedo"],
       germany: ["Bayern Munich", "Eintracht Frankfurt", "Stuttgart", "Hamburg"],
-      italy: ["Torino", "Genoa", "Internazionale", "Parma"],
+      italy: ["Torino", "Genoa", "Inter Milan", "Parma"],
       france: ["Auxerre", "Monaco", "Lyon", "Cannes"],
       portugal: ["Porto", "Sporting CP", "Boavista", "Salgueiros"],
       netherlands: ["Ajax", "FC Groningen", "FC Utrecht"],
@@ -478,7 +480,7 @@ export const qualifiersBySeason = {
       england: ["Chelsea", "Manchester United", "Liverpool", "Arsenal"],
       spain: ["Barcelona", "Real Madrid", "Valencia"],
       germany: ["Bayern Munich", "Werder Bremen", "Hamburg"],
-      italy: ["Internazionale", "AS Roma", "AC Milan"],
+      italy: ["Inter Milan", "AS Roma", "AC Milan"],
       france: ["Lyon", "Lille", "Bordeaux"],
       russia: ["CSKA Moscow", "Spartak Moscow"],
       portugal: ["Porto", "Sporting CP", "Benfica"],

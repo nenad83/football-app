@@ -3458,8 +3458,8 @@ export default function Match() {
                   final: null
                 };
               }
-            } else if (seasonShort === "1990" || seasonShort === "1991" || seasonShort === "1992" || seasonShort === "1993" || seasonShort === "1994" || seasonShort === "1995" || seasonShort === "1996" || seasonShort === "1997" || seasonShort === "1998" || seasonShort === "1999" || seasonShort === "2000" || seasonShort === "2001" || seasonShort === "2002" || seasonShort === "2003" || seasonShort === "2004" || seasonShort === "2005" || seasonShort === "2006" || seasonShort === "2007" || seasonShort === "2008") {
-              if (stateCopy.region === "south_america" && (seasonShort === "1990" || seasonShort === "1991" || seasonShort === "1992" || seasonShort === "1993" || seasonShort === "1994" || seasonShort === "1995" || seasonShort === "1996" || seasonShort === "1997" || seasonShort === "1998" || seasonShort === "1999")) {
+            } else if (seasonShort === "1989" || seasonShort === "1990" || seasonShort === "1991" || seasonShort === "1992" || seasonShort === "1993" || seasonShort === "1994" || seasonShort === "1995" || seasonShort === "1996" || seasonShort === "1997" || seasonShort === "1998" || seasonShort === "1999" || seasonShort === "2000" || seasonShort === "2001" || seasonShort === "2002" || seasonShort === "2003" || seasonShort === "2004" || seasonShort === "2005" || seasonShort === "2006" || seasonShort === "2007" || seasonShort === "2008") {
+              if (stateCopy.region === "south_america" && (seasonShort === "1989" || seasonShort === "1990" || seasonShort === "1991" || seasonShort === "1992" || seasonShort === "1993" || seasonShort === "1994" || seasonShort === "1995" || seasonShort === "1996" || seasonShort === "1997" || seasonShort === "1998" || seasonShort === "1999")) {
                 const groups = ["A", "B", "C", "D", "E"];
                 const winnersList = [];
                 const runnersUpList = [];

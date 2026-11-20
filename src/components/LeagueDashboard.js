@@ -13,7 +13,7 @@ import { qualifiersBySeason } from '../data/qualifiersBySeason';
 import { qualifiersBySeasonSA } from '../data/qualifiersBySeasonSA';
 import CountryFlag from './CountryFlag';
 import RoundResultsModal from './RoundResultsModal';
-import { FormationTacticsModal, getSavedFormation, updateTeamStatsInStorage, getPreviousSeasonString } from './FormationTactics';
+import { FormationTacticsModal, getSavedFormation, getPreferredTeamFormation, updateTeamStatsInStorage, getPreviousSeasonString } from './FormationTactics';
 import { updatePlayerConditionsAndInjuries } from './Match';
 import TransferModal from './TransferModal';
 import NewsFeed from './NewsFeed';
@@ -200,11 +200,11 @@ const countryBackupTeams = {
   ]
 };
 
-// Berger tables generator for fixture creation
+// Berger tables generator for fixture creation (inserts a bye slot when teamsList.length is odd)
 const generateRoundRobinFixtures = (teamsList) => {
-  const n = teamsList.length;
+  const list = teamsList.length % 2 === 0 ? [...teamsList] : [...teamsList, null];
+  const n = list.length;
   const fixtures = [];
-  const list = [...teamsList];
 
   // First Leg
   for (let round = 0; round < n - 1; round++) {
@@ -212,6 +212,7 @@ const generateRoundRobinFixtures = (teamsList) => {
     for (let i = 0; i < n / 2; i++) {
       const home = list[i];
       const away = list[n - 1 - i];
+      if (!home || !away) continue;
       if (round % 2 === 0) {
         roundFixtures.push({ homeId: home.idnum, awayId: away.idnum, played: false, homeScore: 0, awayScore: 0 });
       } else {
@@ -1052,21 +1053,29 @@ export default function LeagueDashboard() {
             const newAtt = getQualitativeRating(att);
             const newMid = getQualitativeRating(mid);
             const newDef = getQualitativeRating(def);
-            if (pw.attackLabel !== newAtt || pw.midfieldLabel !== newMid || pw.defenseLabel !== newDef) {
+            const oppName = pw.opponentName || "Opponent";
+            const oppForm = pw.formation || getPreferredTeamFormation(oppName, parsedCareer.season);
+            if (pw.attackLabel !== newAtt || pw.midfieldLabel !== newMid || pw.defenseLabel !== newDef || pw.formation !== oppForm) {
               newsSanitized = true;
-              const oppName = pw.opponentName || "Opponent";
-              const newSummary = `Scouting analysis on ${oppName}: Attack is ${newAtt}, Midfield is ${newMid}, Defense is ${newDef}.`;
+              const newSummary = `Scouting analysis on ${oppName} (Preferred Tactic: ${oppForm}): Attack is ${newAtt}, Midfield is ${newMid}, Defense is ${newDef}.`;
               let newBody = item.body || "";
               newBody = newBody.replace(
                 /rate their attacking threat as [^,]+, their midfield balance as [^,]+, and their defensive unit as [^.\n]+/,
                 `rate their attacking threat as ${newAtt}, their midfield balance as ${newMid}, and their defensive unit as ${newDef}`
               );
+              if (!newBody.includes("Expected Tactical Formation:")) {
+                newBody = newBody.replace(
+                  `Scouts have submitted their tactical dossier on our upcoming opponents, ${oppName}.`,
+                  `Scouts have submitted their tactical dossier on our upcoming opponents, ${oppName}.\n\n📐 Expected Tactical Formation: ${oppName} are expected to line up in their preferred ${oppForm} formation.`
+                );
+              }
               return {
                 ...item,
                 summary: newSummary,
                 body: newBody,
                 previewWidget: {
                   ...pw,
+                  formation: oppForm,
                   attackLabel: newAtt,
                   midfieldLabel: newMid,
                   defenseLabel: newDef
@@ -2109,7 +2118,7 @@ export default function LeagueDashboard() {
       });
 
       // Initialize calendar
-      const nextTotalRounds = (finalNextSeasonTeams.length - 1) * 2;
+      const nextTotalRounds = (finalNextSeasonTeams.length % 2 === 0 ? finalNextSeasonTeams.length - 1 : finalNextSeasonTeams.length) * 2;
       const dynamicSchedules = generateDynamicSchedules(nextTotalRounds, rules);
       nextCalendar = [];
       for (let r = 1; r <= nextTotalRounds; r++) {
@@ -2311,7 +2320,7 @@ export default function LeagueDashboard() {
     }
 
     // Initialize Domestic Cup for next season
-    const nextTotalRounds = (finalNextSeasonTeams.length - 1) * 2;
+    const nextTotalRounds = nextFixtures.length;
     const nextStartYearStr = nextSeasonStr.split("/")[0];
     const rawNextD1 = finalNextSeasonTeams.map(t => ({ ...t, division: t.division || 1 }));
     const rawNextD2 = ((leagueDataMapD2[nextStartYearStr] && leagueDataMapD2[nextStartYearStr][finalCountry]) || []).map(t => ({ ...t, division: 2 }));
@@ -2357,6 +2366,12 @@ export default function LeagueDashboard() {
       payrollBudget: nextPayrollBudget,
       lastTransferWindow: ""
     };
+
+    const nextClubPreferredFormation = isPlayerRenewing
+      ? (getSavedFormation() || getPreferredTeamFormation(selectedTeamName, nextStartYearStr, nextDetails))
+      : getPreferredTeamFormation(selectedTeamName, nextStartYearStr, nextDetails);
+    localStorage.setItem("retro_player_formation", nextClubPreferredFormation);
+    localStorage.setItem(`retro_formation_${selectedTeamName}_${nextSeasonStr}`, nextClubPreferredFormation);
 
     localStorage.setItem("retro_league_career", JSON.stringify(nextLeagueState));
     setLeagueState(nextLeagueState);
@@ -3247,8 +3262,8 @@ export default function LeagueDashboard() {
       return;
     }
 
-    if (seasonShort === "1990" || seasonShort === "1991" || seasonShort === "1992" || seasonShort === "1993" || seasonShort === "1994" || seasonShort === "1995" || seasonShort === "1996" || seasonShort === "1997" || seasonShort === "1998" || seasonShort === "1999" || seasonShort === "2000" || seasonShort === "2001" || seasonShort === "2002" || seasonShort === "2003" || seasonShort === "2004" || seasonShort === "2005" || seasonShort === "2006" || seasonShort === "2007" || seasonShort === "2008") {
-      if (isSouthAmerica && (seasonShort === "1990" || seasonShort === "1991" || seasonShort === "1992" || seasonShort === "1993" || seasonShort === "1994" || seasonShort === "1995" || seasonShort === "1996" || seasonShort === "1997" || seasonShort === "1998" || seasonShort === "1999")) {
+    if (seasonShort === "1989" || seasonShort === "1990" || seasonShort === "1991" || seasonShort === "1992" || seasonShort === "1993" || seasonShort === "1994" || seasonShort === "1995" || seasonShort === "1996" || seasonShort === "1997" || seasonShort === "1998" || seasonShort === "1999" || seasonShort === "2000" || seasonShort === "2001" || seasonShort === "2002" || seasonShort === "2003" || seasonShort === "2004" || seasonShort === "2005" || seasonShort === "2006" || seasonShort === "2007" || seasonShort === "2008") {
+      if (isSouthAmerica && (seasonShort === "1989" || seasonShort === "1990" || seasonShort === "1991" || seasonShort === "1992" || seasonShort === "1993" || seasonShort === "1994" || seasonShort === "1995" || seasonShort === "1996" || seasonShort === "1997" || seasonShort === "1998" || seasonShort === "1999")) {
         const groups = ["A", "B", "C", "D", "E"];
         const winnersList = [];
         const runnersUpList = [];

@@ -10,7 +10,31 @@ const seasonTransferCache = new Map();
 
 const ROSTER_BASE_URL = (process.env.REACT_APP_ROSTER_DATA_URL || "https://pub-6fad1cd62b6f435eb0e2677d784e497c.r2.dev").replace(/\/+$/, "");
 
+async function tryFetchLocalJson(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const ct = (res.headers && res.headers.get && res.headers.get("content-type")) || "";
+    if (ct && !ct.toLowerCase().includes("json")) return null;
+    return await res.json();
+  } catch (err) {
+    return null;
+  }
+}
+
 async function fetchRosterData(filename) {
+  const isLocalDev = typeof window !== "undefined" &&
+    window.location &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
+  // On localhost, prefer freshly generated local /data/rosters10/ files first
+  if (isLocalDev) {
+    const local10 = await tryFetchLocalJson(`/data/rosters10/${filename}`);
+    if (local10) return local10;
+    const localBase = await tryFetchLocalJson(`/data/rosters/${filename}`);
+    if (localBase) return localBase;
+  }
+
   // 1. Try remote Cloudflare R2
   try {
     const res = await fetch(`${ROSTER_BASE_URL}/${filename}`);
@@ -22,22 +46,130 @@ async function fetchRosterData(filename) {
   }
 
   // 2. Try local /data/rosters10/
-  try {
-    const res = await fetch(`/data/rosters10/${filename}`);
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch (err) {}
+  const fallback10 = await tryFetchLocalJson(`/data/rosters10/${filename}`);
+  if (fallback10) return fallback10;
 
   // 3. Fallback to local /data/rosters/
-  try {
-    const res = await fetch(`/data/rosters/${filename}`);
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch (err) {
-    console.warn(`[rosterRegistry] Local fallback failed for ${filename}:`, err);
+  const fallbackBase = await tryFetchLocalJson(`/data/rosters/${filename}`);
+  if (fallbackBase) return fallbackBase;
+
+  return null;
+}
+
+/**
+ * Curated historical formation overrides for clubs/managers where CM01/02's 9-formation
+ * enum could not distinguish sub-formations (e.g. 4-2-3-1, 3-4-2-1, 4-3-1-2, 4-3-2-1)
+ * or where SI's original database had a known formation typo (e.g. Hitzfeld's 4-2-4 code).
+ */
+export function resolveHistoricalFormationOverride(teamName, managerName, seasonYear) {
+  const yr = parseInt(normalizeSeasonYear(seasonYear), 10) || 2001;
+  const t = String(teamName || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const m = String(managerName || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  if (m.includes('hitzfeld')) {
+    return yr <= 1997 ? '3-5-2' : '5-3-2';
   }
+  if (t.includes('dortmund') && yr >= 1991 && yr <= 1997) return '3-5-2';
+
+  if (t === 'liverpool') {
+    if (yr >= 2005 && yr <= 2009) return '4-2-3-1';
+    if (yr >= 2016 && yr <= 2023) return '4-3-3';
+    if (yr >= 2024) return '4-2-3-1';
+  }
+
+  if (t.includes('manchester united') || t === 'man utd') {
+    if (yr >= 1989 && yr <= 2006) return '4-4-2';
+    if (yr >= 2014 && yr <= 2024) return '4-2-3-1';
+    if (yr >= 2025 || m.includes('amorim')) return '3-4-2-1';
+  }
+
+  if (t.includes('manchester city') || t === 'man city') {
+    if (yr >= 2011 && yr <= 2015) return '4-2-3-1';
+    if (yr >= 2016) return '4-3-3';
+  }
+
+  if (t === 'arsenal') {
+    if (yr >= 1989 && yr <= 2005) return '4-4-2';
+    if (yr >= 2009 && yr <= 2016) return '4-2-3-1';
+    if (yr === 2020) return '3-4-3';
+    if (yr >= 2021 && yr <= 2022) return '4-2-3-1';
+    if (yr >= 2023) return '4-3-3';
+  }
+
+  if (t === 'chelsea') {
+    if (yr >= 2004 && yr <= 2007) return '4-3-3';
+    if (yr === 2009) return '4-1-2-1-2';
+    if (yr >= 2011 && yr <= 2015) return '4-2-3-1';
+    if (yr >= 2016 && yr <= 2017) return '3-4-3';
+    if (yr >= 2020 && yr <= 2022) return '3-4-2-1';
+    if (yr >= 2023) return '4-2-3-1';
+  }
+
+  if (t.includes('tottenham')) {
+    if (yr >= 2014 && yr <= 2020) return '4-2-3-1';
+    if (yr >= 2021 && yr <= 2022) return '3-4-3';
+    if (yr >= 2023) return '4-2-3-1';
+  }
+
+  if (t.includes('milan') && !t.includes('inter')) {
+    if (yr >= 1989 && yr <= 1995) return '4-4-2';
+    if (yr >= 2002 && yr <= 2006) return '4-3-1-2';
+    if (yr >= 2007 && yr <= 2008) return '4-3-2-1';
+    if (yr >= 2010 && yr <= 2012) return '4-3-1-2';
+    if (yr >= 2020 && yr <= 2024) return '4-2-3-1';
+  }
+
+  if (t === 'inter' || t === 'inter milan' || t === 'internazionale') {
+    if (yr >= 2006 && yr <= 2008) return '4-3-1-2';
+    if (yr === 2009) return '4-2-3-1';
+    if (yr >= 2019) return '3-5-2';
+  }
+
+  if (t.includes('juventus')) {
+    if (yr >= 1996 && yr <= 1998) return '4-3-1-2';
+    if (yr >= 2001 && yr <= 2003) return '4-3-1-2';
+    if (yr >= 2011 && yr <= 2014) return '3-5-2';
+    if (yr >= 2016 && yr <= 2017) return '4-2-3-1';
+  }
+
+  if ((t === 'roma' || t === 'as roma') && yr >= 2005 && yr <= 2008) return '4-2-3-1';
+  if (t.includes('atalanta') && yr >= 2017) return '3-4-1-2';
+  if (t.includes('napoli') && yr >= 2015 && yr <= 2018) return '4-3-3';
+
+  if (t.includes('real madrid')) {
+    if (yr >= 2000 && yr <= 2002) return '4-2-3-1';
+    if (yr >= 2010 && yr <= 2013) return '4-2-3-1';
+    if (yr >= 2014 && yr <= 2022) return '4-3-3';
+    if (yr === 2023) return '4-3-1-2';
+    if (yr >= 2024) return '4-3-3';
+  }
+
+  if (t.includes('barcelona') && !t.includes('sc') && !t.includes('guayaquil')) {
+    if (yr >= 1989 && yr <= 1996) return '4-3-3';
+    if (yr >= 2004 && yr <= 2023) return '4-3-3';
+    if (yr >= 2024) return '4-2-3-1';
+  }
+
+  if (t.includes('bayern')) {
+    if (yr >= 1989 && yr <= 1998) return '5-3-2';
+    if (yr >= 2010 && yr <= 2012) return '4-2-3-1';
+    if (yr >= 2013 && yr <= 2015) return '4-1-4-1';
+    if (yr >= 2016) return '4-2-3-1';
+  }
+
+  if (t.includes('dortmund')) {
+    if (yr >= 2010 && yr <= 2016) return '4-2-3-1';
+    if (yr >= 2018 && yr <= 2019) return '4-2-3-1';
+  }
+
+  if (t.includes('leverkusen')) {
+    if (yr >= 2001 && yr <= 2002) return '4-1-4-1';
+    if (yr >= 2022) return '3-4-2-1';
+  }
+
+  if (m.includes('amorim')) return '3-4-2-1';
+  if (m.includes('gasperini') && yr >= 2016) return '3-4-1-2';
+  if (m.includes('xabi alonso') && t.includes('leverkusen')) return '3-4-2-1';
 
   return null;
 }
@@ -173,6 +305,14 @@ function syncSeasonDataWithLocalStorage(seasonData, season) {
  */
 export async function loadSeasonRosters(season) {
   const year = normalizeSeasonYear(season);
+  // Warm teamDetails cache in parallel so manager & preferredFormation are ready synchronously
+  if (!seasonDetailsCache.has(year)) {
+    fetchRosterData(`teamDetails${year}.json`).then(det => {
+      if (det && !seasonDetailsCache.has(year)) {
+        seasonDetailsCache.set(year, det);
+      }
+    }).catch(() => {});
+  }
   if (seasonRosterCache.has(year)) {
     return syncSeasonDataWithLocalStorage(seasonRosterCache.get(year), season);
   }

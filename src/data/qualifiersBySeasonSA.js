@@ -1,6 +1,18 @@
 // South American continental qualifiers by season (2002-2026)
 // Defines domestic spots for Copa Libertadores (cl) and Copa Sudamericana (uefa)
 export const qualifiersBySeasonSA = {
+  "1989": {
+    cl: {
+      argentina: ["Boca Juniors", "Racing Club"],
+      brazil: ["Bahia", "Internacional"],
+      colombia: ["Millonarios", "Atletico Nacional"]
+    },
+    uefa: {
+      argentina: [],
+      brazil: [],
+      colombia: []
+    }
+  },
   "1990": {
     cl: {
       argentina: ["Independiente", "River Plate"],

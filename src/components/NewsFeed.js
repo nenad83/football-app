@@ -568,10 +568,38 @@ export default function NewsFeed({
 
                 return (
                   <div style={{ background: 'rgba(0, 229, 255, 0.05)', border: '1px solid rgba(0, 229, 255, 0.2)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <h4 style={{ margin: 0, fontSize: '11px', color: '#00e5ff', fontFamily: 'Orbitron', letterSpacing: '1px' }}>
-                      🔍 OPPONENT SCOUTING: {pw.opponentName}
-                    </h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center', fontSize: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <h4 style={{ margin: 0, fontSize: '11px', color: '#00e5ff', fontFamily: 'Orbitron', letterSpacing: '1px' }}>
+                        🔍 OPPONENT SCOUTING: {pw.opponentName}
+                      </h4>
+                      {pw.formation && (
+                        <span style={{
+                          background: 'rgba(0, 255, 100, 0.12)',
+                          border: '1px solid rgba(0, 255, 100, 0.4)',
+                          borderRadius: '6px',
+                          padding: '3px 9px',
+                          fontSize: '11px',
+                          fontFamily: 'Orbitron',
+                          fontWeight: 'bold',
+                          color: '#00ff64',
+                          letterSpacing: '0.5px'
+                        }}>
+                          ⚽ TACTIC: {pw.formation}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: pw.formation ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap: '8px', textAlign: 'center', fontSize: '12px' }}>
+                      {pw.formation && (
+                        <div style={{ background: 'rgba(0,0,0,0.35)', padding: '8px', borderRadius: '6px' }}>
+                          <span style={{ color: '#888', fontSize: '9px', display: 'block', textTransform: 'uppercase', marginBottom: '2px' }}>FORMATION</span>
+                          <strong style={{
+                            color: '#00e5ff',
+                            fontFamily: 'Orbitron', fontSize: '12px'
+                          }}>
+                            {pw.formation}
+                          </strong>
+                        </div>
+                      )}
                       <div style={{ background: 'rgba(0,0,0,0.35)', padding: '8px', borderRadius: '6px' }}>
                         <span style={{ color: '#888', fontSize: '9px', display: 'block', textTransform: 'uppercase', marginBottom: '2px' }}>ATTACK</span>
                         <strong style={{
