@@ -41,6 +41,7 @@ const UEFA_DIR = path.join(ROOT_DIR, 'src', 'data', 'uefa');
 const UECL_DIR = path.join(ROOT_DIR, 'src', 'data', 'uecl');
 const CLIB_DIR = path.join(ROOT_DIR, 'src', 'data', 'clib');
 const CSUD_DIR = path.join(ROOT_DIR, 'src', 'data', 'csud');
+const CONCACAF_DIR = path.join(ROOT_DIR, 'src', 'data', 'concacaf');
 
 // ---------------------------------------------------------------------------
 // 1. CLI ARGUMENT PARSING
@@ -228,10 +229,10 @@ function getRating10(currentAbility) {
   if (ca >= 140) return 8;  // Elite top-flight stars / internationals (Seaman, Wright, Campbell, Fowler, Ince, Pallister)
   if (ca >= 125) return 7;  // Solid Premier League starters (Southall, Cottee, Dixon, Winterburn, Bould, Keown)
   if (ca >= 110) return 6;  // Mid Premier League / Top Championship starters (Watson, Hinchcliffe, Parlour)
-  if (ca >= 95)  return 5;  // Lower Premier League squad / Championship regulars
-  if (ca >= 80)  return 4;  // Solid Championship / League One starters
-  if (ca >= 65)  return 3;  // League One / League Two regulars
-  if (ca >= 50)  return 2;  // League Two / National League
+  if (ca >= 95) return 5;  // Lower Premier League squad / Championship regulars
+  if (ca >= 80) return 4;  // Solid Championship / League One starters
+  if (ca >= 65) return 3;  // League One / League Two regulars
+  if (ca >= 50) return 2;  // League Two / National League
   return 1;                // Youth trainees / semi-pro
 }
 
@@ -298,11 +299,14 @@ const COUNTRY_MAP = {
   rus: "russia",
   sco: "scotland",
   ukr: "ukraine",
+  mex: "mexico",
+  usa: "usa",
   cl: "europe_cl",
   uefa: "europe_el",
   uecl: "europe_uecl",
   clib: "south_america_clib",
-  csud: "south_america_csud"
+  csud: "south_america_csud",
+  concacaf: "north_america_concacaf"
 };
 
 // ---------------------------------------------------------------------------
@@ -738,9 +742,10 @@ function decodePlayer10(staffBuf, staffOffset, cmDb, seasonYear, clubIdOverride 
 }
 
 // ---------------------------------------------------------------------------
-// 6. CLUB MATCHING ALGORITHM
+// 6. CLUB MATCHING ALGORITHM (Season-Agnostic & Squad-Size Aware)
 // ---------------------------------------------------------------------------
 const NAME_ALIASES = {
+  // Netherlands (Acronyms in CM database)
   "psv eindhoven": ["psv"],
   "psv": ["psv"],
   "nac breda": ["nac"],
@@ -750,17 +755,71 @@ const NAME_ALIASES = {
   "az alkmaar": ["az"],
   "az": ["az"],
   "roda jc": ["roda jc", "roda"],
+  "sparta rotterdam": ["sparta rotterdam", "sparta"],
+
+  // Greece & Eastern Europe
   "olympiacos": ["olympiakos", "olympiakos piraeus"],
+  "olympiacos piraeus": ["olympiakos piraeus", "olympiakos"],
   "panathinaikos": ["panathinaikos athens", "panathinaikos"],
-  "dinamo zagreb": ["nk dinamo", "dinamo", "nk dinamo zagreb", "croatia zagreb"],
-  "krylya sovetov": ["krylja sovetov samara", "krylja sovetov"],
-  "fc rostov": ["rostselmash", "rostov"],
+  "aek athens": ["aek", "aek athens"],
+  "paok": ["paok salonika", "paok"],
+  "dinamo zagreb": ["nk dinamo", "dinamo", "nk dinamo zagreb", "dinamo zagreb", "croatia zagreb", "nk croatia"],
+  "artmedia bratislava": ["fc artmedia bratislava", "artmedia bratislava", "artmedia petrzalka", "artmedia"],
+  "slovan bratislava": ["sk slovan bratislava", "slovan bratislava"],
+  "rapid bucuresti": ["fc rapid bucuresti", "rapid bucuresti", "rapid bucharest", "rapid"],
+  "dinamo bucuresti": ["fc dinamo bucuresti", "dinamo bucuresti", "dinamo bucharest"],
+  "maccabi petah tikva": ["maccabi petah tikva", "maccabi petach tikva", "m petah tikva"],
+
+  // Russia & Ukraine
+  "krylya sovetov": ["krylja sovetov samara", "krylja sovetov", "krylya sovetov"],
+  "krylia sovetov": ["krylja sovetov samara", "krylja sovetov", "krylya sovetov"],
+  "fc rostov": ["rostselmash", "rostselmash rostov na donu", "rostov"],
+  "fc moscow": ["fc moscow", "fk moskva", "moskva"],
+  "saturn moscow region": ["saturn moscow region", "saturn ramenskoe", "saturn ren tv", "saturn"],
   "dynamo moscow": ["dinamo moscow", "dynamo moscow"],
   "dynamo kiev": ["dinamo kiev", "dynamo kiev"],
-  "zenit st. petersburg": ["zenith st petersburg", "zenit st petersburg", "zenith"],
+  "dynamo kyiv": ["dinamo kiev", "dynamo kiev"],
+  "zenit st petersburg": ["zenith st petersburg", "zenit st petersburg", "zenith"],
+  "zenit saint petersburg": ["zenith st petersburg", "zenit st petersburg", "zenith"],
+  "shakhtar donetsk": ["shakhtar", "shakhtar donetsk"],
+  "cska moscow": ["cska moscow", "cska"],
+  "lokomotiv moscow": ["lokomotiv moscow", "lokomotiv"],
+  "torpedo moscow": ["torpedo moscow", "torpedo luzhniki"],
+  "fakel voronezh": ["fakel", "fakel voronezh"],
+  "rodina moscow": ["rodina", "fc rodina moscow"],
+
+  // Scandinavia, Scotland, Poland, MLS & Others
+  "brondby": ["brondbyernes idraets forening", "brondby", "brondby if"],
+  "fc copenhagen": ["fc kobenhavn", "kobenhavn", "copenhagen"],
+  "rosenborg": ["rosenborg bk", "rosenborg"],
+  "hearts": ["heart of midlothian", "hearts"],
   "celtic": ["glasgow celtic", "celtic"],
   "rangers": ["glasgow rangers", "rangers"],
-  "red star belgrade": ["crvena zvezda", "red star"],
+  "falkirk": ["falkirk fc", "falkirk"],
+  "dyskobolia grodzisk": ["groclin grodzisk", "groclin", "dyskobolia"],
+  "dyskobolia": ["groclin grodzisk", "groclin", "dyskobolia"],
+  "groclin": ["groclin grodzisk", "groclin"],
+  "groclin grodzisk": ["groclin grodzisk", "groclin"],
+  "halmstads bk": ["halmstad bk", "halmstad", "halmstads bk"],
+  "halmstad bk": ["halmstad bk", "halmstad"],
+  "red star belgrade": ["crvena zvezda", "red star", "red star belgrade"],
+  "red star": ["crvena zvezda", "red star"],
+  "crvena zvezda": ["crvena zvezda", "red star"],
+  "dc united": ["washington dc united", "washington d c united", "dc united"],
+  "d c united": ["washington dc united", "washington d c united", "dc united"],
+  "tigres uanl": ["tigres de la uanl", "tigres uanl", "tigres"],
+  "bodoglimt": ["bodo glimt", "fk bodo glimt"],
+  "union sg": ["union saint gilloise", "royale union saint gilloise", "union sg"],
+  "lask": ["lask linz", "lask"],
+  "viking": ["viking fk", "viking"],
+  "sabah": ["sabah fk", "sabah baku"],
+  "ado den haag": ["den haag", "fc den haag", "ado den haag"],
+  "sc cambuur": ["cambuur", "cambuur leeuwarden", "sc cambuur"],
+  "sbv excelsior": ["excelsior", "sbv excelsior"],
+  "telstar": ["sc telstar", "telstar"],
+
+  // Germany
+  "alemannia aachen": ["tsv alemannia aachen", "alemannia aachen", "aachen"],
   "cologne": ["1 fc koln", "1 fc koeln", "fc koln", "cologne"],
   "fc cologne": ["1 fc koln", "1 fc koeln", "fc koln", "cologne"],
   "freiburg": ["sc freiburg", "freiburg"],
@@ -769,114 +828,294 @@ const NAME_ALIASES = {
   "bayern munich": ["fc bayern munchen", "bayern munchen", "fc bayern"],
   "bayer leverkusen": ["bayer 04 leverkusen", "leverkusen"],
   "stuttgart": ["vfb stuttgart", "stuttgart"],
-  "nuremberg": ["1 fc nurnberg", "1 fc nuernberg", "nurnberg"],
-  "borussia monchengladbach": ["borussia m gladbach", "m gladbach", "monchengladbach"],
+  "nuremberg": ["1 fc nurnberg", "1 fc nuernberg", "nurnberg", "nuernberg"],
+  "nurnberg": ["1 fc nurnberg", "1 fc nuernberg", "nurnberg", "nuernberg"],
+  "borussia monchengladbach": ["borussia m gladbach", "m gladbach", "monchengladbach", "moenchengladbach"],
   "1860 munich": ["tsv 1860 munchen", "1860 munchen"],
-  "internazionale": ["inter", "internazionale milano", "inter milan"],
-  "inter milan": ["inter", "internazionale", "internazionale milano"],
-  "ac milan": ["milan", "ac milan"],
-  "milan": ["milan", "ac milan"],
-  "roma": ["as roma", "roma"],
-  "lazio": ["ss lazio", "lazio"],
-  "atletico madrid": ["atletico de madrid", "atletico madrid", "atletico"],
-  "athletic bilbao": ["athletic club bilbao", "athletic club", "athletic bilbao"],
-  "real betis": ["betis", "real betis balompie"],
-  "sporting gijon": ["sporting de gijon", "sporting gijon"],
-  "marseille": ["olympique de marseille", "marseille"],
-  "lyon": ["olympique lyonnais", "lyon"],
-  "paris saint germain": ["paris saint germain", "psg", "paris sg"],
-  "psg": ["paris saint germain", "psg", "paris sg"],
-  "sporting cp": ["sporting clube de portugal", "sporting cp", "sporting lisbon"],
-  "porto": ["fc porto", "porto"],
-  "benfica": ["sl benfica", "benfica"],
-  "boca juniors": ["boca", "boca juniors", "ca boca juniors"],
-  "river plate": ["river", "river plate", "ca river plate"],
-  "flamengo": ["cr flamengo", "flamengo"],
-  "corinthians": ["sc corinthians paulista", "corinthians"],
-  "sao paulo": ["sao paulo fc", "sao paulo"],
-  "palmeiras": ["se palmeiras", "palmeiras"],
-  "santos": ["santos fc", "santos"],
-  "gremio": ["gremio fbpa", "gremio"],
-  "atletico mineiro": ["clube atletico mineiro", "atletico mineiro"],
-  "deportivo la coruna": ["deportivo", "deportivo de la coruna", "deportivo la coruna"],
-  "racing santander": ["real racing club", "racing de santander", "racing santander"],
-  "coventry city": ["coventry", "coventry city"],
-  "hull city": ["hull", "hull city"],
-  "bolton wanderers": ["bolton", "bolton wanderers"],
-  "cardiff city": ["cardiff", "cardiff city"],
-  "lincoln city": ["lincoln", "lincoln city"],
-  "schalke 04": ["fc schalke 04", "schalke", "schalke 04"],
+  "tsv 1860 munich": ["tsv 1860 munchen", "1860 munchen", "tsv 1860 munich", "1860 munich"],
+  "1 fc koeln": ["1 fc koln", "1 fc koeln", "fc koln"],
+  "1 fc koln": ["1 fc koln", "1 fc koeln", "fc koln"],
+  "fc koln": ["1 fc koln", "1 fc koeln", "fc koln"],
+  "1 fc saarbruecken": ["1 fc saarbrucken", "1 fc saarbruecken", "saarbrucken", "saarbruecken"],
+  "saarbruecken": ["1 fc saarbrucken", "1 fc saarbruecken", "saarbrucken", "saarbruecken"],
+  "rot weiss oberhausen": ["rot weiss oberhausen", "oberhausen"],
+  "rot weiss essen": ["rot weiss essen", "essen"],
+  "rot weiss erfurt": ["rot weiss erfurt", "erfurt"],
+  "hertha bsc": ["hertha bsc berlin", "hertha bsc", "hertha berlin"],
+  "hertha berlin": ["hertha bsc berlin", "hertha bsc", "hertha berlin"],
+  "schalke 04": ["fc schalke 04", "schalke 04", "schalke"],
+  "hamburg": ["hamburger sv", "hsv", "hamburg"],
+  "werder bremen": ["sv werder bremen", "werder bremen", "bremen"],
+  "wolfsburg": ["vfl wolfsburg", "wolfsburg"],
+  "bochum": ["vfl bochum", "bochum"],
+  "hannover 96": ["hannover 96", "hannover"],
   "elversberg": ["sv elversberg", "elversberg"],
   "paderborn": ["sc paderborn 07", "sc paderborn", "paderborn"],
   "heidenheim": ["1 fc heidenheim", "heidenheim"],
   "st pauli": ["fc st pauli", "st pauli"],
   "fc st pauli": ["fc st pauli", "st pauli"],
-  "le mans": ["le mans fc", "le mans"],
+
+  // South America
+  "boca juniors": ["boca juniors", "ca boca juniors", "boca"],
+  "river plate": ["river plate", "ca river plate", "river"],
+  "santos": ["santos futebol clube", "santos fc", "santos"],
+  "flamengo": ["clube de regatas do flamengo", "cr flamengo", "flamengo"],
+  "corinthians": ["sport club corinthians paulista", "sc corinthians paulista", "corinthians"],
+  "palmeiras": ["sociedade esportiva palmeiras", "se palmeiras", "palmeiras"],
+  "gremio": ["gremio foot ball porto alegrense", "gremio fbpa", "gremio"],
+  "cruzeiro": ["cruzeiro esporte clube", "cruzeiro"],
+  "internacional": ["sport club internacional", "internacional"],
+  "sao paulo": ["sao paulo futebol clube", "sao paulo fc", "sao paulo"],
+  "athletico paranaense": ["clube atletico paranaense", "atletico paranaense"],
+  "atletico paranaense": ["clube atletico paranaense", "atletico paranaense"],
+  "atletico mineiro": ["clube atletico mineiro", "atletico mineiro"],
+  "vasco da gama": ["clube de regatas vasco da gama", "vasco da gama", "vasco"],
+  "ldu quito": ["liga universitaria de quito", "ldu de quito", "universitaria de quito"],
+  "la equidad": ["la equidad", "equidad"],
+  "boyaca chico": ["boyaca chico", "chico", "chico futbol club"],
+  "millonarios": ["millonarios", "los millonarios", "club deportivo los millonarios"],
+  "atletico huila": ["atletico huila", "huila", "club deportivo atletico huila"],
+  "santa fe": ["santa fe", "independiente santa fe", "club independiente santa fe"],
+  "america de cali": ["america de cali", "corporacion deportiva america de cali"],
+  "deportivo cali": ["deportivo cali", "asociacion club deportivo cali"],
+  "junior": ["junior", "corporacion popular deportiva junior", "atletico junior"],
+  "atletico nacional": ["atletico nacional", "corporacion deportiva club atletico nacional"],
+  "once caldas": ["once caldas", "corporacion deportiva once caldas"],
+  "independiente medellin": ["independiente medellin", "corporacion deportiva independiente medellin"],
+  "deportes tolima": ["deportes tolima", "corporacion club deportes tolima"],
+  "deportivo pasto": ["deportivo pasto", "asociacion deportivo pasto"],
+  "real cartagena": ["real cartagena", "corporacion deportiva real cartagena"],
+  "deportes quindio": ["deportes quindio", "corporacion deportes quindio"],
+  "envigado": ["envigado", "envigado futbol club"],
+  "cortulua": ["cortulua", "corporacion club deportivo tulua", "tulua"],
+  "pereira": ["deportivo pereira", "deportivo pereira futbol club", "pereira"],
+  "union magdalena": ["union magdalena", "asociacion deportiva club union magdalena"],
+  "bucaramanga": ["bucaramanga", "club atletico bucaramanga"],
+
+  // Portugal, Spain, France, Italy, England
+  "deportivo la coruna": ["deportivo de la coruna", "deportivo"],
+  "deportivo de la coruna": ["deportivo de la coruna", "deportivo"],
+  "la coruna": ["deportivo de la coruna", "deportivo"],
+  "racing santander": ["real racing club", "racing de santander", "racing santander"],
+  "poli ejido": ["polideportivo ejido", "poli ejido", "ejido"],
+  "racing ferrol": ["racing club de ferrol", "racing ferrol", "ferrol"],
+  "sporting gijon": ["sporting de gijon", "sporting gijon"],
+  "atletico madrid": ["club atletico de madrid", "atletico de madrid", "atletico madrid"],
+  "athletic bilbao": ["athletic club bilbao", "athletic bilbao", "athletic club"],
+  "real madrid": ["real madrid cf", "real madrid"],
+  "barcelona": ["fc barcelona", "barcelona"],
+  "real betis": ["betis", "real betis balompie"],
+  "castilla": ["real madrid b", "real madrid c f b", "real madrid cf b", "castilla"],
+  "sporting cp": ["sporting clube de portugal", "sporting cp", "sporting lisbon"],
+  "benfica": ["sport lisboa e benfica", "benfica", "sl benfica"],
+  "porto": ["futebol clube do porto", "porto", "fc porto"],
+  "braga": ["sporting clube de braga", "braga", "sc braga"],
+  "uniao de leiria": ["uniao desportiva de leiria", "uniao leiria", "leiria"],
+  "academico de viseu": ["academico viseu", "academico de viseu"],
+  "alverca": ["fc alverca", "alverca"],
+  "maritimo": ["cs maritimo", "maritimo"],
+  "inter": ["fc internazionale", "internazionale", "inter milan"],
+  "inter milan": ["fc internazionale", "internazionale", "inter milan"],
+  "milan": ["ac milan", "milan"],
+  "ac milan": ["ac milan", "milan"],
+  "juventus": ["juventus fc", "juventus"],
+  "roma": ["as roma", "roma"],
+  "lazio": ["ss lazio", "lazio"],
   "como": ["como 1907", "calcio como", "como"],
+  "marseille": ["olympique de marseille", "marseille"],
+  "lyon": ["olympique lyonnais", "lyon"],
+  "paris saint germain": ["paris saint germain", "paris saint germain fc", "psg"],
+  "paris sg": ["paris saint germain", "paris saint germain fc", "psg"],
+  "psg": ["paris saint germain", "paris saint germain fc", "psg"],
+  "ajaccio": ["ajaccio ac", "ac ajaccio", "ajaccio"],
+  "ac ajaccio": ["ajaccio ac", "ac ajaccio", "ajaccio"],
+  "le mans": ["le mans fc", "le mans"],
   "lens": ["rc lens", "lens"],
   "lille osc": ["lille", "losc lille", "lille osc"],
   "stade rennais": ["rennes", "stade rennais"],
   "fenerbahce": ["fenerbahce sk", "fenerbahce"],
   "besiktas": ["besiktas jk", "besiktas"],
   "trabzonspor": ["trabzonspor", "trabzon"],
-  "bodoglimt": ["bodo glimt", "fk bodo glimt"],
-  "union sg": ["union saint gilloise", "royale union saint gilloise", "union sg"],
-  "lask": ["lask linz", "lask"],
-  "viking": ["viking fk", "viking"],
-  "aek athens": ["aek", "aek athens"],
-  "slovan bratislava": ["sk slovan bratislava", "slovan bratislava"],
-  "sabah": ["sabah fk", "sabah baku"],
-  "dinamo zagreb": ["gnk dinamo zagreb", "nk dinamo", "dinamo zagreb"],
-  "fakel voronezh": ["fakel", "fakel voronezh"],
-  "rodina moscow": ["rodina", "fc rodina moscow"],
-  "ado den haag": ["den haag", "fc den haag", "ado den haag"],
-  "sc cambuur": ["cambuur", "cambuur leeuwarden", "sc cambuur"],
-  "sbv excelsior": ["excelsior", "sbv excelsior"],
-  "telstar": ["sc telstar", "telstar"],
-  "academico de viseu": ["academico viseu", "academico de viseu"],
-  "alverca": ["fc alverca", "alverca"],
-  "maritimo": ["cs maritimo", "maritimo"],
-  "falkirk": ["falkirk fc", "falkirk"]
+  "coventry city": ["coventry", "coventry city"],
+  "hull city": ["hull", "hull city"],
+  "bolton wanderers": ["bolton", "bolton wanderers"],
+  "cardiff city": ["cardiff", "cardiff city"],
+  "lincoln city": ["lincoln", "lincoln city"],
+  // Mexico (Liga MX)
+  "club america": ["club de futbol america", "america mex", "club america", "aguilas del america"],
+  "chivas guadalajara": ["cd guadalajara", "club guadalajara", "guadalajara", "chivas"],
+  "cruz azul": ["cruz azul", "club deportivo cruz azul"],
+  "pumas unam": ["unam pumas", "club universidad nacional", "pumas u n a m", "pumas"],
+  "tigres uanl": ["tigres uanl", "uanl tigres", "tigres de la uanl"],
+  "toluca": ["deportivo toluca", "toluca", "club deportivo toluca"],
+  "monterrey": ["cf monterrey", "club de futbol monterrey", "monterrey", "rayados"],
+  "pachuca": ["cf pachuca", "club de futbol pachuca", "pachuca"],
+  "santos laguna": ["santos laguna", "club santos laguna"],
+  "atlas": ["club deportivo atlas", "atlas de guadalajara", "atlas"],
+  "necaxa": ["club necaxa", "necaxa", "rayos del necaxa"],
+  "puebla": ["puebla fc", "club puebla", "puebla"],
+  "morelia": ["club monarcas morelia", "monarcas morelia", "atletico morelia", "morelia"],
+  "atlante": ["club de futbol atlante", "atlante fc", "atlante"],
+  "tecos uag": ["tecos uag", "uag tecos", "estudiantes tecos", "tecos"],
+  "leon": ["club leon", "leon fc", "la fiera leon"],
+  "veracruz": ["tiburones rojos de veracruz", "tiburones rojos", "veracruz"],
+  "tijuana": ["club tijuana", "xolos de tijuana", "tijuana", "club inter de tijuana"],
+  "queretaro": ["queretaro fc", "gallos blancos de queretaro", "queretaro"],
+  "atletico san luis": ["atletico de san luis", "atletico san luis", "club atletico de san luis"],
+  "san luis": ["atletico de san luis", "club san luis", "san luis fc"],
+  "jaguares chiapas": ["jaguares de chiapas", "chiapas fc", "jaguares chiapas"],
+  "dorados de sinaloa": ["dorados de sinaloa", "club social y deportivo dorados", "dorados"],
+  "lobos buap": ["lobos buap", "lobos de la buap"],
+  "toros neza": ["toros neza", "neza ut"],
+  "celaya": ["club atletico celaya", "atletico celaya", "celaya fc", "celaya"],
+  "irapuato": ["club de futbol irapuato", "atletico irapuato", "irapuato"],
+  "tampico madero": ["tampico madero", "tm futbol club"],
+  "correcaminos": ["correcaminos uat", "correcaminos"],
+  "udeg": ["cd leones negros de la udeg", "leones negros", "club universidad de guadalajara", "udeg"],
+  "cobras": ["cobras de ciudad juarez", "cobras juarez"],
+  "indios": ["indios de ciudad juarez", "club de futbol indios"],
+  "fc juarez": ["fc juarez", "bravos de juarez"],
+  "mazatlan": ["mazatlan fc", "mazatlan"],
+  // USA / Canada (MLS & CPL)
+  "d c united": ["dc united", "d c united", "washington dc united"],
+  "la galaxy": ["los angeles galaxy", "la galaxy"],
+  "ny nj metrostars": ["nynj metrostars", "ny nj metrostars", "metrostars", "new york red bulls"],
+  "new york red bulls": ["new york red bulls", "nynj metrostars", "ny nj metrostars"],
+  "kansas city wizards": ["kansas city wizards", "sporting kc", "sporting kansas city"],
+  "sporting kansas city": ["sporting kansas city", "sporting kc", "kansas city wizards"],
+  "dallas burn": ["dallas burn", "fc dallas"],
+  "fc dallas": ["fc dallas", "dallas burn"],
+  "columbus crew": ["columbus crew", "columbus"],
+  "new england revolution": ["new england revolution", "new england"],
+  "san jose clash": ["san jose clash", "san jose earthquakes"],
+  "san jose earthquakes": ["san jose earthquakes", "san jose clash"],
+  "colorado rapids": ["colorado rapids", "colorado"],
+  "chicago fire": ["chicago fire", "chicago"],
+  "tampa bay mutiny": ["tampa bay mutiny", "tampa bay"],
+  "miami fusion": ["miami fusion fc", "miami fusion"],
+  "chivas usa": ["cd chivas usa", "chivas usa"],
+  "real salt lake": ["real salt lake"],
+  "houston dynamo": ["houston dynamo fc", "houston dynamo"],
+  "toronto fc": ["toronto fc"],
+  "seattle sounders": ["seattle sounders fc", "seattle sounders"],
+  "philadelphia union": ["philadelphia union"],
+  "portland timbers": ["portland timbers"],
+  "vancouver whitecaps": ["vancouver whitecaps fc", "vancouver whitecaps"],
+  "montreal impact": ["montreal impact", "cf montreal"],
+  "cf montreal": ["cf montreal", "montreal impact"],
+  "new york city fc": ["new york city fc", "nycfc"],
+  "orlando city": ["orlando city sc", "orlando city"],
+  "atlanta united": ["atlanta united fc", "atlanta united"],
+  "minnesota united": ["minnesota united fc", "minnesota thunder"],
+  "lafc": ["los angeles fc", "lafc"],
+  "fc cincinnati": ["fc cincinnati"],
+  "inter miami": ["inter miami cf", "inter miami", "club internacional de futbol miami"],
+  "nashville sc": ["nashville sc"],
+  "austin fc": ["austin fc"],
+  "charlotte fc": ["charlotte fc"],
+  "st louis city sc": ["st louis city sc", "st louis city"],
+  "san diego fc": ["san diego fc"],
+  // CONCACAF (Central America / Caribbean / CPL)
+  "saprissa": ["deportivo saprissa", "saprissa"],
+  "alajuelense": ["ld alajuelense", "liga deportiva alajuelense", "alajuelense"],
+  "herediano": ["club sport herediano", "cs herediano", "herediano"],
+  "cd olimpia": ["cd olimpia", "deportivo olimpia", "olimpia hon"],
+  "motagua": ["club deportivo motagua", "cd motagua tegucigalpa", "motagua"],
+  "real espana": ["real cd espana", "real espana"],
+  "marathon": ["cd marathon", "deportivo marathon", "club deportivo marathon"],
+  "comunicaciones": ["club comunicaciones", "csd comunicaciones", "comunicaciones fc", "comunicaciones"],
+  "csd municipal": ["club social y deportivo municipal", "csd municipal", "municipal"],
+  "antigua gfc": ["antigua gfc", "antigua"],
+  "cd fas": ["club deportivo fas", "cd fas"],
+  "alianza fc": ["alianza fc slv", "alianza futbol club", "alianza fc"],
+  "isidro metapan": ["ad isidro metapan", "isidro metapan"],
+  "tauro": ["tauro fc", "tauro"],
+  "arabe unido": ["cd arabe unido", "arabe unido"],
+  "defence force": ["defence force fc", "defence force"],
+  "w connection": ["w connection", "williams connection"],
+  "harbour view": ["harbour view fc", "harbour view"],
+  "cavalier fc": ["cavalier fc", "cavalier sc"],
+  "violette": ["violette athletic club", "violette ac"],
+  "cibao fc": ["cibao fc"],
+  "forge fc": ["forge fc"],
+  "cavalry fc": ["cavalry fc"]
 };
 
 function findBestMatchingClub(teamName, cmClubs, playersByClubId) {
-  const normTarget = normalizeName(teamName);
+  const norm = normalizeName(teamName);
+  const aliasTargets = (NAME_ALIASES[norm] || [norm]).map(normalizeName);
 
-  // Exact Match
-  for (const club of cmClubs) {
-    if (club.normLong === normTarget || club.normShort === normTarget) {
-      return club;
-    }
+  const stripped = norm
+    .replace(/^(rc|rcd|uc|us|afc|cfc|cd|ca|as|ss|sk|nk|bk|fk|tsv)\s+/, '')
+    .replace(/\s+(bk|fk|sk|cf|fc|sc)$/, '')
+    .trim();
+  if (stripped && stripped !== norm && !aliasTargets.includes(stripped)) {
+    aliasTargets.push(stripped);
   }
 
-  // Aliases
-  const aliases = NAME_ALIASES[normTarget] || [];
-  for (const alias of aliases) {
-    const normAlias = normalizeName(alias);
-    for (const club of cmClubs) {
-      if (club.normLong === normAlias || club.normShort === normAlias) {
-        return club;
+  const candidates = [];
+
+  for (const target of aliasTargets) {
+    for (const c of cmClubs) {
+      let score = 0;
+
+      // 1. Exact match on long or short name
+      if (c.normLong === target || c.normShort === target) {
+        score += 120;
+      }
+      // 2. Exact word boundaries (e.g. "sc freiburg", "freiburg fc")
+      else if (c.normLong.startsWith(target + ' ') || c.normLong.endsWith(' ' + target) || c.normLong.includes(' ' + target + ' ')) {
+        score += 85;
+      }
+      else if (c.normShort.startsWith(target + ' ') || c.normShort.endsWith(' ' + target) || c.normShort.includes(' ' + target + ' ')) {
+        score += 80;
+      }
+      // 3. Substring match ONLY for longer distinctive names (avoids 2-letter matches like "ia" hitting "alemannia")
+      else if (target.length >= 4 && (c.normLong.includes(target) || c.normShort.includes(target))) {
+        score += 50;
+      }
+
+      if (score > 0) {
+        if (/\b(ii|b|2|u20|u21|u23|reserves)$/.test(c.normLong) || /\b(ii|b|2|u20|u21|u23)$/.test(c.normShort)) {
+          score -= 60;
+        }
+        const pCount = playersByClubId ? (playersByClubId.get(c.id)?.length || 0) : 0;
+        candidates.push({ c, score, pCount });
+      }
+    }
+    if (candidates.some(cand => cand.score >= 120 && cand.pCount >= 11)) break;
+  }
+
+  if (candidates.length === 0 && !NAME_ALIASES[norm]) {
+    const words = norm.split(' ').filter(w => !['fc', 'cf', 'ac', 'de', 'la', 'the', 'ca', 'cd', 'tsv', 'sc', 'vfb', 'sv', 'united', 'city', 'real', 'america', 'club', 'atletico', 'sporting', 'municipal', 'alianza', 'olimpia', 'deportivo', 'nacional', 'santos', 'union'].includes(w));
+    const coreWord = words[0];
+    if (coreWord && coreWord.length >= 4) {
+      const wordRe = new RegExp(`(^|\\s)${coreWord}(\\s|$)`);
+      for (const c of cmClubs) {
+        if (wordRe.test(c.normLong) || wordRe.test(c.normShort)) {
+          const isReserve = /\b(ii|b|2|u20|u21|u23|reserves)$/.test(c.normLong) || /\b(ii|b|2|u20|u21|u23)$/.test(c.normShort);
+          const pCount = playersByClubId ? (playersByClubId.get(c.id)?.length || 0) : 0;
+          candidates.push({ c, score: isReserve ? 10 : 30, pCount });
+        }
       }
     }
   }
 
-  // Substring inclusion
-  let bestCandidate = null;
-  let maxPlayers = -1;
+  if (candidates.length === 0) return null;
 
-  for (const club of cmClubs) {
-    const match = club.normLong.includes(normTarget) || normTarget.includes(club.normLong) ||
-                  club.normShort.includes(normTarget) || normTarget.includes(club.normShort);
-    if (match) {
-      const pCount = (playersByClubId.get(club.id) || []).length;
-      if (pCount > maxPlayers) {
-        maxPlayers = pCount;
-        bestCandidate = club;
-      }
-    }
-  }
+  candidates.sort((a, b) => {
+    const aHasSquad = a.pCount >= 11 ? 1 : 0;
+    const bHasSquad = b.pCount >= 11 ? 1 : 0;
+    if (bHasSquad !== aHasSquad) return bHasSquad - aHasSquad;
 
-  return bestCandidate;
+    const aExact = a.score >= 100 ? 1 : 0;
+    const bExact = b.score >= 100 ? 1 : 0;
+    if (bExact !== aExact) return bExact - aExact;
+
+    return b.score - a.score || b.pCount - a.pCount;
+  });
+
+  return candidates[0].c;
 }
 
 // ---------------------------------------------------------------------------
@@ -900,8 +1139,9 @@ function synthesizeSquadFiller10(existingPlayers, team, seasonYear, region = "")
     }
   }
 
-  const isHispanic = ['colombia', 'argentina', 'south_america_clib', 'south_america_csud', 'spain'].includes(region);
+  const isHispanic = ['colombia', 'argentina', 'mexico', 'north_america_concacaf', 'south_america_clib', 'south_america_csud', 'spain'].includes(region);
   const isItalian = region === 'italy' || /perugia|juventus|milan|inter|roma|lazio|napoli|palermo|sampdoria/i.test(team.name);
+  const isAmerican = region === 'usa';
 
   const firstNames = isItalian ? [
     "Alessandro", "Gianluigi", "Marco", "Francesco", "Andrea", "Matteo", "Lorenzo", "Roberto", "Simone", "Luca",
@@ -909,10 +1149,13 @@ function synthesizeSquadFiller10(existingPlayers, team, seasonYear, region = "")
   ] : (isHispanic ? [
     "Carlos", "Diego", "Andrés", "Juan", "David", "Alejandro", "Santiago", "Mateo", "Cristian", "Sebastián",
     "Felipe", "Camilo", "Daniel", "Oscar", "Julián", "Fabio", "Hernán", "Javier", "Nelson", "Ricardo"
+  ] : (isAmerican ? [
+    "Chris", "Jason", "Ryan", "Matt", "Brian", "Kevin", "Tyler", "Brandon", "Jordan", "Austin",
+    "Taylor", "Justin", "Andrew", "Kyle", "Josh", "Nick", "Sean", "Evan", "Eric", "Scott"
   ] : [
     "Luka", "Marko", "Ivan", "David", "Matej", "Filip", "Jan", "Milan", "Stefan", "Nikola",
     "Alex", "Thomas", "Daniel", "Martin", "Andreas", "Michael", "Lucas", "Paul", "Erik", "Simon"
-  ]);
+  ]));
 
   const lastNames = isItalian ? [
     "Rossi", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci", "Marino", "Greco", "Bruno",
@@ -920,10 +1163,13 @@ function synthesizeSquadFiller10(existingPlayers, team, seasonYear, region = "")
   ] : (isHispanic ? [
     "Zapata", "Moreno", "Córdoba", "Murillo", "Ospina", "Bedoya", "Rentería", "Palacios", "Mosquera", "Valencia",
     "Rodríguez", "González", "López", "Gómez", "Martínez", "García", "Pérez", "Sánchez", "Ramírez", "Díaz"
+  ] : (isAmerican ? [
+    "Johnson", "Williams", "Brown", "Miller", "Davis", "Wilson", "Clark", "Lewis", "Walker", "Hall",
+    "Allen", "Young", "King", "Wright", "Scott", "Adams", "Baker", "Nelson", "Carter", "Mitchell"
   ] : [
     "Kovacic", "Modric", "Petrovic", "Horvat", "Novak", "Kovacevic", "Babic", "Maric", "Juric", "Simic",
     "Schmidt", "Muller", "Weber", "Fischer", "Schneider", "Hansen", "Johansson", "Larsson", "Nielsen", "Jensen"
-  ]);
+  ]));
 
   let fillerIdx = 0;
   while (squad.length < 22) {
@@ -971,11 +1217,11 @@ function selectBalancedSquad10(players) {
 
   const gks = players.filter(p => p.position === 'GK');
   const dfs = players.filter(p => ['DC', 'DL', 'DR', 'SW'].includes(p.position));
-  const fws = players.filter(p => 
+  const fws = players.filter(p =>
     ['ST', 'CF', 'LW', 'RW'].includes(p.position) ||
     (Array.isArray(p.positions) && p.positions.some(pos => ['ST', 'CF', 'LW', 'RW'].includes(pos)))
   );
-  const mfs = players.filter(p => 
+  const mfs = players.filter(p =>
     ['MC', 'ML', 'MR', 'DMC', 'AMC', 'AML', 'AMR'].includes(p.position) ||
     (!dfs.includes(p) && !gks.includes(p))
   );
@@ -1141,7 +1387,8 @@ async function main() {
     { dir: UEFA_DIR, type: 'uefa' },
     { dir: UECL_DIR, type: 'uecl' },
     { dir: CLIB_DIR, type: 'clib' },
-    { dir: CSUD_DIR, type: 'csud' }
+    { dir: CSUD_DIR, type: 'csud' },
+    { dir: CONCACAF_DIR, type: 'concacaf' }
   ];
 
   const competitionFiles = [];
@@ -1310,7 +1557,7 @@ async function main() {
       try {
         const existingRosters = JSON.parse(fs.readFileSync(consolidatedPath, 'utf8'));
         finalConsolidated = { ...existingRosters, ...consolidatedMap };
-      } catch (e) {}
+      } catch (e) { }
     }
     fs.writeFileSync(consolidatedPath, JSON.stringify(finalConsolidated, null, 2), 'utf8');
     console.log(`📦 Consolidated squads saved: ${path.relative(ROOT_DIR, consolidatedPath)} (${Object.keys(finalConsolidated).length} clubs total)`);
@@ -1321,7 +1568,7 @@ async function main() {
       try {
         const existingDetails = JSON.parse(fs.readFileSync(detailsPath, 'utf8'));
         finalDetails = { ...existingDetails, ...teamDetailsMap };
-      } catch (e) {}
+      } catch (e) { }
     }
     fs.writeFileSync(detailsPath, JSON.stringify(finalDetails, null, 2), 'utf8');
     console.log(`📦 Team metadata & finances saved: ${path.relative(ROOT_DIR, detailsPath)} (${Object.keys(finalDetails).length} clubs total)`);

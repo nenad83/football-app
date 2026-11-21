@@ -1,0 +1,112 @@
+[
+  {
+    "idnum": 0,
+    "id": "usa04",
+    "name": "LA Galaxy",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#00245D",
+    "secondaryColor": "#FFD200"
+  },
+  {
+    "idnum": 1,
+    "id": "usa04",
+    "name": "New England Revolution",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/2.png",
+    "primaryColor": "#0A2240",
+    "secondaryColor": "#CE0E2D"
+  },
+  {
+    "idnum": 2,
+    "id": "usa04",
+    "name": "San Jose Earthquakes",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#0067B1",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 3,
+    "id": "usa04",
+    "name": "Dallas Burn",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 4,
+    "id": "usa04",
+    "name": "Columbus Crew",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FEDD00",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 5,
+    "id": "usa04",
+    "name": "Colorado Rapids",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#862633",
+    "secondaryColor": "#8BB8E8"
+  },
+  {
+    "idnum": 6,
+    "id": "usa04",
+    "name": "Chicago Fire",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#AF272F",
+    "secondaryColor": "#101820"
+  },
+  {
+    "idnum": 7,
+    "id": "usa04",
+    "name": "Kansas City Wizards",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/3.png",
+    "primaryColor": "#002F6C",
+    "secondaryColor": "#93B1D7"
+  },
+  {
+    "idnum": 8,
+    "id": "usa04",
+    "name": "NY/NJ MetroStars",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/4.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#ED1C24"
+  },
+  {
+    "idnum": 9,
+    "id": "usa04",
+    "name": "D.C. United",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/5.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#EF3E42"
+  }
+]

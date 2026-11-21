@@ -6,11 +6,14 @@ import { uefaRules } from '../data/uefa/uefaRules';
 import { ueclRules } from '../data/uecl/ueclRules';
 import { clibRules } from '../data/clib/clibRules';
 import { csudRules } from '../data/csud/csudRules';
+import { concacafRules } from '../data/concacaf/concacafRules';
 import { leagueDataMap, leagueDataMapD2 } from '../data/leagueData';
 import { historicalRelegated, historicalPromoted } from '../data/historicalRelegationData';
 import { leagueDataMapSA } from '../data/leagueDataSA';
+import { leagueDataMapNA } from '../data/leagueDataNA';
 import { qualifiersBySeason } from '../data/qualifiersBySeason';
 import { qualifiersBySeasonSA } from '../data/qualifiersBySeasonSA';
+import { qualifiersBySeasonNA } from '../data/qualifiersBySeasonNA';
 import CountryFlag from './CountryFlag';
 import RoundResultsModal from './RoundResultsModal';
 import { FormationTacticsModal, getSavedFormation, getPreferredTeamFormation, updateTeamStatsInStorage, getPreviousSeasonString } from './FormationTactics';
@@ -36,6 +39,14 @@ import {
 } from '../utils/europeanQualifierHelper';
 
 const SA_COUNTRIES = new Set(["argentina", "brazil", "colombia"]);
+const NA_COUNTRIES = new Set(["usa", "mexico"]);
+
+const getTotalLeagueRounds = (teamsList, countryKey, fixturesList) => {
+  if (fixturesList && fixturesList.length > 0) return fixturesList.length;
+  if (!teamsList || teamsList.length === 0) return 38;
+  const base = teamsList.length % 2 === 0 ? teamsList.length - 1 : teamsList.length;
+  return countryKey === "usa" ? base : base * 2;
+};
 
 // Unified Match Simulation Helper
 const simulateFixture = (h, a) => {
@@ -211,7 +222,7 @@ const countryBackupTeams = {
 };
 
 // Berger tables generator for fixture creation (inserts a bye slot when teamsList.length is odd)
-const generateRoundRobinFixtures = (teamsList) => {
+const generateRoundRobinFixtures = (teamsList, singleRound = false) => {
   const list = teamsList.length % 2 === 0 ? [...teamsList] : [...teamsList, null];
   const n = list.length;
   const fixtures = [];
@@ -231,6 +242,10 @@ const generateRoundRobinFixtures = (teamsList) => {
     }
     fixtures.push(roundFixtures);
     list.splice(1, 0, list.pop());
+  }
+
+  if (singleRound) {
+    return fixtures;
   }
 
   // Second Leg (swapped home/away)
@@ -306,8 +321,11 @@ const calculateManagerPrestige = (profile) => {
   );
 };
 
-const getRulesGlobal = (cup, yr, isSouthAmerica) => {
-  if (isSouthAmerica) {
+const getRulesGlobal = (cup, yr, isSouthAmerica, isNorthAmerica = false) => {
+  if (isNorthAmerica) {
+    if (cup === "cl") return concacafRules[yr] || concacafRules["2010"];
+    return null;
+  } else if (isSouthAmerica) {
     if (cup === "cl") return clibRules[yr] || clibRules["2010"];
     if (cup === "uefa") return csudRules[yr] || csudRules["2010"];
     return null;
@@ -330,7 +348,8 @@ const getPlayerCupStatus = (state, isSouthAmerica) => {
   }
 
   const seasonShort = season.split("/")[0];
-  const rules = getRulesGlobal(state.europeanCup, seasonShort, isSouthAmerica);
+  const isNorthAmerica = state.region === "north_america" || NA_COUNTRIES.has(state.country);
+  const rules = getRulesGlobal(state.europeanCup, seasonShort, isSouthAmerica, isNorthAmerica);
   if (!rules) {
     return { active: false, stageReached: null, isEliminated: false, isWinner: false };
   }
@@ -514,14 +533,15 @@ const getBoardConfidence = (state, standingsList, playerPos, isSouthAmerica) => 
 
   // If player is in 1st place, reward them with high confidence
   if (playerPos === 1) {
-    const totalRounds = (state.teams.length - 1) * 2;
+    const totalRounds = getTotalLeagueRounds(state.teams, state.country, state.fixtures);
     const isSeasonOver = (state.calendar ? state.calendarIndex >= state.calendar.length : state.currentRound > totalRounds);
     leagueScore = Math.max(leagueScore, isSeasonOver ? 100 : 95);
   }
 
   // Cup score calculation
   if (state.europeanCup && state.europeanCupState) {
-    const rules = getRulesGlobal(state.europeanCup, state.season.split("/")[0], isSouthAmerica);
+    const isNorthAmerica = state.region === "north_america" || NA_COUNTRIES.has(state.country);
+    const rules = getRulesGlobal(state.europeanCup, state.season.split("/")[0], isSouthAmerica, isNorthAmerica);
     const pId = state.europeanCupState.europeanPlayerTeamId;
     const cupTeam = state.europeanCupState.teams.find(t => t.idnum === pId);
 
@@ -624,6 +644,7 @@ export default function LeagueDashboard() {
   const [subStandingsTab, setSubStandingsTab] = useState(null);
   const [leagueViewMode, setLeagueViewMode] = useState("standings"); // "standings" | "scorers" | "assists"
   const [selectedCupStage, setSelectedCupStage] = useState(null);
+  const [selectedEuroKoStage, setSelectedEuroKoStage] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -780,9 +801,9 @@ export default function LeagueDashboard() {
   const standings = useMemo(() => {
     if (!leagueState) return [];
     const { country, teams, fixtures, currentRound } = leagueState;
-    const isAperturaClausuraLeague = country === "argentina" || country === "colombia";
-    const halfRounds = teams ? teams.length - 1 : 19;
-    const totalRounds = teams ? (teams.length - 1) * 2 : 38;
+    const isAperturaClausuraLeague = country === "argentina" || country === "colombia" || country === "mexico";
+    const halfRounds = fixtures ? Math.floor(fixtures.length / 2) : (teams ? (teams.length % 2 === 0 ? teams.length - 1 : teams.length) : 19);
+    const totalRounds = getTotalLeagueRounds(teams, country, fixtures);
 
     const activeSubStandings = subStandingsTab || (currentRound <= halfRounds ? "apertura" : "clausura");
 
@@ -1387,9 +1408,11 @@ export default function LeagueDashboard() {
     const nextStartYrStr = String(nextStartYr);
     const hasD2 = leagueDataMapD2[nextStartYrStr] && leagueDataMapD2[nextStartYrStr][currentCountry];
     const isSACareer = SA_COUNTRIES.has(currentCountry);
+    const isNACareer = NA_COUNTRIES.has(currentCountry);
 
-    const d1Teams = (isSACareer ? (leagueDataMapSA[nextStartYrStr] && leagueDataMapSA[nextStartYrStr][currentCountry]) : (leagueDataMap[nextStartYrStr] && leagueDataMap[nextStartYrStr][currentCountry]))
-      ? (isSACareer ? leagueDataMapSA[nextStartYrStr][currentCountry] : leagueDataMap[nextStartYrStr][currentCountry]).map(t => ({ ...t, division: 1 }))
+    const activeD1MapCareer = isNACareer ? leagueDataMapNA : (isSACareer ? leagueDataMapSA : leagueDataMap);
+    const d1Teams = (activeD1MapCareer[nextStartYrStr] && activeD1MapCareer[nextStartYrStr][currentCountry])
+      ? activeD1MapCareer[nextStartYrStr][currentCountry].map(t => ({ ...t, division: 1 }))
       : [];
     const d2Teams = (hasD2)
       ? leagueDataMapD2[nextStartYrStr][currentCountry].map(t => ({ ...t, division: 2 }))
@@ -1444,8 +1467,8 @@ export default function LeagueDashboard() {
     // Generate international offers from other countries
     let internationalOffers = [];
 
-    // Pick from SA or European pool depending on current region
-    const activeDomesticMap = isSACareer ? leagueDataMapSA : leagueDataMap;
+    // Pick from SA, NA, or European pool depending on current region
+    const activeDomesticMap = isNACareer ? leagueDataMapNA : (isSACareer ? leagueDataMapSA : leagueDataMap);
     if (activeDomesticMap[nextStartYrStr]) {
       const otherCountries = Object.keys(activeDomesticMap[nextStartYrStr]).filter(c => c !== currentCountry);
 
@@ -1509,7 +1532,8 @@ export default function LeagueDashboard() {
     // Map each team to include board expectation
     return combinedOffers.map(team => {
       const isSA = SA_COUNTRIES.has(team.country);
-      const targetMap = (team.division === 2) ? leagueDataMapD2 : (isSA ? leagueDataMapSA : leagueDataMap);
+      const isNA = NA_COUNTRIES.has(team.country);
+      const targetMap = (team.division === 2) ? leagueDataMapD2 : (isNA ? leagueDataMapNA : (isSA ? leagueDataMapSA : leagueDataMap));
       const nextStartYrStr = String(nextStartYr);
       const countryRoster = (targetMap[nextStartYrStr] && targetMap[nextStartYrStr][team.country]) || [];
       return {
@@ -1522,7 +1546,7 @@ export default function LeagueDashboard() {
   useEffect(() => {
     if (!leagueState) return;
     const { calendar, calendarIndex, currentRound, teams, boardExpectation, isSacked } = leagueState;
-    const totalRounds = (teams.length - 1) * 2;
+    const totalRounds = getTotalLeagueRounds(teams, leagueState.country, leagueState.fixtures);
     const isSeasonOverCalculated = (calendar ? calendarIndex >= calendar.length : currentRound > totalRounds) || isSacked;
 
     if (isSeasonOverCalculated && nextSeasonTeams.length === 0) {
@@ -1627,6 +1651,18 @@ export default function LeagueDashboard() {
             }
           });
         }
+      } else if (NA_COUNTRIES.has(country)) {
+        const nextHistorical = (leagueDataMapNA[nextStartYrStr] && leagueDataMapNA[nextStartYrStr][country]) || [];
+        const baseList = nextHistorical.length > 0 ? nextHistorical : teams;
+        const playerTeam = teams.find(t => t.idnum === playerTeamId);
+        const hasPlayerInNext = playerTeam && baseList.some(t => t.name.toLowerCase() === playerTeam.name.toLowerCase());
+        const combined = hasPlayerInNext || !playerTeam
+          ? baseList
+          : [...baseList.slice(0, baseList.length - 1), playerTeam];
+        updatedTeams = combined.map(t => ({
+          ...t,
+          played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0
+        }));
       } else {
         // Fallback: old relegation/promotion system
         const relegatedTeams = standingsSorted.slice(-3);
@@ -1705,7 +1741,7 @@ export default function LeagueDashboard() {
   useEffect(() => {
     if (!leagueState || leagueState.isSacked) return;
     const { calendar, calendarIndex, currentRound, teams, playerTeamId, region, country } = leagueState;
-    const totalRounds = (teams.length - 1) * 2;
+    const totalRounds = getTotalLeagueRounds(teams, country, leagueState.fixtures);
     const isSeasonOverCalculated = calendar
       ? calendarIndex >= calendar.length
       : currentRound > totalRounds;
@@ -1779,7 +1815,7 @@ export default function LeagueDashboard() {
 
     // 2. Aggregate stats to the lifetime Manager Profile
     const isSA = region === "south_america" || country === "argentina" || country === "colombia";
-    const isAperturaClausura = isSA && (country === "argentina" || country === "colombia");
+    const isAperturaClausura = country === "argentina" || country === "colombia" || country === "mexico";
     const wonApertura = isAperturaClausura && (leagueState.aperturaChampion === playerTeamStats.name);
     const wonClausura = isAperturaClausura && (leagueState.clausuraChampion === playerTeamStats.name);
     const titlesWonCount = isAperturaClausura
@@ -1836,10 +1872,13 @@ export default function LeagueDashboard() {
       if (chosenOffer.country !== country) {
         finalCountry = chosenOffer.country;
         const isSADest = SA_COUNTRIES.has(finalCountry);
+        const isNADest = NA_COUNTRIES.has(finalCountry);
         const nextStartYrStr = String(nextStartYr);
         const hasD2Dest = leagueDataMapD2[nextStartYrStr] && leagueDataMapD2[nextStartYrStr][finalCountry];
-        const targetMap = (nextDivision === 2 && hasD2Dest) ? leagueDataMapD2 : (isSADest ? leagueDataMapSA : leagueDataMap);
-        const fallbackKey = isSADest ? "argentina" : "england";
+        const targetMap = (nextDivision === 2 && hasD2Dest)
+          ? leagueDataMapD2
+          : (isNADest ? leagueDataMapNA : (isSADest ? leagueDataMapSA : leagueDataMap));
+        const fallbackKey = isNADest ? "mexico" : (isSADest ? "argentina" : "england");
         const targetRoster = (targetMap[nextStartYrStr] && targetMap[nextStartYrStr][finalCountry])
           ? targetMap[nextStartYrStr][finalCountry]
           : (targetMap[nextStartYrStr] ? Object.values(targetMap[nextStartYrStr])[0] : leagueDataMap[nextStartYrStr][fallbackKey]);
@@ -1851,9 +1890,10 @@ export default function LeagueDashboard() {
         // Different division, same country via job offer
         const nextStartYrStr = String(nextStartYr);
         const isSACurrent = SA_COUNTRIES.has(country);
+        const isNACurrent = NA_COUNTRIES.has(country);
         let targetRoster = null;
         if (nextDivision === 1) {
-          const d1Map = isSACurrent ? leagueDataMapSA : leagueDataMap;
+          const d1Map = isNACurrent ? leagueDataMapNA : (isSACurrent ? leagueDataMapSA : leagueDataMap);
           targetRoster = (d1Map[nextStartYrStr] && d1Map[nextStartYrStr][country]) || null;
         } else {
           const hasD2Next = leagueDataMapD2[nextStartYrStr] && leagueDataMapD2[nextStartYrStr][country];
@@ -1881,13 +1921,14 @@ export default function LeagueDashboard() {
       if (nextDivision !== currentDivision) {
         const nextStartYrStr = String(nextStartYr);
         const isSACurrent = SA_COUNTRIES.has(country);
+        const isNACurrent = NA_COUNTRIES.has(country);
         const playerTeamObj = currentStandings.find(t => t.idnum === playerTeamId);
         const playerTeamName = playerTeamObj ? playerTeamObj.name : null;
 
         let targetRoster = null;
         if (nextDivision === 1) {
           // Promoted from D2 to D1 — load D1 roster
-          const d1Map = isSACurrent ? leagueDataMapSA : leagueDataMap;
+          const d1Map = isNACurrent ? leagueDataMapNA : (isSACurrent ? leagueDataMapSA : leagueDataMap);
           targetRoster = (d1Map[nextStartYrStr] && d1Map[nextStartYrStr][country]) || null;
         } else {
           // Relegated from D1 to D2 — load D2 roster
@@ -1908,6 +1949,15 @@ export default function LeagueDashboard() {
             }
           }
         }
+      } else if (NA_COUNTRIES.has(country)) {
+        const playerTeamObj = currentStandings.find(t => t.idnum === playerTeamId);
+        const playerTeamName = playerTeamObj ? playerTeamObj.name : null;
+        if (playerTeamName) {
+          const matchInNewRoster = finalNextSeasonTeams.find(t => t.name.toLowerCase() === playerTeamName.toLowerCase());
+          if (matchInNewRoster) {
+            selectedTeamId = matchInNewRoster.idnum;
+          }
+        }
       }
     }
 
@@ -1918,19 +1968,27 @@ export default function LeagueDashboard() {
 
     const selectedTeamName = selectedTeamObj ? selectedTeamObj.name : "";
 
-    // 4. European/SA Qualification Settings
+    // 4. European/SA/NA Qualification Settings
     let nextEuropeanCup = null;
     let nextEuropeanCupState = null;
     let nextEuropeanQualifierState = null;
     let nextCalendar = null;
     const isSAFinalCountry = SA_COUNTRIES.has(finalCountry);
+    const isNAFinalCountry = NA_COUNTRIES.has(finalCountry);
     const pPosPrev = currentStandings.findIndex(t => t.idnum === playerTeamId) + 1;
 
     if (nextDivision === 1) {
       if (finalCountry === country && currentDivision === 1) {
         // Dynamic qualification based on current season's final standings using historical spot counts
         const startYrStr = season.split("/")[0];
-        if (isSAFinalCountry) {
+        if (isNAFinalCountry) {
+          const activeQualsNA = qualifiersBySeasonNA[startYrStr];
+          const numConcSpots = (activeQualsNA && activeQualsNA.cl && activeQualsNA.cl[country]) ? activeQualsNA.cl[country].length : 2;
+          const concTeamNames = currentStandings.slice(0, numConcSpots).map(t => t.name);
+          if (concTeamNames.includes(selectedTeamName)) {
+            nextEuropeanCup = "cl";
+          }
+        } else if (isSAFinalCountry) {
           // SA qualification: use qualifiersBySeasonSA
           const activeQualsSA = qualifiersBySeasonSA[startYrStr];
           const numClibSpots = (activeQualsSA && activeQualsSA.cl && activeQualsSA.cl[country]) ? activeQualsSA.cl[country].length : 3;
@@ -1960,7 +2018,15 @@ export default function LeagueDashboard() {
         }
       } else {
         // Historical database qualification for the new country
-        if (isSAFinalCountry) {
+        if (isNAFinalCountry) {
+          const nextQualifiersNA = qualifiersBySeasonNA[String(nextStartYr)];
+          if (nextQualifiersNA) {
+            const concQuals = (nextQualifiersNA.cl && nextQualifiersNA.cl[finalCountry]) || [];
+            if (concQuals.includes(selectedTeamName)) {
+              nextEuropeanCup = "cl";
+            }
+          }
+        } else if (isSAFinalCountry) {
           const nextQualifiersSA = qualifiersBySeasonSA[String(nextStartYr)];
           if (nextQualifiersSA) {
             const clibQuals = (nextQualifiersSA.cl && nextQualifiersSA.cl[finalCountry]) || [];
@@ -2032,9 +2098,13 @@ export default function LeagueDashboard() {
     }
 
     if (nextEuropeanCup) {
-      // Find the closest template rules year available (SA or European)
+      // Find the closest template rules year available (NA, SA, or European)
       let rules;
-      if (isSAFinalCountry) {
+      if (isNAFinalCountry) {
+        const concYears = Object.keys(concacafRules).map(Number).sort((a, b) => a - b);
+        const closestConcYear = concYears.reduce((prev, curr) => Math.abs(curr - nextStartYr) < Math.abs(prev - nextStartYr) ? curr : prev);
+        rules = concacafRules[String(closestConcYear)];
+      } else if (isSAFinalCountry) {
         const clibYears = Object.keys(clibRules).map(Number).sort((a, b) => a - b);
         const closestClibYear = clibYears.reduce((prev, curr) => Math.abs(curr - nextStartYr) < Math.abs(prev - nextStartYr) ? curr : prev);
         const csudYears = Object.keys(csudRules).map(Number).sort((a, b) => a - b);
@@ -2092,7 +2162,8 @@ export default function LeagueDashboard() {
       });
 
       // Initialize calendar
-      const nextTotalRounds = (finalNextSeasonTeams.length % 2 === 0 ? finalNextSeasonTeams.length - 1 : finalNextSeasonTeams.length) * 2;
+      const baseNextRounds = finalNextSeasonTeams.length % 2 === 0 ? finalNextSeasonTeams.length - 1 : finalNextSeasonTeams.length;
+      const nextTotalRounds = finalCountry === "usa" ? baseNextRounds : baseNextRounds * 2;
       const dynamicSchedules = generateDynamicSchedules(nextTotalRounds, rules);
       nextCalendar = [];
       for (let r = 1; r <= nextTotalRounds; r++) {
@@ -2260,7 +2331,7 @@ export default function LeagueDashboard() {
     }
 
     // 6. Generate fresh Round-Robin Fixtures for domestic league
-    const nextFixtures = generateRoundRobinFixtures(finalNextSeasonTeams);
+    const nextFixtures = generateRoundRobinFixtures(finalNextSeasonTeams, finalCountry === "usa");
     const newBoardExpectation = getExpectation(selectedTeamObj, finalNextSeasonTeams, nextDivision);
 
     // Compute budget for next season
@@ -2391,7 +2462,7 @@ export default function LeagueDashboard() {
     const nextLeagueState = {
       season: nextSeasonStr,
       country: finalCountry,
-      region: isSAFinalCountry ? "south_america" : "europe",
+      region: isSAFinalCountry ? "south_america" : (isNAFinalCountry ? "north_america" : "europe"),
       playerTeamId: selectedTeamId,
       managerName: editName || managerProfile.name,
       boardExpectation: newBoardExpectation || { text: "Avoid Relegation", rank: 17, desc: "Avoid Relegation" },
@@ -2460,9 +2531,9 @@ export default function LeagueDashboard() {
   useEffect(() => {
     if (!leagueState) return;
     const { country, currentRound, teams, fixtures, aperturaChampion, clausuraChampion } = leagueState;
-    if (country === "argentina" || country === "colombia") {
-      const halfRounds = teams.length - 1;
-      const totalRounds = halfRounds * 2;
+    if (country === "argentina" || country === "colombia" || country === "mexico") {
+      const halfRounds = fixtures ? Math.floor(fixtures.length / 2) : (teams.length % 2 === 0 ? teams.length - 1 : teams.length);
+      const totalRounds = getTotalLeagueRounds(teams, country, fixtures);
 
       // 1. Check if Apertura is complete and needs champion declaration
       if (currentRound > halfRounds && !aperturaChampion) {
@@ -2686,13 +2757,17 @@ export default function LeagueDashboard() {
   const playerTeamObj = teams.find(t => t.idnum === playerTeamId);
 
   // Dynamic calculations for total rounds based on teams count
-  const totalRounds = (teams.length - 1) * 2;
+  const totalRounds = getTotalLeagueRounds(teams, country, leagueState.fixtures);
   const seasonShort = season.split("/")[0];
 
   const isSouthAmerica = region === "south_america" || country === "argentina" || country === "brazil" || country === "colombia";
+  const isNorthAmerica = region === "north_america" || NA_COUNTRIES.has(country);
 
   const getRules = (cup, yr) => {
-    if (isSouthAmerica) {
+    if (isNorthAmerica) {
+      if (cup === "cl") return concacafRules[yr] || concacafRules["2010"];
+      return null;
+    } else if (isSouthAmerica) {
       if (cup === "cl") return clibRules[yr] || clibRules["2010"];
       if (cup === "uefa") return csudRules[yr] || csudRules["2010"];
       return null;
@@ -2765,8 +2840,8 @@ export default function LeagueDashboard() {
     }
   }
 
-  const isAperturaClausuraLeague = country === "argentina" || country === "colombia";
-  const halfRounds = teams ? teams.length - 1 : 19;
+  const isAperturaClausuraLeague = country === "argentina" || country === "colombia" || country === "mexico";
+  const halfRounds = leagueState.fixtures ? Math.floor(leagueState.fixtures.length / 2) : (teams ? (teams.length % 2 === 0 ? teams.length - 1 : teams.length) : 19);
   const activeSubStandings = subStandingsTab || (currentRound <= halfRounds ? "apertura" : "clausura");
 
   // Dynamic qualification spots resolution
@@ -2775,7 +2850,11 @@ export default function LeagueDashboard() {
   let uefaSpotsCount = 0;
   let ueclSpotsCount = 0;
 
-  if (isSouthAmerica) {
+  if (isNorthAmerica) {
+    const activeQualsNA = qualifiersBySeasonNA[startYrStr];
+    clSpotsCount = (activeQualsNA && activeQualsNA.cl && activeQualsNA.cl[country]) ? activeQualsNA.cl[country].length : 2;
+    uefaSpotsCount = 0;
+  } else if (isSouthAmerica) {
     const activeQualsSA = qualifiersBySeasonSA[startYrStr];
     clSpotsCount = (activeQualsSA && activeQualsSA.cl && activeQualsSA.cl[country]) ? activeQualsSA.cl[country].length : 3;
     uefaSpotsCount = (activeQualsSA && activeQualsSA.uefa && activeQualsSA.uefa[country]) ? activeQualsSA.uefa[country].length : 3;
@@ -2792,7 +2871,7 @@ export default function LeagueDashboard() {
 
   const cupExpectationObj = (() => {
     if (!europeanCup || !europeanCupState) return null;
-    const rules = getRulesGlobal(europeanCup, seasonShort, isSouthAmerica);
+    const rules = getRulesGlobal(europeanCup, seasonShort, isSouthAmerica, isNorthAmerica);
     const pId = europeanCupState.europeanPlayerTeamId;
     const cupTeam = europeanCupState.teams.find(t => t.idnum === pId);
     if (!cupTeam || !rules) return null;
@@ -3034,6 +3113,54 @@ export default function LeagueDashboard() {
         roundOf16Leg2: null,
         quarterFinalsLeg1: null,
         quarterFinalsLeg2: null,
+        semiFinalsLeg1: null,
+        semiFinalsLeg2: null,
+        final: null
+      };
+      return;
+    }
+
+    const uniqueGroupList = [...new Set((cupState.teams || []).map(t => t.group))].filter(g => g && g !== "bye" && g !== "champion").sort();
+    if (uniqueGroupList.length === 4 && cupState.fixtures.length <= 6 && seasonShort !== "1993") {
+      // 4 groups of 4 -> Quarter-Finals (e.g. CONCACAF 2008-2017, UCL 1994-1996)
+      const winners = {};
+      const runnersUp = {};
+      uniqueGroupList.forEach(g => {
+        const gTeams = cupState.teams.filter(t => t.group === g).map(t => {
+          let gf = 0, ga = 0, points = 0;
+          cupState.fixtures.forEach(matchdayFixtures => {
+            matchdayFixtures.forEach(f => {
+              if (f.played && f.group === g && (f.homeId === t.idnum || f.awayId === t.idnum)) {
+                const isHome = f.homeId === t.idnum;
+                const myScore = isHome ? f.homeScore : f.awayScore;
+                const oppScore = isHome ? f.awayScore : f.homeScore;
+                gf += myScore; ga += oppScore;
+                if (myScore > oppScore) { points += 3; }
+                else if (myScore === oppScore) { points += 1; }
+              }
+            });
+          });
+          return { ...t, points, gd: gf - ga, gf };
+        }).sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points;
+          if (b.gd !== a.gd) return b.gd - a.gd;
+          return b.gf - a.gf;
+        });
+        winners[g] = gTeams[0];
+        runnersUp[g] = gTeams[1];
+      });
+      const qfLeg1 = [
+        { homeId: winners["A"].idnum, awayId: runnersUp["B"].idnum, played: false, homeScore: 0, awayScore: 0 },
+        { homeId: winners["B"].idnum, awayId: runnersUp["A"].idnum, played: false, homeScore: 0, awayScore: 0 },
+        { homeId: winners["C"].idnum, awayId: runnersUp["D"].idnum, played: false, homeScore: 0, awayScore: 0 },
+        { homeId: winners["D"].idnum, awayId: runnersUp["C"].idnum, played: false, homeScore: 0, awayScore: 0 }
+      ];
+      const qfLeg2 = qfLeg1.map(m => ({ homeId: m.awayId, awayId: m.homeId, played: false, homeScore: 0, awayScore: 0 }));
+      cupState.knockoutState = {
+        roundOf32Leg1: null, roundOf32Leg2: null,
+        roundOf16Leg1: null, roundOf16Leg2: null,
+        quarterFinalsLeg1: qfLeg1,
+        quarterFinalsLeg2: qfLeg2,
         semiFinalsLeg1: null,
         semiFinalsLeg2: null,
         final: null
@@ -4400,6 +4527,188 @@ export default function LeagueDashboard() {
 
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
+  const renderContinentalKnockoutBracket = (cupState, euroRules) => {
+    const kState = cupState?.knockoutState;
+    if (!kState) return null;
+
+    const KO_ORDER = ["playoffs", "round_of_32", "round_of_16", "quarter_finals", "semi_finals", "final"];
+    const KO_LABELS = {
+      playoffs: "Knockout Playoffs",
+      round_of_32: "Round of 32",
+      round_of_16: "Round of 16",
+      quarter_finals: "Quarter-Finals",
+      semi_finals: "Semi-Finals",
+      final: "Final"
+    };
+    const toCamel = (str) => str.replace(/_([a-z0-9])/g, (g) => g[1].toUpperCase());
+    const getStageFixtures = (stg) => {
+      if (stg === "final") {
+        return { leg1: kState.final || [], leg2: null };
+      }
+      const key = toCamel(stg);
+      return { leg1: kState[`${key}Leg1`] || [], leg2: kState[`${key}Leg2`] || [] };
+    };
+    const isStageComplete = (stg) => {
+      const { leg1, leg2 } = getStageFixtures(stg);
+      if (leg1.length === 0 || !leg1.every(m => m.played)) return false;
+      if (stg === "final") return true;
+      return leg2 && leg2.length > 0 && leg2.every(m => m.played);
+    };
+
+    const ruleStages = (euroRules?.stages || []).filter(s => KO_LABELS[s]);
+    const stages = KO_ORDER.filter(s => ruleStages.includes(s) || getStageFixtures(s).leg1.length > 0);
+    if (stages.length === 0) return null;
+
+    const generatedStages = stages.filter(s => getStageFixtures(s).leg1.length > 0);
+    const currentLiveStage = generatedStages.find(s => !isStageComplete(s))
+      || generatedStages[generatedStages.length - 1]
+      || stages[0];
+    const activeStage = (selectedEuroKoStage && stages.includes(selectedEuroKoStage))
+      ? selectedEuroKoStage
+      : currentLiveStage;
+
+    const { leg1: stageLeg1, leg2: stageLeg2 } = getStageFixtures(activeStage);
+    const pId = cupState.europeanPlayerTeamId;
+
+    return (
+      <div>
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+          {stages.map(stg => {
+            const isSelected = activeStage === stg;
+            const isPlayed = isStageComplete(stg);
+            const hasDraw = getStageFixtures(stg).leg1.length > 0;
+            const isCurrent = hasDraw && !isPlayed && stg === currentLiveStage;
+            return (
+              <button
+                key={stg}
+                onClick={() => setSelectedEuroKoStage(stg)}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  fontFamily: 'Orbitron, sans-serif',
+                  letterSpacing: '0.5px',
+                  cursor: 'pointer',
+                  border: isSelected ? '1px solid #00e5ff' : '1px solid rgba(255,255,255,0.08)',
+                  background: isSelected ? 'rgba(0, 229, 255, 0.2)' : 'rgba(0,0,0,0.3)',
+                  color: isSelected ? '#00e5ff' : (isPlayed ? '#00ff64' : '#888')
+                }}
+              >
+                {KO_LABELS[stg].toUpperCase()} {isCurrent ? '⚡' : (isPlayed ? '✓' : '')}
+              </button>
+            );
+          })}
+        </div>
+
+        {stageLeg1.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#888', fontFamily: 'Orbitron', fontSize: '12px' }}>
+            Stage matches draw not generated yet.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px' }}>
+            {stageLeg1.map((m, i) => {
+              const h = cupState.teams.find(t => t.idnum === m.homeId);
+              const a = cupState.teams.find(t => t.idnum === m.awayId);
+              const m2 = stageLeg2 ? stageLeg2.find(x => x.homeId === m.awayId && x.awayId === m.homeId) : null;
+              const isUserMatch = Boolean(pId && (m.homeId === pId || m.awayId === pId));
+              const isFinalStage = activeStage === "final";
+              const hasPens = isFinalStage
+                ? (m.penaltyHomeScore > 0 || m.penaltyAwayScore > 0)
+                : Boolean(m2 && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0));
+              const statusLabel = isFinalStage
+                ? (m.played ? (hasPens ? 'PENALTIES' : 'FULL TIME') : 'UPCOMING')
+                : (m2 && m2.played ? (hasPens ? 'PENALTIES' : 'FULL TIME') : (m.played ? 'LEG 2 NEXT' : 'UPCOMING'));
+
+              let centerScore = 'VS';
+              if (isFinalStage) {
+                if (m.played) centerScore = `${m.homeScore} - ${m.awayScore}`;
+              } else if (m2 && m2.played) {
+                centerScore = `${m.homeScore + m2.awayScore} - ${m.awayScore + m2.homeScore}`;
+              } else if (m.played) {
+                centerScore = `${m.homeScore} - ${m.awayScore}`;
+              }
+
+              return (
+                <div
+                  key={`${activeStage}-${i}`}
+                  style={{
+                    background: isUserMatch ? 'rgba(0, 229, 255, 0.12)' : 'rgba(0, 0, 0, 0.35)',
+                    border: isUserMatch ? '1.5px solid #00e5ff' : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '5px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: isUserMatch ? '#00e5ff' : '#888', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                    <span>{KO_LABELS[activeStage]}</span>
+                    <span>{statusLabel}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
+                      {h && <TeamFlag primaryColor={h.primaryColor} secondaryColor={h.secondaryColor} size={18} />}
+                      <span
+                        title={h?.name || "TBD"}
+                        style={{
+                          fontSize: '11.5px',
+                          fontWeight: m.homeId === pId ? 'bold' : 'normal',
+                          color: m.homeId === pId ? '#00ff64' : '#fff',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {h?.name || "TBD"}
+                      </span>
+                    </div>
+
+                    <div style={{ padding: '2px 6px', background: 'rgba(0,0,0,0.6)', borderRadius: '4px', fontSize: '11.5px', fontWeight: 'bold', fontFamily: 'Orbitron', color: (isFinalStage ? m.played : (m.played || m2?.played)) ? '#ffd700' : '#666', flexShrink: 0 }}>
+                      {centerScore}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, justifyContent: 'flex-end', minWidth: 0 }}>
+                      <span
+                        title={a?.name || "TBD"}
+                        style={{
+                          fontSize: '11.5px',
+                          fontWeight: m.awayId === pId ? 'bold' : 'normal',
+                          color: m.awayId === pId ? '#00ff64' : '#fff',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          textAlign: 'right'
+                        }}
+                      >
+                        {a?.name || "TBD"}
+                      </span>
+                      {a && <TeamFlag primaryColor={a.primaryColor} secondaryColor={a.secondaryColor} size={18} />}
+                    </div>
+                  </div>
+
+                  {!isFinalStage && (
+                    <div style={{ textAlign: 'center', fontSize: '9.5px', color: m.played ? '#9fb3a5' : '#666', fontFamily: 'Orbitron', marginTop: '1px' }}>
+                      L1: {m.played ? `${m.homeScore}-${m.awayScore}` : 'vs'} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}` : 'vs'}
+                      {hasPens ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ''}
+                    </div>
+                  )}
+
+                  {isFinalStage && m.played && hasPens && (
+                    <div style={{ textAlign: 'center', fontSize: '9.5px', color: '#00e5ff', fontFamily: 'Orbitron', marginTop: '1px' }}>
+                      Pens: {m.penaltyHomeScore} - {m.penaltyAwayScore}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="Match team-select-container league-dashboard-arena">
       <div className="matchheader selector-header" style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1100px' }}>
@@ -4939,7 +5248,7 @@ export default function LeagueDashboard() {
                       color: activeTab === "europe" ? '#00e5ff' : '#888'
                     }}
                   >
-                    {isSouthAmerica ? "⭐ SOUTH AMERICAN COMPETITION" : "⭐ EUROPEAN COMPETITION"}
+                    {isNorthAmerica ? "⭐ NORTH AMERICAN COMPETITION" : (isSouthAmerica ? "⭐ SOUTH AMERICAN COMPETITION" : "⭐ EUROPEAN COMPETITION")}
                   </button>
                 )}
               </div>
@@ -5095,10 +5404,10 @@ export default function LeagueDashboard() {
                                       if (division === 2) {
                                         if (pos <= 3) color = '#00ff64'; // Green for Promotion
                                       } else {
-                                        if (pos <= clSpotsCount) color = '#00ff64'; // Green for CL/Libertadores
+                                        if (pos <= clSpotsCount) color = '#00ff64'; // Green for CL/Libertadores/CONCACAF
                                         else if (pos <= clSpotsCount + uefaSpotsCount) color = '#00e5ff'; // Blue for UEFA/Sudamericana
                                         else if (pos <= clSpotsCount + uefaSpotsCount + ueclSpotsCount) color = '#ffd700'; // Yellow/Gold for UECL
-                                        else if (pos > standings.length - 3) color = '#ff3b30'; // Red for Relegation
+                                        else if (country !== "usa" && pos > standings.length - 3) color = '#ff3b30'; // Red for Relegation
                                       }
                                     }
 
@@ -5120,7 +5429,7 @@ export default function LeagueDashboard() {
                                           division === 2
                                             ? "Promotion Zone"
                                             : pos <= clSpotsCount
-                                              ? (isSouthAmerica ? "Copa Libertadores Zone" : "Champions League Zone")
+                                              ? (isNorthAmerica ? "CONCACAF Champions Cup Zone" : (isSouthAmerica ? "Copa Libertadores Zone" : "Champions League Zone"))
                                               : pos <= clSpotsCount + uefaSpotsCount
                                                 ? (isSouthAmerica ? "Copa Sudamericana Zone" : "UEFA Cup / Europa League Zone")
                                                 : pos <= clSpotsCount + uefaSpotsCount + ueclSpotsCount
@@ -5163,22 +5472,26 @@ export default function LeagueDashboard() {
                         <>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00ff64', boxShadow: '0 0 6px #00ff64' }}></span>
-                            <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>{isSouthAmerica ? "Copa Libertadores" : "Champions League"}</span>
+                            <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>{isNorthAmerica ? "CONCACAF Champions Cup" : (isSouthAmerica ? "Copa Libertadores" : "Champions League")}</span>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00e5ff', boxShadow: '0 0 6px #00e5ff' }}></span>
-                            <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>{isSouthAmerica ? "Copa Sudamericana" : "Europa League"}</span>
-                          </div>
+                          {uefaSpotsCount > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#00e5ff', boxShadow: '0 0 6px #00e5ff' }}></span>
+                              <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>{isSouthAmerica ? "Copa Sudamericana" : "Europa League"}</span>
+                            </div>
+                          )}
                           {ueclSpotsCount > 0 && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#ffd700', boxShadow: '0 0 6px #ffd700' }}></span>
                               <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>Conference League</span>
                             </div>
                           )}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#ff3b30', boxShadow: '0 0 6px #ff3b30' }}></span>
-                            <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>Relegation</span>
-                          </div>
+                          {country !== "usa" && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#ff3b30', boxShadow: '0 0 6px #ff3b30' }}></span>
+                              <span style={{ color: '#aaa', fontSize: '10px', fontFamily: 'Orbitron' }}>Relegation</span>
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
@@ -5418,7 +5731,9 @@ export default function LeagueDashboard() {
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                     <h3 className="team-card-title" style={{ color: '#00e5ff', margin: '0' }}>
-                      {isSouthAmerica
+                      {isNorthAmerica
+                        ? "CONCACAF CHAMPIONS CUP"
+                        : isSouthAmerica
                         ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA")
                         : (europeanCup === "cl"
                           ? "UEFA CHAMPIONS LEAGUE"
@@ -5507,114 +5822,10 @@ export default function LeagueDashboard() {
                     europeanCupState.knockoutState.final
                   ) && (
                       <div style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '15px' }}>
-                        <h3 className="team-card-title" style={{ color: '#00e5ff', fontSize: '13px', textAlign: 'left', marginBottom: '10px' }}>
+                        <h3 className="team-card-title" style={{ color: '#00e5ff', fontSize: '13px', textAlign: 'left', marginBottom: '12px' }}>
                           ⭐ KNOCKOUT BRACKET STAGES
                         </h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                          {/* Final */}
-                          {europeanCupState.knockoutState.final && (
-                            <div style={{ background: 'rgba(255,215,0,0.03)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,215,0,0.1)' }}>
-                              <h4 style={{ color: '#ffd700', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Grand Final</h4>
-                              {europeanCupState.knockoutState.final.map((m, i) => {
-                                const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                                const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                                return (
-                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff' }}>
-                                    <span style={{ fontWeight: 'bold' }}>{h?.name || "TBD"}</span>
-                                    <span style={{ fontFamily: 'Orbitron', color: '#ffd700' }}>
-                                      {m.played ? `${m.homeScore} - ${m.awayScore}${m.penaltyHomeScore !== undefined ? ` (${m.penaltyHomeScore}-${m.penaltyAwayScore} pen)` : ""}` : "vs"}
-                                    </span>
-                                    <span style={{ fontWeight: 'bold' }}>{a?.name || "TBD"}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {/* Semi-Finals */}
-                          {europeanCupState.knockoutState.semiFinalsLeg1 && (
-                            <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                              <h4 style={{ color: '#00e5ff', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Semi-Finals</h4>
-                              {europeanCupState.knockoutState.semiFinalsLeg1.map((m, i) => {
-                                const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                                const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                                const m2 = europeanCupState.knockoutState.semiFinalsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                                return (
-                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                                    <span>{h?.name || "TBD"}</span>
-                                    <span style={{ fontFamily: 'Orbitron' }}>
-                                      L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                                    </span>
-                                    <span>{a?.name || "TBD"}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {/* Quarter-Finals */}
-                          {europeanCupState.knockoutState.quarterFinalsLeg1 && (
-                            <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                              <h4 style={{ color: '#888', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Quarter-Finals</h4>
-                              {europeanCupState.knockoutState.quarterFinalsLeg1.map((m, i) => {
-                                const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                                const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                                const m2 = europeanCupState.knockoutState.quarterFinalsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                                return (
-                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h?.name}>{h?.name || "TBD"}</span>
-                                    <span style={{ fontFamily: 'Orbitron' }}>
-                                      L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                                    </span>
-                                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a?.name}>{a?.name || "TBD"}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {/* Round of 16 */}
-                          {europeanCupState.knockoutState.roundOf16Leg1 && (
-                            <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                              <h4 style={{ color: '#888', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Round of 16</h4>
-                              {europeanCupState.knockoutState.roundOf16Leg1.map((m, i) => {
-                                const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                                const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                                const m2 = europeanCupState.knockoutState.roundOf16Leg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                                return (
-                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h?.name}>{h?.name || "TBD"}</span>
-                                    <span style={{ fontFamily: 'Orbitron' }}>
-                                      L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                                    </span>
-                                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a?.name}>{a?.name || "TBD"}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {/* Playoffs */}
-                          {europeanCupState.knockoutState.playoffsLeg1 && (
-                            <div style={{ background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                              <h4 style={{ color: '#888', margin: '0 0 6px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Knockout Playoffs</h4>
-                              {europeanCupState.knockoutState.playoffsLeg1.map((m, i) => {
-                                const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                                const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                                const m2 = europeanCupState.knockoutState.playoffsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                                return (
-                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h?.name}>{h?.name || "TBD"}</span>
-                                    <span style={{ fontFamily: 'Orbitron' }}>
-                                      L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                                    </span>
-                                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a?.name}>{a?.name || "TBD"}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
+                        {renderContinentalKnockoutBracket(europeanCupState, rules)}
                       </div>
                     )}
                 </>
@@ -5622,7 +5833,9 @@ export default function LeagueDashboard() {
                 // Knockout Bracket standings (UEFA Cup or 1990/91 Champions Cup)
                 <>
                   <h3 className="team-card-title" style={{ color: '#00e5ff', marginBottom: '15px' }}>
-                    🏆 {isSouthAmerica
+                    🏆 {isNorthAmerica
+                      ? "CONCACAF CHAMPIONS CUP"
+                      : isSouthAmerica
                       ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA")
                       : (europeanCup === "cl"
                         ? (parseInt(season.split("/")[0]) >= 1992 ? "CHAMPIONS LEAGUE" : "CHAMPIONS CUP")
@@ -5631,109 +5844,7 @@ export default function LeagueDashboard() {
                           : "CONFERENCE LEAGUE"))} - KNOCKOUT BRACKET
                   </h3>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    {/* Final Bracket */}
-                    {europeanCupState.knockoutState.final && (
-                      <div style={{ background: 'rgba(255,215,0,0.03)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,215,0,0.1)' }}>
-                        <h4 style={{ color: '#ffd700', margin: '0 0 8px 0', fontSize: '12px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Grand Final</h4>
-                        {europeanCupState.knockoutState.final.map((m, i) => {
-                          const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                          const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                          return (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#fff' }}>
-                              <span style={{ fontWeight: 'bold' }}>{h.name}</span>
-                              <span style={{ fontFamily: 'Orbitron', color: '#ffd700' }}>{m.played ? `${m.homeScore} - ${m.awayScore}` : "vs"}</span>
-                              <span style={{ fontWeight: 'bold' }}>{a.name}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Semi Finals Bracket */}
-                    {europeanCupState.knockoutState.semiFinalsLeg1 && (
-                      <div style={{ background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                        <h4 style={{ color: '#00e5ff', margin: '0 0 8px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Semi-Finals</h4>
-                        {europeanCupState.knockoutState.semiFinalsLeg1.map((m, i) => {
-                          const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                          const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                          const m2 = europeanCupState.knockoutState.semiFinalsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                          return (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                              <span>{h.name}</span>
-                              <span style={{ fontFamily: 'Orbitron' }}>
-                                L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                              </span>
-                              <span>{a.name}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Quarter Finals Bracket */}
-                    {europeanCupState.knockoutState.quarterFinalsLeg1 && (
-                      <div style={{ background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                        <h4 style={{ color: '#888', margin: '0 0 8px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Quarter-Finals</h4>
-                        {europeanCupState.knockoutState.quarterFinalsLeg1.map((m, i) => {
-                          const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                          const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                          const m2 = europeanCupState.knockoutState.quarterFinalsLeg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                          return (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h.name}>{h.name}</span>
-                              <span style={{ fontFamily: 'Orbitron' }}>
-                                L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                              </span>
-                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a.name}>{a.name}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Round of 16 Bracket */}
-                    {europeanCupState.knockoutState.roundOf16Leg1 && (
-                      <div style={{ background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                        <h4 style={{ color: '#888', margin: '0 0 8px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Round of 16</h4>
-                        {europeanCupState.knockoutState.roundOf16Leg1.map((m, i) => {
-                          const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                          const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                          const m2 = europeanCupState.knockoutState.roundOf16Leg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                          return (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h.name}>{h.name}</span>
-                              <span style={{ fontFamily: 'Orbitron' }}>
-                                L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                              </span>
-                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a.name}>{a.name}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Round of 32 Bracket */}
-                    {europeanCupState.knockoutState.roundOf32Leg1 && (
-                      <div style={{ background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                        <h4 style={{ color: '#888', margin: '0 0 8px 0', fontSize: '11px', textTransform: 'uppercase', fontFamily: 'Orbitron', textAlign: 'left' }}>Round of 32</h4>
-                        {europeanCupState.knockoutState.roundOf32Leg1.map((m, i) => {
-                          const h = europeanCupState.teams.find(t => t.idnum === m.homeId);
-                          const a = europeanCupState.teams.find(t => t.idnum === m.awayId);
-                          const m2 = europeanCupState.knockoutState.roundOf32Leg2?.find(x => x.homeId === m.awayId && x.awayId === m.homeId);
-                          return (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', borderBottom: '1px dashed rgba(255,255,255,0.03)', paddingBottom: '4px', marginBottom: '4px' }}>
-                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={h.name}>{h.name}</span>
-                              <span style={{ fontFamily: 'Orbitron' }}>
-                                L1: {m.played ? `${m.homeScore}-${m.awayScore}` : "vs"} | L2: {m2 && m2.played ? `${m2.awayScore}-${m2.homeScore}${m2.penaltyHomeScore !== undefined && (m2.penaltyHomeScore > 0 || m2.penaltyAwayScore > 0) ? ` (${m2.penaltyAwayScore}-${m2.penaltyHomeScore} pen)` : ""}` : "vs"}
-                              </span>
-                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '110px' }} title={a.name}>{a.name}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  {renderContinentalKnockoutBracket(europeanCupState, rules)}
                 </>
               )
             )}
@@ -5758,7 +5869,9 @@ export default function LeagueDashboard() {
                 {isEuropeanMatchNext ? (
                   <>
                     <h3 className="team-card-title" style={{ color: '#00e5ff', fontSize: '14px', letterSpacing: '1px', textShadow: '0 0 8px rgba(0, 229, 255, 0.4)' }}>
-                      ⭐ {isSouthAmerica
+                      ⭐ {isNorthAmerica
+                        ? "CONCACAF CHAMPIONS CUP"
+                        : isSouthAmerica
                         ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA NIGHT")
                         : (europeanCup === "cl"
                           ? "UEFA CHAMPIONS LEAGUE"

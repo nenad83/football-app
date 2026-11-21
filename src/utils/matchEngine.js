@@ -110,8 +110,9 @@ export function rollAttackDef(stat = 3, modeOverride = null) {
 
 /**
  * Returns goalkeeper save roll modifier based on active GK rating (1-10 scale):
- *  - Rating 9-10: +1 to save rolls
- *  - Rating 5-8:   0 modifier
+ *  - Rating 9-10: +2 to save rolls (+1 in classic_d6)
+ *  - Rating 7-8:  +1 to save rolls
+ *  - Rating 5-6:   0 modifier
  *  - Rating 1-4 (or missing/out-of-position GK when lineup is active): -1 to save rolls
  */
 export function getGoalkeeperSaveModifier(gkPlayer, hasActiveLineup = true, modeOverride = null) {
@@ -124,13 +125,15 @@ export function getGoalkeeperSaveModifier(gkPlayer, hasActiveLineup = true, mode
   const isNaturalGK = positions.some(p => String(p || '').trim().toUpperCase() === 'GK');
   if (!isNaturalGK) return -1;
 
+  const d10 = isD10Engine(modeOverride);
   let rating = Number(gkPlayer.rating);
   if (isNaN(rating) || rating <= 0) rating = 6;
-  if (!isD10Engine(modeOverride) && rating <= 5 && !gkPlayer.currentAbility) {
+  if (!d10 && rating <= 5 && !gkPlayer.currentAbility) {
     rating *= 2;
   }
 
-  if (rating >= 9) return 1;
+  if (rating >= 9) return d10 ? 2 : 1;
+  if (rating >= 7) return 1;
   if (rating <= 4) return -1;
   return 0;
 }

@@ -260,7 +260,11 @@ export default function Fixtures({ inline = false, mode = "league", leagueState:
         const seasonShort = leagueState.season.split("/")[0];
 
         let cupName = "European Cup";
-        if (europeanCup === "cl") {
+        if (leagueState.region === "north_america") {
+          cupName = "CONCACAF Champions Cup";
+        } else if (leagueState.region === "south_america") {
+          cupName = europeanCup === "cl" ? "Copa Libertadores" : "Copa Sudamericana";
+        } else if (europeanCup === "cl") {
           cupName = parseInt(seasonShort) >= 1992 ? "Champions League" : "Champions Cup";
         } else if (europeanCup === "uefa") {
           cupName = parseInt(seasonShort) >= 2009 ? "Europa League" : "UEFA Cup";

@@ -286,7 +286,7 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
     : 6.0;
 
   // Determine if Transfer Window is currently open
-  const totalRounds = teams.length ? (teams.length - 1) * 2 : 30;
+  const totalRounds = leagueState?.fixtures?.length || (teams.length ? (leagueState?.country === "usa" ? (teams.length % 2 === 0 ? teams.length - 1 : teams.length) : (teams.length - 1) * 2) : 30);
   const midRoundStart = Math.floor(totalRounds / 2);
   const isWindowOpen = (currentRound >= 1 && currentRound <= 5) || (currentRound >= midRoundStart && currentRound < midRoundStart + 5);
 

@@ -4,45 +4,32 @@
  * Core Tactical Role, Department Calculation, and AI Opponent Decision Engine.
  *
  * Rules Implemented:
- * 1. Player Tactical Roles (Duties):
- *    - DR / DL:
- *      • Full Back ('normal'): Full skill to Defense.
- *      • Wing Back ('support_mid'): -4 skill to Defense, Full skill to Midfield.
- *    - DC:
- *      • Defender ('normal'): Full skill to Defense.
- *      • Support Midfield ('support_mid'): -4 skill to Defense, Full skill to Midfield.
- *    - DMC:
- *      • Midfield ('normal'): Full skill to Midfield.
- *      • Support Defense ('support_def'): -2 skill to Midfield, Full skill to Defense.
- *    - MC:
- *      • Midfield ('normal'): Full skill to Midfield.
- *      • Support Defense ('support_def'): -4 skill to Midfield (-2 if natural DMC), Full skill to Defense.
- *      • Support Attack ('support_att'): -4 skill to Midfield, Full skill to Attack.
- *    - MR / ML:
- *      • Midfield ('normal'): Full skill to Midfield.
- *      • Support Attack ('support_att'): -4 skill to Midfield, Full skill to Attack.
- *      • Support Defense ('support_def'): -4 skill to Midfield, Full skill to Defense.
- *    - AMC:
- *      • Midfield ('normal'): Full skill to Midfield.
- *      • Support Attack ('support_att'): -2 skill to Midfield (if natural AMC in AMC slot; -4 otherwise), Full skill to Attack.
- *    - AMR / AML:
- *      • Midfield ('normal'): Full skill to Midfield.
- *      • Support Attack ('support_att'): -4 skill to Midfield, Full skill to Attack.
+ * 1. Player Tactical Roles (50/50 split & 75%-retention Specialist Bonuses):
+ *    - DR / DL / DC:
+ *      • Full Back / Defender ('normal'): 100% skill to Defense.
+ *      • Wing Back / Support Midfield ('support_mid'): 50/50 split — keeps 50% in Defense (-50%), moves 50% to Midfield.
+ *    - DMC / DML / DMR (Defensive Mid Specialists):
+ *      • Midfield ('normal'): 100% skill to Midfield.
+ *      • Support Defense ('support_def'): Specialist bonus — keeps 75% in Midfield (-25%), adds +50% to Defense.
+ *    - MC / MR / ML:
+ *      • Midfield ('normal'): 100% skill to Midfield.
+ *      • Support Defense ('support_def'): 50/50 split — keeps 50% in Midfield (-50%), moves 50% to Defense (or 75% if DMC/DML/DMR).
+ *      • Support Attack ('support_att'): keeps 50% in Midfield (-50%), adds Attack boost (or 75% in Midfield if AMC/AML/AMR).
+ *    - AMC / AML / AMR (Attacking Mid Specialists):
+ *      • Midfield ('normal'): 100% skill to Midfield.
+ *      • Support Attack ('support_att'): Specialist bonus — keeps 75% in Midfield (-25%), adds Attack boost.
  *    - ST / CF / FC / SC / LW / RW:
- *      • Attack ('normal'): Full skill to Attack.
- *      • Support Midfield ('support_mid'): -2 skill to Attack, Full skill to Midfield.
+ *      • Attack ('normal'): 100% skill to Attack.
+ *      • Support Midfield ('support_mid'): loses proportionate Attack (-50% zone share), adds 50% skill to Midfield.
  *
- * 2. Department Rating Calculation:
- *    - Defense = Math.floor(totalDefenseContribution / 4) (always divided by 4)
- *    - Midfield = Math.floor(totalMidfieldContribution / 4) (always divided by 4)
- *    - Attack = Math.floor(totalAttackContribution / 2) (always divided by 2)
+ * 2. Formation-Fair Department Rating Calculation:
+ *    - Each zone divides by that formation's actual slot count in that zone (defSlots, midSlots, attSlots)
+ *      so 4-3-3 / 3-5-2 / 4-5-1 / 4-4-2 start on an equal skill footing and weak teams stay below 10.
  *
  * 3. Mentality:
- *    - Defensive ('defense'): +1 skill to all defenders and all players supporting defense;
- *                             -1 skill to all attackers and all players supporting attack.
- *    - Attacking ('attack'):  +1 skill to all attackers and all players supporting attack;
- *                             -1 skill to all defenders and all players supporting defense.
- *    - Normal ('balanced'):   No bonuses (0).
+ *    - Defensive ('defense'): +1 team Defense, -1 team Attack.
+ *    - Attacking ('attack'):  +1 team Attack, -1 team Defense.
+ *    - Normal ('balanced'):   No modifiers (0).
  */
 
 import {
@@ -99,8 +86,10 @@ export function getAvailableRolesForSlot(slot, player = null) {
     playerPositions.push(playerPos);
   }
 
-  const isDMCPlayer = idealPos === 'DMC' || playerPositions.includes('DMC') || playerPos === 'DMC';
-  const isEligibleAMC = idealPos === 'AMC' && (player ? (playerPositions.includes('AMC') || playerPos === 'AMC') : true);
+  const DEF_SPECIALISTS = ['DMC', 'DML', 'DMR'];
+  const ATT_SPECIALISTS = ['AMC', 'AML', 'AMR'];
+  const isDefSpecialist = DEF_SPECIALISTS.includes(idealPos) || playerPositions.some(p => DEF_SPECIALISTS.includes(p));
+  const isAttSpecialist = ATT_SPECIALISTS.includes(idealPos) || playerPositions.some(p => ATT_SPECIALISTS.includes(p));
 
   if (slotRole === 'def') {
     if (idealPos === 'DL' || idealPos === 'DR') {
@@ -110,14 +99,14 @@ export function getAvailableRolesForSlot(slot, player = null) {
           label: 'Full Back (Defend)',
           shortLabel: 'FB (DEF)',
           color: '#00e5ff',
-          desc: 'Full rating in Defense'
+          desc: '100% skill in Defense'
         },
         {
           id: 'support_mid',
           label: 'Wing Back (+Midfield)',
           shortLabel: 'WB (+MID)',
           color: '#00ff64',
-          desc: '-4 in Defense, Full rating in Midfield'
+          desc: '50/50 split: 50% Defense, 50% Midfield'
         }
       ];
     }
@@ -128,43 +117,43 @@ export function getAvailableRolesForSlot(slot, player = null) {
         label: 'Defender (Defend)',
         shortLabel: 'DEF',
         color: '#00e5ff',
-        desc: 'Full rating in Defense'
+        desc: '100% skill in Defense'
       },
       {
         id: 'support_mid',
         label: 'Support Midfield (+MID)',
         shortLabel: 'SUP (+MID)',
         color: '#00ff64',
-        desc: '-4 in Defense, Full rating in Midfield'
+        desc: '50/50 split: 50% Defense, 50% Midfield'
       }
     ];
   }
 
   if (slotRole === 'mid') {
-    if (idealPos === 'DMC') {
+    if (idealPos === 'DMC' || idealPos === 'DML' || idealPos === 'DMR') {
       return [
         {
           id: 'normal',
           label: 'Defensive Mid (Midfield)',
           shortLabel: 'MID',
           color: '#00ff64',
-          desc: 'Full rating in Midfield'
+          desc: '100% skill in Midfield'
         },
         {
           id: 'support_def',
           label: 'Support Defense (+DEF)',
-          shortLabel: 'DEF (-2M)',
+          shortLabel: 'DEF (75%M)',
           color: '#00e5ff',
-          desc: '-2 in Midfield, Full rating in Defense'
+          desc: 'Specialist: keeps 75% in Midfield, +50% to Defense'
         }
       ];
     }
 
-    if (idealPos === 'AMC') {
-      const attPenaltyLabel = isEligibleAMC ? '-2M' : '-4M';
-      const attPenaltyDesc = isEligibleAMC
-        ? '-2 in Midfield (AMC), Full rating in Attack'
-        : '-4 in Midfield, Full rating in Attack';
+    if (idealPos === 'AMC' || idealPos === 'AML' || idealPos === 'AMR') {
+      const attBadge = isAttSpecialist ? '75%M' : '50/50';
+      const attPenaltyDesc = isAttSpecialist
+        ? 'Specialist: keeps 75% in Midfield, +50% to Attack'
+        : '50/50 split: 50% Midfield, +50% to Attack';
 
       return [
         {
@@ -172,33 +161,14 @@ export function getAvailableRolesForSlot(slot, player = null) {
           label: 'Attacking Mid (Midfield)',
           shortLabel: 'MID',
           color: '#00ff64',
-          desc: 'Full rating in Midfield'
+          desc: '100% skill in Midfield'
         },
         {
           id: 'support_att',
           label: 'Support Attack (+ATT)',
-          shortLabel: `ATT (${attPenaltyLabel})`,
+          shortLabel: `ATT (${attBadge})`,
           color: '#ff4500',
           desc: attPenaltyDesc
-        }
-      ];
-    }
-
-    if (idealPos === 'AML' || idealPos === 'AMR') {
-      return [
-        {
-          id: 'normal',
-          label: 'Attacking Mid (Midfield)',
-          shortLabel: 'MID',
-          color: '#00ff64',
-          desc: 'Full rating in Midfield'
-        },
-        {
-          id: 'support_att',
-          label: 'Support Attack (+ATT)',
-          shortLabel: 'ATT (-4M)',
-          color: '#ff4500',
-          desc: '-4 in Midfield, Full rating in Attack'
         }
       ];
     }
@@ -210,52 +180,47 @@ export function getAvailableRolesForSlot(slot, player = null) {
           label: 'Wide Mid (Midfield)',
           shortLabel: 'MID',
           color: '#00ff64',
-          desc: 'Full rating in Midfield'
+          desc: '100% skill in Midfield'
         },
         {
           id: 'support_att',
           label: 'Support Attack (+ATT)',
-          shortLabel: 'ATT (-4M)',
+          shortLabel: isAttSpecialist ? 'ATT (75%M)' : 'ATT (50/50)',
           color: '#ff4500',
-          desc: '-4 in Midfield, Full rating in Attack'
+          desc: isAttSpecialist ? 'Specialist: 75% Midfield, +50% Attack' : '50/50 split: 50% Midfield, +50% Attack'
         },
         {
           id: 'support_def',
           label: 'Support Defense (+DEF)',
-          shortLabel: 'DEF (-4M)',
+          shortLabel: isDefSpecialist ? 'DEF (75%M)' : 'DEF (50/50)',
           color: '#00e5ff',
-          desc: '-4 in Midfield, Full rating in Defense'
+          desc: isDefSpecialist ? 'Specialist: 75% Midfield, +50% Defense' : '50/50 split: 50% Midfield, +50% Defense'
         }
       ];
     }
 
     // MC
-    const defPenaltyLabel = isDMCPlayer ? '-2M' : '-4M';
-    const defPenaltyDesc = isDMCPlayer
-      ? '-2 in Midfield (DMC), Full rating in Defense'
-      : '-4 in Midfield, Full rating in Defense';
-
     return [
       {
         id: 'normal',
         label: 'Central Mid (Midfield)',
         shortLabel: 'MID',
         color: '#00ff64',
-        desc: 'Full rating in Midfield'
+        desc: '100% skill in Midfield'
       },
       {
         id: 'support_def',
         label: 'Support Defense (+DEF)',
-        shortLabel: `DEF (${defPenaltyLabel})`,
+        shortLabel: isDefSpecialist ? 'DEF (75%M)' : 'DEF (50/50)',
         color: '#00e5ff',
-        desc: defPenaltyDesc
+        desc: isDefSpecialist ? 'Specialist: keeps 75% in Midfield, +50% Defense' : '50/50 split: 50% Midfield, +50% Defense'
       },
       {
         id: 'support_att',
         label: 'Support Attack (+ATT)',
-        shortLabel: 'ATT (-4M)',
+        shortLabel: isAttSpecialist ? 'ATT (75%M)' : 'ATT (50/50)',
         color: '#ff4500',
-        desc: '-4 in Midfield, Full rating in Attack'
+        desc: isAttSpecialist ? 'Specialist: keeps 75% in Midfield, +50% Attack' : '50/50 split: 50% Midfield, +50% Attack'
       }
     ];
   }
@@ -267,14 +232,14 @@ export function getAvailableRolesForSlot(slot, player = null) {
         label: 'Forward (Attack)',
         shortLabel: 'ATT',
         color: '#ff4500',
-        desc: 'Full rating in Attack'
+        desc: '100% skill in Attack'
       },
       {
         id: 'support_mid',
         label: 'Support Midfield (+MID)',
-        shortLabel: 'SUP (-2A)',
+        shortLabel: 'SUP (+MID)',
         color: '#00ff64',
-        desc: '-2 in Attack, Full rating in Midfield'
+        desc: 'Drops deep: adds 50% skill to Midfield'
       }
     ];
   }
@@ -320,14 +285,21 @@ export function getPlayerEffectiveSkill(player, slot) {
  * Calculates a single player's contribution to Defense, Midfield, and Attack
  * given their slot, effective skill, assigned role, and team mentality.
  */
-export function calculatePlayerContribution(player, slot, roleId = 'normal', mentality = 'balanced') {
+export function calculatePlayerContribution(
+  player,
+  slot,
+  roleId = 'normal',
+  mentality = 'balanced',
+  zoneCounts = { def: 4, mid: 4, att: 2, rawAtt: 2 }
+) {
   if (!player || !slot || slot.role === 'gk') {
     return { def: 0, mid: 0, att: 0, effectiveSkill: player ? (player.rating || 3) : 0 };
   }
 
-  const normMentality = normalizeMentality(mentality);
-  const defMentalityBonus = normMentality === 'defense' ? 1 : (normMentality === 'attack' ? -1 : 0);
-  const attMentalityBonus = normMentality === 'attack' ? 1 : (normMentality === 'defense' ? -1 : 0);
+  const defDiv = Math.max(4, zoneCounts?.def || 4);
+  const midDiv = Math.max(3, zoneCounts?.mid || 4);
+  const attDiv = Math.max(2, zoneCounts?.att || 2);
+  const rawAttCount = zoneCounts?.rawAtt ?? attDiv;
 
   const idealPos = slot.idealPos || getIdealSlotPosition(slot.role, slot.x, slot.y);
   const playerPos = (player.position || idealPos || '').toUpperCase();
@@ -340,8 +312,10 @@ export function calculatePlayerContribution(player, slot, roleId = 'normal', men
     playerPositions.push(playerPos);
   }
 
-  const isDMC = idealPos === 'DMC' || playerPositions.includes('DMC') || playerPos === 'DMC';
-  const isEligibleAMC = idealPos === 'AMC' && (playerPositions.includes('AMC') || playerPos === 'AMC');
+  const isDefSpecialist = ['DMC', 'DML', 'DMR'].includes(idealPos) ||
+    playerPositions.some(p => ['DMC', 'DML', 'DMR'].includes(p));
+  const isAttSpecialist = ['AMC', 'AML', 'AMR'].includes(idealPos) ||
+    playerPositions.some(p => ['AMC', 'AML', 'AMR'].includes(p));
 
   const validRole = getRoleMetadata(slot, player, roleId).id;
   const eff = getPlayerEffectiveSkill(player, slot);
@@ -352,36 +326,34 @@ export function calculatePlayerContribution(player, slot, roleId = 'normal', men
 
   if (slot.role === 'def') {
     if (validRole === 'support_mid') {
-      // Wing Back (DR/DL) or Ball-Playing DC supporting midfield: -4 in defense, full in midfield
-      def = Math.max(0, (eff - 4) + defMentalityBonus);
-      mid = eff;
+      // Exact 50/50 split: e.g. Finnan (9) -> 4.5 to Defense, 4.5 to Midfield
+      def = eff * 0.5;
+      mid = eff * 0.5 * (midDiv / defDiv);
     } else {
-      // Full Back / Defender: full in defense
-      def = Math.max(0, eff + defMentalityBonus);
+      def = eff;
     }
   } else if (slot.role === 'mid') {
     if (validRole === 'support_def') {
-      // Supporting defense: DMC loses only 2 in midfield; MC/MR/ML loses 4 in midfield. Full to defense + mentality bonus.
-      const midLoss = isDMC ? 2 : 4;
-      mid = Math.max(0, eff - midLoss);
-      def = Math.max(0, eff + defMentalityBonus);
+      // DMC/DML/DMR specialists keep 75% in Midfield (-25%); MC/MR/ML keep 50% (-50%)
+      mid = eff * (isDefSpecialist ? 0.75 : 0.5);
+      def = eff * 0.5 * (defDiv / midDiv);
     } else if (validRole === 'support_att') {
-      // Supporting attack: Specialist AMC in AMC slot loses only 2 in midfield; others lose 4. Full to attack + mentality bonus.
-      const midLoss = isEligibleAMC ? 2 : 4;
-      mid = Math.max(0, eff - midLoss);
-      att = Math.max(0, eff + attMentalityBonus);
+      // AMC/AML/AMR specialists keep 75% in Midfield (-25%); MC/MR/ML keep 50% (-50%)
+      // In 1-striker shapes (4-5-1, 4-2-3-1), attacker runner contributes full 50% into attSum (÷2)
+      mid = eff * (isAttSpecialist ? 0.75 : 0.5);
+      att = rawAttCount === 1
+        ? eff * 0.5
+        : eff * 0.5 * (attDiv / Math.max(3, midDiv));
     } else {
-      // Normal midfield
       mid = eff;
     }
   } else if (slot.role === 'att') {
     if (validRole === 'support_mid') {
-      // Supporting midfield: -2 in attack, full to midfield
-      att = Math.max(0, (eff - 2) + attMentalityBonus);
-      mid = eff;
+      const attDropRatio = Math.min(0.6, 0.5 * (attDiv / Math.max(1, midDiv)));
+      att = eff * (1 - attDropRatio);
+      mid = eff * 0.5 * (midDiv / Math.max(3, midDiv));
     } else {
-      // Normal forward
-      att = Math.max(0, eff + attMentalityBonus);
+      att = eff;
     }
   }
 
@@ -392,10 +364,9 @@ export function calculatePlayerContribution(player, slot, roleId = 'normal', men
  * Calculates full team Defense, Midfield, and Attack ratings from the starting lineup,
  * formation, player roles map, and mentality.
  *
- * Division rules:
- * - Defense: Math.floor(defSum / 4)
- * - Midfield: Math.floor(midSum / 4)
- * - Attack: Math.floor(attSum / 2)
+ * - Divides Defense by max(4, defSlots), Midfield by max(3, midSlots), Attack by max(2, attSlots)
+ * - Uses 50/50 tactical role splits (and 75%-midfield retention for DMC/DML/DMR and AMC/AML/AMR specialists)
+ * - Applies Mentality (+/-1 to team Defense / Attack) cleanly at department level
  */
 export function calculateTeamTacticalStats(lineup, formationKey = '4-4-2', playerRoles = {}, mentality = 'balanced') {
   if (!lineup || Object.keys(lineup).length === 0) {
@@ -406,15 +377,28 @@ export function calculateTeamTacticalStats(lineup, formationKey = '4-4-2', playe
       defSum: 24,
       midSum: 24,
       attSum: 12,
+      divisors: { def: 4, mid: 4, att: 2 },
       rawTotalSkill: 60
     };
   }
 
+  const normMentality = normalizeMentality(mentality);
   const rawSlots = getFormationSlots(formationKey);
   const slots = rawSlots.map(s => ({
     ...s,
     idealPos: getIdealSlotPosition(s.role, s.x, s.y)
   }));
+
+  const rawDef = slots.filter(s => s.role === 'def').length;
+  const rawMid = slots.filter(s => s.role === 'mid').length;
+  const rawAtt = slots.filter(s => s.role === 'att').length;
+
+  const zoneCounts = {
+    def: Math.max(4, rawDef),
+    mid: Math.max(3, rawMid),
+    att: Math.max(2, rawAtt),
+    rawAtt
+  };
 
   let defSum = 0;
   let midSum = 0;
@@ -427,7 +411,7 @@ export function calculateTeamTacticalStats(lineup, formationKey = '4-4-2', playe
     if (!player) return;
 
     const roleId = (playerRoles && playerRoles[slot.id]) || player.tacticalRole || 'normal';
-    const contrib = calculatePlayerContribution(player, slot, roleId, mentality);
+    const contrib = calculatePlayerContribution(player, slot, roleId, normMentality, zoneCounts);
 
     defSum += contrib.def;
     midSum += contrib.mid;
@@ -435,9 +419,12 @@ export function calculateTeamTacticalStats(lineup, formationKey = '4-4-2', playe
     rawTotalSkill += contrib.effectiveSkill;
   });
 
-  const defense = Math.min(10, Math.max(1, Math.floor(defSum / 4)));
-  const midfield = Math.min(10, Math.max(1, Math.floor(midSum / 4)));
-  const attack = Math.min(10, Math.max(1, Math.floor(attSum / 2)));
+  const defMentMod = normMentality === 'defense' ? 1 : (normMentality === 'attack' ? -1 : 0);
+  const attMentMod = normMentality === 'attack' ? 1 : (normMentality === 'defense' ? -1 : 0);
+
+  const defense = Math.min(10, Math.max(1, Math.floor((defSum / zoneCounts.def) + 0.2) + defMentMod));
+  const midfield = Math.min(10, Math.max(1, Math.floor((midSum / zoneCounts.mid) + 0.2)));
+  const attack = Math.min(10, Math.max(1, Math.floor((attSum / zoneCounts.att) + 0.2) + attMentMod));
 
   return {
     defense,
@@ -446,6 +433,7 @@ export function calculateTeamTacticalStats(lineup, formationKey = '4-4-2', playe
     defSum,
     midSum,
     attSum,
+    divisors: { def: zoneCounts.def, mid: zoneCounts.mid, att: zoneCounts.att },
     rawTotalSkill
   };
 }
@@ -501,6 +489,8 @@ export function computeCPUTacticalPlan({
   oppTeam,
   oppLineup = null,
   oppFormation = '4-4-2',
+  oppRoles = {},
+  oppMentality = 'balanced',
   scoreSelf = 0,
   scoreOpp = 0,
   isLeg2 = false,
@@ -511,44 +501,59 @@ export function computeCPUTacticalPlan({
   currentMentality = 'balanced',
   currentRoles = {}
 }) {
-  // 1. Evaluate Baseline Strength of Self vs Opponent
+  // 1. Evaluate Baseline Strength of Self vs Opponent ( plus opponent's live tactical setup )
   const baseSelf = calculateTeamTacticalStats(lineup, formationKey, {}, 'balanced');
   let baseOppSkill = 30;
   let baseOppDeptSum = 9;
+  let oppLiveStats = {
+    attack: oppTeam?.attack || 6,
+    midfield: oppTeam?.midfield || 6,
+    defense: oppTeam?.defense || 6
+  };
 
-  if (oppLineup && Object.keys(oppLineup).length >= 8) {
+  if (oppLineup && Object.keys(oppLineup).filter(k => oppLineup[k]).length >= 7) {
     const baseOpp = calculateTeamTacticalStats(oppLineup, oppFormation, {}, 'balanced');
     baseOppSkill = baseOpp.rawTotalSkill;
     baseOppDeptSum = baseOpp.attack + baseOpp.midfield + baseOpp.defense;
+    oppLiveStats = calculateTeamTacticalStats(oppLineup, oppFormation, oppRoles || {}, oppMentality || 'balanced');
   } else if (oppTeam) {
-    baseOppDeptSum = (oppTeam.attack || 3) + (oppTeam.midfield || 3) + (oppTeam.defense || 3);
+    baseOppDeptSum = (oppTeam.attack || 6) + (oppTeam.midfield || 6) + (oppTeam.defense || 6);
     baseOppSkill = baseOppDeptSum * 3.3;
   }
 
-  const selfDeptSum = (lineup && Object.keys(lineup).length >= 8)
-    ? (baseSelf.attack + baseSelf.midfield + baseSelf.defense)
-    : ((selfTeam?.attack || 3) + (selfTeam?.midfield || 3) + (selfTeam?.defense || 3));
+  const activeSelfPlayers = lineup ? Object.values(lineup).filter(Boolean).length : 11;
+  const hasLineup = Boolean(lineup && activeSelfPlayers >= 7);
 
-  const selfSkill = (lineup && Object.keys(lineup).length >= 8)
+  const selfDeptSum = hasLineup
+    ? (baseSelf.attack + baseSelf.midfield + baseSelf.defense)
+    : ((selfTeam?.attack || 6) + (selfTeam?.midfield || 6) + (selfTeam?.defense || 6));
+
+  const selfSkill = hasLineup
     ? baseSelf.rawTotalSkill
     : selfDeptSum * 3.3;
 
-  // Combine raw player skill difference and department difference
-  const homeBonus = isHomeSide ? 1.5 : -1.0;
+  // Combine raw player skill difference and department difference (realistic 1-10 scale thresholds)
+  const homeBonus = isHomeSide ? 1.2 : -0.8;
   const skillDiff = (selfSkill - baseOppSkill) + homeBonus;
   const deptDiff = selfDeptSum - baseOppDeptSum;
 
   // Classify strength tier:
-  // -2: Much Weaker | -1: Slightly Weaker | 0: Equal | +1: Slightly Stronger | +2: Much Stronger
+  // -2: Much Weaker | -1: Slightly Weaker | 0: Equal | +1: Slightly Stronger | +2: Very Superior
   let tier = 0;
-  if (skillDiff <= -6.5 || deptDiff <= -3) {
+  if (skillDiff <= -10.5 || deptDiff <= -5) {
     tier = -2;
-  } else if (skillDiff <= -2.5 || deptDiff <= -1) {
+  } else if (skillDiff <= -4.5 || deptDiff <= -2) {
     tier = -1;
-  } else if (skillDiff >= 6.5 || deptDiff >= 3) {
+  } else if (skillDiff >= 10.5 || deptDiff >= 5) {
     tier = 2;
-  } else if (skillDiff >= 2.5 || deptDiff >= 1) {
+  } else if (skillDiff >= 4.5 || deptDiff >= 2) {
     tier = 1;
+  }
+
+  // If CPU had a player sent off (10 or fewer players), downgrade effective tier so it plays compactly
+  const isDownAMan = hasLineup && activeSelfPlayers < 11;
+  if (isDownAMan) {
+    tier = Math.max(-2, tier - 1);
   }
 
   // 2. Evaluate Match Scoreline / Aggregate State
@@ -558,92 +563,116 @@ export function computeCPUTacticalPlan({
     leg1Diff = isHomeSide ? (leg1AwayScore - leg1HomeScore) : (leg1HomeScore - leg1AwayScore);
   }
   const effectiveGoalDiff = isLeg2 ? (goalDiff + leg1Diff) : goalDiff;
+  const behindBy = effectiveGoalDiff < 0 ? Math.abs(effectiveGoalDiff) : 0;
 
-  // 3. Determine Strategic Posture ('park_bus', 'defensive', 'cautious_def', 'balanced', 'cautious_att', 'attacking', 'all_out_attack')
+  // Check if opponent is dominating midfield or CPU is bleeding goals
+  const isOutnumberedInMidfield = oppLiveStats.midfield > baseSelf.midfield;
+  const isConcedingHeavily =
+    behindBy >= 3 ||
+    (scoreOpp >= 3 && behindBy >= 2) ||
+    (behindBy === 2 && (tier <= 0 || isDownAMan || (currentMatchTime >= 75 && tier <= 1)));
+
+  // 3. Determine Strategic Posture
+  // ('park_bus' | 'damage_control' | 'defensive' | 'cautious_def' | 'balanced' | 'cautious_att' | 'attacking' | 'all_out_attack')
   let posture = 'balanced';
 
   if (currentMatchTime === 0) {
-    // Pre-match kickoff gameplan based on relative strength
+    // Pre-match kickoff gameplan: only truly superior teams (tier === 2) start with 'attacking'
     if (tier === -2) posture = 'defensive';
-    else if (tier === -1) posture = isHomeSide ? 'cautious_def' : 'defensive';
-    else if (tier === 0) posture = isHomeSide ? 'cautious_att' : 'balanced';
-    else if (tier === 1) posture = isHomeSide ? 'attacking' : 'cautious_att';
-    else if (tier === 2) posture = 'attacking';
-  } else {
-    // Live In-Match Dynamic Adjustments
-    if (effectiveGoalDiff < 0) {
-      // CPU IS TRAILING
-      const behindBy = Math.abs(effectiveGoalDiff);
-      if (currentMatchTime >= 75) {
-        // Desperate late push for goals
-        posture = tier <= -2 && behindBy === 1 ? 'attacking' : 'all_out_attack';
-      } else if (currentMatchTime >= 55) {
-        posture = tier <= -2 ? 'cautious_att' : 'attacking';
-      } else if (behindBy >= 2) {
-        // Down by 2+ goals in first half
-        posture = tier <= -2 ? 'balanced' : 'attacking';
-      } else {
-        // Down by 1 goal early
-        if (tier <= -2) posture = 'cautious_def'; // Underdog stays compact early so they don't collapse
-        else if (tier === -1) posture = 'balanced';
+    else if (tier === -1) posture = 'cautious_def';
+    else if (tier === 0) posture = 'balanced';
+    else if (tier === 1) posture = isHomeSide ? 'cautious_att' : 'balanced';
+    else if (tier === 2) posture = isHomeSide ? 'attacking' : 'cautious_att';
+  } else if (isConcedingHeavily) {
+    // DAMAGE CONTROL: "Better to lose 3-0 than 6-0" — reinforce defense & midfield instead of opening up further
+    posture = (behindBy >= 3 || tier <= -1 || isDownAMan) ? 'damage_control' : 'cautious_def';
+  } else if (effectiveGoalDiff < 0) {
+    // CPU IS TRAILING (by 1 goal, or by 2 goals as a stronger side that hasn't collapsed)
+    if (behindBy === 1) {
+      if (currentMatchTime >= 80) {
+        // Final 10 minutes trailing by 1: push for equalizer (unless down a man & much weaker)
+        posture = (isDownAMan || tier <= -2) ? 'cautious_att' : 'all_out_attack';
+      } else if (currentMatchTime >= 72) {
+        posture = tier <= -2 ? 'cautious_att' : (tier >= 1 && !isDownAMan ? 'all_out_attack' : 'attacking');
+      } else if (currentMatchTime >= 52) {
+        if (tier <= -2) posture = 'balanced';
+        else if (tier === -1 || tier === 0) posture = 'cautious_att';
         else posture = 'attacking';
-      }
-    } else if (effectiveGoalDiff > 0) {
-      // CPU IS LEADING
-      if (currentMatchTime >= 75) {
-        // Closing out the match late
-        if (effectiveGoalDiff === 1) {
-          posture = tier >= 2 ? 'cautious_def' : 'park_bus';
-        } else {
-          posture = 'defensive';
-        }
-      } else if (currentMatchTime >= 50) {
-        if (effectiveGoalDiff === 1) {
-          posture = tier <= 0 ? 'defensive' : 'cautious_def';
-        } else {
-          posture = tier <= -1 ? 'defensive' : 'balanced';
-        }
       } else {
-        // Leading in first half
-        if (tier <= -1) posture = 'defensive';
-        else if (tier === 0) posture = 'cautious_def';
-        else if (tier === 1) posture = 'balanced';
-        else posture = 'cautious_att';
+        // First half down 0-1: stay composed, never abandon midfield or defense early
+        if (tier <= -2) posture = 'cautious_def';
+        else if (tier === -1 || tier === 0) posture = 'balanced';
+        else if (tier === 1) posture = 'cautious_att';
+        else posture = 'attacking';
       }
     } else {
-      // MATCH IS TIED (0-0, 1-1, etc.)
-      if (currentMatchTime >= 70) {
-        if (tier >= 1) {
-          // Stronger team pushing late for a winner
-          posture = tier === 2 ? 'all_out_attack' : 'attacking';
-        } else if (tier <= -1) {
-          // Weaker team holding on for a valuable draw late
-          posture = tier === -2 ? 'park_bus' : 'defensive';
-        } else {
-          posture = isHomeSide ? 'cautious_att' : 'cautious_def';
-        }
+      // behindBy === 2 and tier >= 1 (Stronger team down 0-2 before damage-control cutoff)
+      if (currentMatchTime >= 75) {
+        posture = (tier === 2 && scoreOpp <= 2 && !isDownAMan) ? 'all_out_attack' : 'cautious_def';
+      } else if (currentMatchTime >= 55) {
+        posture = tier === 2 ? 'attacking' : 'cautious_att';
       } else {
-        // Tied in normal flow
-        if (tier === -2) posture = 'defensive';
-        else if (tier === -1) posture = 'cautious_def';
-        else if (tier === 0) posture = isHomeSide ? 'cautious_att' : 'balanced';
-        else if (tier === 1) posture = isHomeSide ? 'attacking' : 'cautious_att';
-        else posture = 'attacking';
+        posture = tier === 2 ? 'attacking' : 'balanced';
       }
+    }
+  } else if (effectiveGoalDiff > 0) {
+    // CPU IS LEADING: manage the game, protect midfield & defense
+    if (effectiveGoalDiff >= 2) {
+      // Comfortably ahead by 2+ goals: control midfield and defense, never stay reckless in attack
+      if (currentMatchTime >= 70) {
+        posture = tier <= 0 ? 'defensive' : 'cautious_def';
+      } else {
+        posture = tier <= -1 ? 'defensive' : (tier === 0 ? 'cautious_def' : 'balanced');
+      }
+    } else {
+      // Leading by 1 goal
+      if (currentMatchTime >= 75) {
+        posture = tier <= -1 ? 'park_bus' : (tier <= 1 ? 'defensive' : 'cautious_def');
+      } else if (currentMatchTime >= 50) {
+        posture = tier <= 0 ? 'defensive' : (tier === 1 ? 'cautious_def' : 'balanced');
+      } else {
+        if (tier <= -1) posture = 'defensive';
+        else if (tier === 0) posture = 'cautious_def';
+        else posture = 'balanced';
+      }
+    }
+  } else {
+    // MATCH IS TIED (0-0, 1-1, etc.)
+    if (currentMatchTime >= 75) {
+      if (tier === 2 && !isDownAMan) {
+        // Only a very superior team pushes all-out late in a draw (after 80')
+        posture = currentMatchTime >= 81 ? 'all_out_attack' : 'attacking';
+      } else if (tier === 1 && !isDownAMan) {
+        posture = isHomeSide ? 'attacking' : 'cautious_att';
+      } else if (tier <= -1) {
+        posture = tier === -2 ? 'park_bus' : 'defensive';
+      } else {
+        posture = 'balanced';
+      }
+    } else {
+      if (tier === -2) posture = 'defensive';
+      else if (tier === -1) posture = 'cautious_def';
+      else if (tier === 0) posture = 'balanced';
+      else if (tier === 1) posture = isHomeSide ? 'cautious_att' : 'balanced';
+      else posture = isHomeSide ? 'attacking' : 'cautious_att';
     }
   }
 
   // 4. Map Strategic Posture to Mentality ('defense' | 'balanced' | 'attack')
+  // Note: 'attack' mentality imposes -1 on every defender, so only use it when genuinely attacking/all-out or tier === 2
   let targetMentality = 'balanced';
-  if (posture === 'park_bus' || posture === 'defensive') {
+  if (posture === 'park_bus' || posture === 'defensive' || posture === 'damage_control') {
     targetMentality = 'defense';
-  } else if (posture === 'attacking' || posture === 'all_out_attack') {
+  } else if (posture === 'all_out_attack') {
     targetMentality = 'attack';
+  } else if (posture === 'attacking') {
+    // Only use 'attack' mentality if defense stays resilient or team is very superior / late chasing 1 goal
+    targetMentality = (tier >= 2 || (behindBy === 1 && currentMatchTime >= 65)) ? 'attack' : 'balanced';
   } else {
     targetMentality = 'balanced';
   }
 
-  // 5. Assign Intelligent Player Roles for Outfield Slots
+  // 5. Assign Intelligent Player Roles for Outfield Slots with Strict Midfield & Defense Floors
   const roles = {};
   if (!lineup || Object.keys(lineup).length === 0) {
     return { mentality: targetMentality, roles, posture, tier };
@@ -674,7 +703,6 @@ export function computeCPUTacticalPlan({
     .sort((a, b) => b.eff - a.eff);
   const attMids = slots.filter(s => s.role === 'mid' && (s.idealPos === 'AMC' || s.idealPos === 'AML' || s.idealPos === 'AMR'))
     .sort((a, b) => {
-      // Prioritize natural AMC in AMC slot because they only lose -1 to midfield
       const aPositions = (a.player?.positions || [a.player?.position || '']).map(p => String(p).toUpperCase());
       const bPositions = (b.player?.positions || [b.player?.position || '']).map(p => String(p).toUpperCase());
       const aIsEligibleAMC = a.idealPos === 'AMC' && aPositions.includes('AMC');
@@ -685,100 +713,233 @@ export function computeCPUTacticalPlan({
     });
 
   const forwards = slots.filter(s => s.role === 'att')
-    .sort((a, b) => a.eff - b.eff); // Weakest/secondary striker first for dropping deep into midfield
+    .sort((a, b) => a.eff - b.eff); // Secondary striker first for dropping deep into midfield
+
+  // Helper: safely test a candidate role assignment against minimum Defense and Midfield floors
+  const tryAssignRole = (slotId, candidateRole, { minDef, minMid, requireGainIn = null } = {}) => {
+    const before = calculateTeamTacticalStats(lineup, formationKey, roles, targetMentality);
+    const testRoles = { ...roles, [slotId]: candidateRole };
+    const after = calculateTeamTacticalStats(lineup, formationKey, testRoles, targetMentality);
+    if (minDef !== undefined && after.defense < minDef) return false;
+    if (minMid !== undefined && after.midfield < minMid) return false;
+    if (requireGainIn === 'attack' && after.attack <= before.attack) return false;
+    if (requireGainIn === 'midfield' && after.midfield <= before.midfield) return false;
+    if (requireGainIn === 'defense' && after.defense <= before.defense) return false;
+    roles[slotId] = candidateRole;
+    return true;
+  };
 
   // Apply role combinations according to posture:
-  if (posture === 'park_bus') {
-    // Ultra-solid block: pull up to 2 DMCs/MCs + 1 wide mid into defense, and drop 1 forward to support midfield
+  if (posture === 'park_bus' || posture === 'damage_control') {
+    // Reinforce defense and midfield to stop conceding goals
     const defCandidates = [...dmcs, ...mcs, ...wideMids];
     defCandidates.slice(0, 2).forEach(s => { roles[s.id] = 'support_def'; });
     if (forwards.length >= 2) {
       roles[forwards[0].id] = 'support_mid';
     }
   } else if (posture === 'defensive') {
-    // Weaker team / defending lead: Defensive mentality + pull 1-2 midfielders (DMC/MC) to support defense
     const defCandidates = [...dmcs, ...mcs];
     const numToPull = (tier <= -2 || currentMatchTime >= 70) ? Math.min(2, defCandidates.length) : 1;
     defCandidates.slice(0, numToPull).forEach(s => { roles[s.id] = 'support_def'; });
 
-    // If playing with 2+ strikers and midfield needs help, drop 1 striker to support midfield
     if (forwards.length >= 2) {
       const curStats = calculateTeamTacticalStats(lineup, formationKey, roles, targetMentality);
-      if (curStats.midfield < baseSelf.midfield || curStats.attSum % 2 === 1) {
+      if (curStats.midfield < baseSelf.midfield || curStats.midfield < oppLiveStats.midfield || curStats.attSum % 2 === 1) {
         roles[forwards[0].id] = 'support_mid';
       }
     }
   } else if (posture === 'cautious_def') {
-    // Slightly weaker team / away caution: Normal mentality, pull 1 DMC or MC to support defense
     const defCandidates = [...dmcs, ...mcs];
     if (defCandidates.length > 0) {
       roles[defCandidates[0].id] = 'support_def';
     }
-    // If 2 forwards and dropping 1 keeps attack or boosts midfield threshold, drop 1 forward to support midfield
+    // If 2 forwards and dropping 1 preserves Attack or boosts midfield threshold, drop 1 forward to support midfield
     if (forwards.length >= 2) {
       const curStats = calculateTeamTacticalStats(lineup, formationKey, roles, targetMentality);
-      if ((curStats.midSum % 4) >= 2 && (curStats.attSum % 2) === 1) {
-        roles[forwards[0].id] = 'support_mid';
+      const fwdAttSlot = slots.find(s => s.id === forwards[0].id);
+      if (fwdAttSlot) {
+        const testRoles = { ...roles, [fwdAttSlot.id]: 'support_mid' };
+        const after = calculateTeamTacticalStats(lineup, formationKey, testRoles, targetMentality);
+        if (curStats.midfield < oppLiveStats.midfield || (after.midfield > curStats.midfield && after.attack >= curStats.attack)) {
+          roles[forwards[0].id] = 'support_mid';
+        }
       }
     }
   } else if (posture === 'balanced') {
-    // Evenly matched: smart threshold optimization!
-    // 1. If we have a natural DMC (only -2 to mid) and Defense can gain a point without losing Midfield, use DMC on support_def
+    // Strictly preserve base Defense and Midfield while seeking threshold gains
     if (dmcs.length > 0) {
-      const testRoles = { ...roles, [dmcs[0].id]: 'support_def' };
-      const before = calculateTeamTacticalStats(lineup, formationKey, roles, targetMentality);
-      const after = calculateTeamTacticalStats(lineup, formationKey, testRoles, targetMentality);
-      if (after.defense > before.defense && after.midfield >= before.midfield) {
-        roles[dmcs[0].id] = 'support_def';
-      }
+      tryAssignRole(dmcs[0].id, 'support_def', {
+        minDef: baseSelf.defense,
+        minMid: baseSelf.midfield,
+        requireGainIn: 'defense'
+      });
     }
-    // 2. If we have an AMC and Attack can gain a point while keeping Midfield strong
     if (attMids.length > 0) {
-      const testRoles = { ...roles, [attMids[0].id]: 'support_att' };
-      const before = calculateTeamTacticalStats(lineup, formationKey, roles, targetMentality);
-      const after = calculateTeamTacticalStats(lineup, formationKey, testRoles, targetMentality);
-      if (after.attack > before.attack && after.midfield >= before.midfield) {
-        roles[attMids[0].id] = 'support_att';
-      }
+      tryAssignRole(attMids[0].id, 'support_att', {
+        minDef: baseSelf.defense,
+        minMid: forwards.length <= 1 ? Math.max(5, baseSelf.midfield - 1) : baseSelf.midfield,
+        requireGainIn: 'attack'
+      });
     }
   } else if (posture === 'cautious_att') {
-    // Slightly stronger / home initiative: Normal mentality, push 1-2 attacking mids/wingers to attack, and 1 Wing Back to midfield
-    const attCandidates = [...attMids, ...wideMids, ...mcs];
-    if (attCandidates.length > 0) {
-      roles[attCandidates[0].id] = 'support_att';
+    // Slightly stronger / home initiative: NEVER sacrifice base Defense or Midfield if tier < 2
+    const minDefFloor = tier >= 2 ? Math.max(4, baseSelf.defense - 1) : baseSelf.defense;
+    const minMidFloor = baseSelf.midfield;
+
+    // If a DMC can cover defense without dropping midfield below floor, lock that in first
+    if (dmcs.length > 0) {
+      tryAssignRole(dmcs[0].id, 'support_def', {
+        minDef: minDefFloor,
+        minMid: minMidFloor,
+        requireGainIn: 'defense'
+      });
     }
-    // Push best full-back to Wing Back to replenish midfield
+
+    // Only push 1 Wing-Back if Defense stays >= minDefFloor
     if (fullBacks.length > 0) {
-      const testRoles = { ...roles, [fullBacks[0].id]: 'support_mid' };
-      const before = calculateTeamTacticalStats(lineup, formationKey, roles, targetMentality);
-      const after = calculateTeamTacticalStats(lineup, formationKey, testRoles, targetMentality);
-      if (after.midfield > before.midfield || (before.defSum % 4) >= 2) {
-        roles[fullBacks[0].id] = 'support_mid';
+      tryAssignRole(fullBacks[0].id, 'support_mid', {
+        minDef: minDefFloor,
+        minMid: minMidFloor
+      });
+    }
+
+    // Only push 1 Attacking Midfielder if Midfield stays >= minMidFloor
+    const attCandidates = [...attMids, ...wideMids, ...mcs];
+    for (const cand of attCandidates.slice(0, 2)) {
+      if (tryAssignRole(cand.id, 'support_att', {
+        minDef: minDefFloor,
+        minMid: minMidFloor,
+        requireGainIn: 'attack'
+      })) {
+        break;
       }
     }
   } else if (posture === 'attacking') {
-    // Stronger team / chasing a goal: Attacking mentality, push 1-2 AMCs/wingers to attack, and 1-2 Wing Backs to midfield
-    const attCandidates = [...attMids, ...wideMids, ...mcs];
-    const numAtt = attCandidates.length >= 2 ? 2 : 1;
-    attCandidates.slice(0, numAtt).forEach(s => { roles[s.id] = 'support_att'; });
+    // Controlled attacking: keep Defense & Midfield strong (never gut the backline)
+    const minDefFloor = tier >= 2
+      ? Math.max(5, baseSelf.defense - 1)
+      : Math.max(4, baseSelf.defense - (behindBy === 1 && currentMatchTime >= 65 ? 1 : 0));
+    const minMidFloor = tier >= 2
+      ? Math.max(4, baseSelf.midfield - 1)
+      : baseSelf.midfield;
+
+    // Check if 'attack' mentality alone violated minDefFloor; if so, fall back to 'balanced' mentality
+    const statsAtStart = calculateTeamTacticalStats(lineup, formationKey, roles, targetMentality);
+    if (targetMentality === 'attack' && statsAtStart.defense < minDefFloor) {
+      targetMentality = 'balanced';
+    }
 
     if (fullBacks.length > 0) {
-      roles[fullBacks[0].id] = 'support_mid';
+      tryAssignRole(fullBacks[0].id, 'support_mid', {
+        minDef: minDefFloor
+      });
       if (fullBacks.length > 1 && tier >= 2) {
-        roles[fullBacks[1].id] = 'support_mid';
+        tryAssignRole(fullBacks[1].id, 'support_mid', {
+          minDef: minDefFloor
+        });
       }
     } else if (centerBacks.length >= 3) {
-      // 3-back formation (e.g. 3-5-2 / 3-4-3): 1 DC steps into midfield
-      roles[centerBacks[0].id] = 'support_mid';
+      tryAssignRole(centerBacks[0].id, 'support_mid', {
+        minDef: minDefFloor
+      });
+    }
+
+    const attCandidates = [...attMids, ...wideMids, ...mcs];
+    const maxSupportAtt = tier >= 2 ? 2 : 1;
+    let assignedAtt = 0;
+    for (const cand of attCandidates) {
+      if (assignedAtt >= maxSupportAtt) break;
+      if (tryAssignRole(cand.id, 'support_att', {
+        minDef: minDefFloor,
+        minMid: minMidFloor
+      })) {
+        assignedAtt++;
+      }
     }
   } else if (posture === 'all_out_attack') {
-    // Desperate late comeback / heavy pressure: Attacking mentality, Wing Backs + 1 DC in midfield, 2-3 midfielders in attack
-    const attCandidates = [...attMids, ...wideMids, ...mcs];
-    attCandidates.slice(0, 3).forEach(s => { roles[s.id] = 'support_att'; });
+    // Final-minutes desperate push (only reached >= 75' in a close 1-goal game or tier === 2 late draw)
+    // Still keep Center-Backs at home in a 4-back formation and keep a safe Defense floor (>= 4)
+    const minDefFloor = Math.max(4, baseSelf.defense - 2);
+    const minMidFloor = Math.max(4, baseSelf.midfield - 1);
 
-    fullBacks.forEach(s => { roles[s.id] = 'support_mid'; });
-    if (centerBacks.length >= 2) {
-      roles[centerBacks[0].id] = 'support_mid';
+    for (const fb of fullBacks) {
+      tryAssignRole(fb.id, 'support_mid', { minDef: minDefFloor });
+    }
+    if (centerBacks.length >= 3) {
+      tryAssignRole(centerBacks[0].id, 'support_mid', { minDef: minDefFloor });
+    }
+
+    const attCandidates = [...attMids, ...wideMids, ...mcs];
+    let assignedAtt = 0;
+    for (const cand of attCandidates) {
+      if (assignedAtt >= 2) break;
+      if (tryAssignRole(cand.id, 'support_att', {
+        minDef: minDefFloor,
+        minMid: minMidFloor
+      })) {
+        assignedAtt++;
+      }
+    }
+  }
+
+  // 6. Situational Midfield & Defensive Adaptation:
+  // - Similar-strength teams (tier 0 or 1): actively push to match/dominate midfield (target oppMid + 1),
+  //   willing to drop surplus attackers (keeping >= 1 striker & Attack >= 7) or step 1 WB up while Defense >= 7.
+  // - Weaker teams (tier <= -1): keep defensive block intact while adding midfield support so they don't get overrun.
+  // - Much stronger teams (tier === 2): control midfield first (>= oppMid), keeping spare firepower in attack.
+  if (posture !== 'all_out_attack') {
+    let curStats = calculateTeamTacticalStats(lineup, formationKey, roles, targetMentality);
+    const targetMid = tier >= 0 && tier <= 1
+      ? Math.min(10, oppLiveStats.midfield + 1)
+      : oppLiveStats.midfield;
+
+    // Step A: Pull back any 'support_att' midfielders to 'normal' if CPU is below target midfield
+    if (curStats.midfield < targetMid || (tier < 2 && curStats.midfield < baseSelf.midfield)) {
+      const pushedMids = [...mcs, ...wideMids, ...attMids].filter(s => roles[s.id] === 'support_att');
+      for (const pm of pushedMids) {
+        const testRoles = { ...roles, [pm.id]: 'normal' };
+        const after = calculateTeamTacticalStats(lineup, formationKey, testRoles, targetMentality);
+        if (after.midfield > curStats.midfield) {
+          roles[pm.id] = 'normal';
+          curStats = after;
+          if (curStats.midfield >= targetMid && curStats.midfield >= baseSelf.midfield) break;
+        }
+      }
+    }
+
+    // Step B: Drop extra forward(s) to 'support_mid' (always keep at least 1 forward on normal Attack)
+    // Similar/stronger sides can drop up to (forwards.length - 1) if Attack stays >= 7; weaker sides keep Attack >= 6
+    if ((curStats.midfield < targetMid || isOutnumberedInMidfield) && forwards.length >= 2) {
+      const maxDrops = forwards.length - 1;
+      const minAttFloor = tier <= -1 ? 6 : 7;
+      let dropped = forwards.filter(f => roles[f.id] === 'support_mid').length;
+      for (const fwd of forwards) {
+        if (dropped >= maxDrops || curStats.midfield >= targetMid) break;
+        if (roles[fwd.id] !== 'normal') continue;
+        const testRoles = { ...roles, [fwd.id]: 'support_mid' };
+        const after = calculateTeamTacticalStats(lineup, formationKey, testRoles, targetMentality);
+        if (after.midfield > curStats.midfield && after.attack >= Math.min(curStats.attack, minAttFloor)) {
+          roles[fwd.id] = 'support_mid';
+          curStats = after;
+          dropped++;
+        }
+      }
+    }
+
+    // Step C: If still trailing targetMid, allow 1 Full-Back -> WB (+MID) while keeping a strong Defense floor
+    // Similar strength (tier 0/1) can trade surplus Defense (e.g. 9 -> 8 or 8 -> 7) if needed to contest midfield;
+    // Weaker teams (tier <= -1) never weaken Defense to push a Full-Back up.
+    if (curStats.midfield < targetMid && fullBacks.length > 0) {
+      const availFb = fullBacks.find(fb => roles[fb.id] === 'normal');
+      if (availFb) {
+        const wbMinDef = tier <= -1
+          ? curStats.defense
+          : Math.max(7, Math.min(curStats.defense, baseSelf.defense - 1));
+        tryAssignRole(availFb.id, 'support_mid', {
+          minDef: wbMinDef,
+          requireGainIn: 'midfield'
+        });
+      }
     }
   }
 

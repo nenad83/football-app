@@ -1,0 +1,178 @@
+[
+  {
+    "idnum": 0,
+    "id": "concacaf93",
+    "name": "Tecos UAG",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#800000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "concacaf93",
+    "name": "Santos Laguna",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008542",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "concacaf93",
+    "name": "CSD Municipal",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/3.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 3,
+    "id": "concacaf93",
+    "name": "Herediano",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/4.png",
+    "primaryColor": "#FEDD00",
+    "secondaryColor": "#E31B23"
+  },
+  {
+    "idnum": 4,
+    "id": "concacaf93",
+    "name": "Motagua",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#003B71",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "concacaf93",
+    "name": "CD FAS",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/3.png",
+    "primaryColor": "#E31B23",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 6,
+    "id": "concacaf93",
+    "name": "Tauro",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/4.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "concacaf93",
+    "name": "Real Espana",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FEDD00",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 8,
+    "id": "concacaf93",
+    "name": "Alianza FC",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#002B5C"
+  },
+  {
+    "idnum": 9,
+    "id": "concacaf93",
+    "name": "Arabe Unido",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005BAC",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "concacaf93",
+    "name": "Isidro Metapan",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 11,
+    "id": "concacaf93",
+    "name": "Marathon",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008542",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "concacaf93",
+    "name": "Antigua GFC",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008542",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "concacaf93",
+    "name": "Cibao FC",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#FF6B00",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 14,
+    "id": "concacaf93",
+    "name": "Cavalier FC",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 15,
+    "id": "concacaf93",
+    "name": "Forge FC",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#FF6B00",
+    "secondaryColor": "#4D4D4F"
+  }
+]

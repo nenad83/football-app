@@ -1,0 +1,134 @@
+[
+  {
+    "idnum": 0,
+    "id": "usa01",
+    "name": "Chicago Fire",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#AF272F",
+    "secondaryColor": "#101820"
+  },
+  {
+    "idnum": 1,
+    "id": "usa01",
+    "name": "D.C. United",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/5.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#EF3E42"
+  },
+  {
+    "idnum": 2,
+    "id": "usa01",
+    "name": "LA Galaxy",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#00245D",
+    "secondaryColor": "#FFD200"
+  },
+  {
+    "idnum": 3,
+    "id": "usa01",
+    "name": "Columbus Crew",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FEDD00",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 4,
+    "id": "usa01",
+    "name": "Colorado Rapids",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#862633",
+    "secondaryColor": "#8BB8E8"
+  },
+  {
+    "idnum": 5,
+    "id": "usa01",
+    "name": "Dallas Burn",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 6,
+    "id": "usa01",
+    "name": "Kansas City Wizards",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/3.png",
+    "primaryColor": "#002F6C",
+    "secondaryColor": "#93B1D7"
+  },
+  {
+    "idnum": 7,
+    "id": "usa01",
+    "name": "NY/NJ MetroStars",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/4.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#ED1C24"
+  },
+  {
+    "idnum": 8,
+    "id": "usa01",
+    "name": "Miami Fusion",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#002F6C",
+    "secondaryColor": "#FFD100"
+  },
+  {
+    "idnum": 9,
+    "id": "usa01",
+    "name": "San Jose Clash",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#0051BA",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 10,
+    "id": "usa01",
+    "name": "Tampa Bay Mutiny",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/5.png",
+    "primaryColor": "#00778B",
+    "secondaryColor": "#00205B"
+  },
+  {
+    "idnum": 11,
+    "id": "usa01",
+    "name": "New England Revolution",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/2.png",
+    "primaryColor": "#0A2240",
+    "secondaryColor": "#CE0E2D"
+  }
+]

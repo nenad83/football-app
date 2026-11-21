@@ -6,6 +6,7 @@ import { uefaRules } from '../data/uefa/uefaRules';
 import { ueclRules } from '../data/uecl/ueclRules';
 import { clibRules } from '../data/clib/clibRules';
 import { csudRules } from '../data/csud/csudRules';
+import { concacafRules } from '../data/concacaf/concacafRules';
 import { TacticsPanel } from './MatchTactics';
 import {
   getSavedFormation,
@@ -174,7 +175,9 @@ export default function PreMatch() {
 
     const toCamelCase = (str) => str.replace(/_([a-z0-9])/g, (g) => g[1].toUpperCase());
     const seasonShort = leagueState.season.split("/")[0];
-    const activeClRules = leagueState.region === "south_america" ? clibRules : clRules;
+    const activeClRules = leagueState.region === "south_america"
+      ? clibRules
+      : (leagueState.region === "north_america" ? concacafRules : clRules);
     const activeUefaRules = leagueState.region === "south_america" ? csudRules : uefaRules;
     const rules = leagueState.europeanCup === "cl" ? activeClRules[seasonShort] : (leagueState.europeanCup === "uefa" ? activeUefaRules[seasonShort] : ueclRules[seasonShort]);
     const hasGroupStage = rules && (

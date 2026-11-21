@@ -3,6 +3,7 @@ import { uefaRules } from '../data/uefa/uefaRules';
 import { ueclRules } from '../data/uecl/ueclRules';
 import { clibRules } from '../data/clib/clibRules';
 import { csudRules } from '../data/csud/csudRules';
+import { concacafRules } from '../data/concacaf/concacafRules';
 
 const TOP5_COUNTRIES_TEAMS_FALLBACK = new Set([
   'manchester city', 'arsenal', 'liverpool', 'chelsea', 'manchester united', 'tottenham', 'aston villa', 'newcastle',
@@ -112,7 +113,7 @@ export function generateDynamicSchedules(totalRounds, rules) {
     const slot = springSlots[i];
     const hasLeg2 = springSlots.some(s => s.stage === slot.stage && s.matchday === 2);
     currentR = (slot.matchday === 2 || !hasLeg2) ? currentR - 2 : currentR - 1;
-    slot.offset = currentR;
+    slot.offset = Math.max(1, currentR);
   }
 
   if (A > 0 && springSlots.length > 0) {
@@ -140,10 +141,12 @@ export function generateDynamicSchedules(totalRounds, rules) {
 /**
  * Resolves the closest available template rules object for a competition and season year.
  */
-export function resolveContinentalRules(competition, seasonYear, isSA = false) {
+export function resolveContinentalRules(competition, seasonYear, isSA = false, isNA = false) {
   const yr = parseInt(String(seasonYear || '2001').split('/')[0], 10) || 2001;
   let pool;
-  if (isSA) {
+  if (isNA) {
+    pool = concacafRules;
+  } else if (isSA) {
     pool = competition === 'cl' ? clibRules : csudRules;
   } else {
     pool = competition === 'cl' ? clRules : (competition === 'uefa' ? uefaRules : ueclRules);
@@ -203,12 +206,14 @@ export function buildEuropeanCupSetup({
   competition,
   seasonStr,
   isSA = false,
+  isNA = false,
+  isSingleRound = false,
   selectedTeamObj,
   nextSeasonTeams = [],
   targetReplaceTeamName = null
 }) {
   const yr = parseInt(String(seasonStr || '2001').split('/')[0], 10) || 2001;
-  const rules = resolveContinentalRules(competition, yr, isSA);
+  const rules = resolveContinentalRules(competition, yr, isSA, isNA);
   const euroTeams = JSON.parse(JSON.stringify(rules.teamsData));
   const selectedTeamName = selectedTeamObj?.name || '';
   const domesticNames = (nextSeasonTeams || []).map(t => t.name);
@@ -247,7 +252,8 @@ export function buildEuropeanCupSetup({
     }
   });
 
-  const nextTotalRounds = ((nextSeasonTeams.length % 2 === 0 ? nextSeasonTeams.length - 1 : nextSeasonTeams.length)) * 2;
+  const baseRounds = nextSeasonTeams.length % 2 === 0 ? nextSeasonTeams.length - 1 : nextSeasonTeams.length;
+  const nextTotalRounds = isSingleRound ? baseRounds : baseRounds * 2;
   const dynamicSchedules = generateDynamicSchedules(nextTotalRounds, rules);
   let europeanCupState = null;
 

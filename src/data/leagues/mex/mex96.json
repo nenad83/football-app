@@ -1,0 +1,200 @@
+[
+  {
+    "idnum": 0,
+    "id": "mex96",
+    "name": "Santos Laguna",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008542",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "mex96",
+    "name": "Necaxa",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/4.png",
+    "primaryColor": "#E31B23",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "mex96",
+    "name": "Chivas Guadalajara",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "swe92/4.png",
+    "primaryColor": "#E31B23",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "mex96",
+    "name": "Toros Neza",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "fra84/1.png",
+    "primaryColor": "#E51E25",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "mex96",
+    "name": "Atlante",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/2.png",
+    "primaryColor": "#002B5C",
+    "secondaryColor": "#C8102E"
+  },
+  {
+    "idnum": 5,
+    "id": "mex96",
+    "name": "Club America",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFDC00",
+    "secondaryColor": "#002F6C"
+  },
+  {
+    "idnum": 6,
+    "id": "mex96",
+    "name": "Cruz Azul",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005BAC",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "mex96",
+    "name": "Toluca",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D50032",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "mex96",
+    "name": "Monterrey",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/4.png",
+    "primaryColor": "#0A2240",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "mex96",
+    "name": "Pumas UNAM",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#002B5C",
+    "secondaryColor": "#C8A415"
+  },
+  {
+    "idnum": 10,
+    "id": "mex96",
+    "name": "Atlas",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra84/1.png",
+    "primaryColor": "#D21034",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 11,
+    "id": "mex96",
+    "name": "Puebla",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0055A4"
+  },
+  {
+    "idnum": 12,
+    "id": "mex96",
+    "name": "Morelia",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/4.png",
+    "primaryColor": "#FFDC00",
+    "secondaryColor": "#CC0000"
+  },
+  {
+    "idnum": 13,
+    "id": "mex96",
+    "name": "Tecos UAG",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#800000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "mex96",
+    "name": "Leon",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/1.png",
+    "primaryColor": "#00843D",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "mex96",
+    "name": "Celaya",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#003399"
+  },
+  {
+    "idnum": 16,
+    "id": "mex96",
+    "name": "Veracruz",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/3.png",
+    "primaryColor": "#E31B23",
+    "secondaryColor": "#003087"
+  },
+  {
+    "idnum": 17,
+    "id": "mex96",
+    "name": "Pachuca",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/4.png",
+    "primaryColor": "#0033A0",
+    "secondaryColor": "#FFFFFF"
+  }
+]

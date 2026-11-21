@@ -34,6 +34,8 @@ export const getCupNameByCountry = (country = "") => {
       return "Scottish Cup";
     case "mexico":
       return "Copa MX";
+    case "usa":
+      return "U.S. Open Cup";
     default:
       return `${country ? country.charAt(0).toUpperCase() + country.slice(1) : "Domestic"} Cup`;
   }

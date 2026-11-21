@@ -597,6 +597,14 @@ const nameDatabase = {
   ukraine: {
     first: ["Andriy", "Serhiy", "Oleksandr", "Anatoliy", "Taras", "Ruslan", "Viktor", "Artem", "Vitaliy", "Mykola", "Yevhen", "Dmytro", "Ihor", "Vladyslav", "Roman"],
     last: ["Shevchenko", "Rebrov", "Voronin", "Tymoshchuk", "Yarmolenko", "Konoplyanka", "Zinchenko", "Mudryk", "Shovkovskyi", "Milevskyi", "Stepanenko", "Rotan", "Malinovskyi", "Tsygankov", "Pyatov"]
+  },
+  mexico: {
+    first: ["Hugo", "Cuauhtemoc", "Rafael", "Jared", "Jorge", "Oswaldo", "Carlos", "Guillermo", "Javier", "Andres", "Hirving", "Hector", "Oribe", "Giovani", "Luis"],
+    last: ["Sanchez", "Blanco", "Marquez", "Borgetti", "Campos", "Pardo", "Salcido", "Ochoa", "Hernandez", "Guardado", "Lozano", "Herrera", "Peralta", "Dos Santos", "Jimenez"]
+  },
+  usa: {
+    first: ["Landon", "Clint", "Brian", "Eric", "Cobi", "Claudio", "Brad", "Tim", "Jozy", "Michael", "Christian", "Tyler", "Weston", "Eddie", "Tab"],
+    last: ["Donovan", "Dempsey", "McBride", "Wynalda", "Jones", "Reyna", "Friedel", "Howard", "Altidore", "Bradley", "Pulisic", "Adams", "McKennie", "Pope", "Ramos"]
   }
 };
 
@@ -3334,6 +3342,9 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                   {/* Live Tactical Department Ratings Bar */}
                   {(() => {
                     const liveStats = calculateTeamTacticalStats(lineup, selectedFormation, playerRoles, 'balanced');
+                    const dDiv = liveStats.divisors?.def || 4;
+                    const mDiv = liveStats.divisors?.mid || 4;
+                    const aDiv = liveStats.divisors?.att || 2;
                     return (
                       <div style={{
                         display: 'flex',
@@ -3347,14 +3358,14 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                         fontFamily: 'Orbitron'
                       }}>
                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                          <span style={{ color: '#00e5ff', fontWeight: 'bold' }} title={`Defense Sum: ${liveStats.defSum} ÷ 4 = ${(liveStats.defSum / 4).toFixed(2)}`}>
-                            🛡️ DEF: {liveStats.defense} <span style={{ fontSize: '7.5px', opacity: 0.7 }}>({liveStats.defSum}÷4)</span>
+                          <span style={{ color: '#00e5ff', fontWeight: 'bold' }} title={`Defense Sum: ${liveStats.defSum.toFixed(1)} ÷ ${dDiv} = ${(liveStats.defSum / dDiv).toFixed(2)}`}>
+                            🛡️ DEF: {liveStats.defense} <span style={{ fontSize: '7.5px', opacity: 0.7 }}>({Number(liveStats.defSum.toFixed(1))}÷{dDiv})</span>
                           </span>
-                          <span style={{ color: '#00ff64', fontWeight: 'bold' }} title={`Midfield Sum: ${liveStats.midSum} ÷ 4 = ${(liveStats.midSum / 4).toFixed(2)}`}>
-                            ⚙️ MID: {liveStats.midfield} <span style={{ fontSize: '7.5px', opacity: 0.7 }}>({liveStats.midSum}÷4)</span>
+                          <span style={{ color: '#00ff64', fontWeight: 'bold' }} title={`Midfield Sum: ${liveStats.midSum.toFixed(1)} ÷ ${mDiv} = ${(liveStats.midSum / mDiv).toFixed(2)}`}>
+                            ⚙️ MID: {liveStats.midfield} <span style={{ fontSize: '7.5px', opacity: 0.7 }}>({Number(liveStats.midSum.toFixed(1))}÷{mDiv})</span>
                           </span>
-                          <span style={{ color: '#ff4500', fontWeight: 'bold' }} title={`Attack Sum: ${liveStats.attSum} ÷ 2 = ${(liveStats.attSum / 2).toFixed(2)}`}>
-                            ⚔️ ATT: {liveStats.attack} <span style={{ fontSize: '7.5px', opacity: 0.7 }}>({liveStats.attSum}÷2)</span>
+                          <span style={{ color: '#ff4500', fontWeight: 'bold' }} title={`Attack Sum: ${liveStats.attSum.toFixed(1)} ÷ ${aDiv} = ${(liveStats.attSum / aDiv).toFixed(2)}`}>
+                            ⚔️ ATT: {liveStats.attack} <span style={{ fontSize: '7.5px', opacity: 0.7 }}>({Number(liveStats.attSum.toFixed(1))}÷{aDiv})</span>
                           </span>
                         </div>
                         <span style={{ fontSize: '7.5px', color: '#ffd700', opacity: 0.85 }}>

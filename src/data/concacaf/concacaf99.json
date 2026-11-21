@@ -1,0 +1,178 @@
+[
+  {
+    "idnum": 0,
+    "id": "concacaf99",
+    "name": "Toluca",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D50032",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "concacaf99",
+    "name": "Pachuca",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/4.png",
+    "primaryColor": "#0033A0",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "concacaf99",
+    "name": "Santos Laguna",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008542",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "concacaf99",
+    "name": "Chicago Fire",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#AF272F",
+    "secondaryColor": "#101820"
+  },
+  {
+    "idnum": 4,
+    "id": "concacaf99",
+    "name": "D.C. United",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/5.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#EF3E42"
+  },
+  {
+    "idnum": 5,
+    "id": "concacaf99",
+    "name": "Alianza FC",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#002B5C"
+  },
+  {
+    "idnum": 6,
+    "id": "concacaf99",
+    "name": "Arabe Unido",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005BAC",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "concacaf99",
+    "name": "Isidro Metapan",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 8,
+    "id": "concacaf99",
+    "name": "Marathon",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008542",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "concacaf99",
+    "name": "Antigua GFC",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008542",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "concacaf99",
+    "name": "Saprissa",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#7A003C",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "concacaf99",
+    "name": "CD Olimpia",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#002F6C"
+  },
+  {
+    "idnum": 12,
+    "id": "concacaf99",
+    "name": "Alajuelense",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "fra84/1.png",
+    "primaryColor": "#E31B23",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 13,
+    "id": "concacaf99",
+    "name": "Harbour View",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD100",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 14,
+    "id": "concacaf99",
+    "name": "Violette",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0033A0",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "concacaf99",
+    "name": "Cibao FC",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#FF6B00",
+    "secondaryColor": "#000000"
+  }
+]

@@ -1,0 +1,211 @@
+[
+  {
+    "idnum": 0,
+    "id": "usa14",
+    "name": "San Jose Earthquakes",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#0067B1",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 1,
+    "id": "usa14",
+    "name": "LA Galaxy",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#00245D",
+    "secondaryColor": "#FFD200"
+  },
+  {
+    "idnum": 2,
+    "id": "usa14",
+    "name": "Sporting Kansas City",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/3.png",
+    "primaryColor": "#93B1D7",
+    "secondaryColor": "#002F6C"
+  },
+  {
+    "idnum": 3,
+    "id": "usa14",
+    "name": "D.C. United",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/5.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#EF3E42"
+  },
+  {
+    "idnum": 4,
+    "id": "usa14",
+    "name": "Seattle Sounders",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/1.png",
+    "primaryColor": "#5D9732",
+    "secondaryColor": "#005595"
+  },
+  {
+    "idnum": 5,
+    "id": "usa14",
+    "name": "New York Red Bulls",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#ED1C24"
+  },
+  {
+    "idnum": 6,
+    "id": "usa14",
+    "name": "Real Salt Lake",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/2.png",
+    "primaryColor": "#B30838",
+    "secondaryColor": "#013A81"
+  },
+  {
+    "idnum": 7,
+    "id": "usa14",
+    "name": "Chicago Fire",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#AF272F",
+    "secondaryColor": "#101820"
+  },
+  {
+    "idnum": 8,
+    "id": "usa14",
+    "name": "Houston Dynamo",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#FF6B00",
+    "secondaryColor": "#101820"
+  },
+  {
+    "idnum": 9,
+    "id": "usa14",
+    "name": "Columbus Crew",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FEDD00",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 10,
+    "id": "usa14",
+    "name": "Vancouver Whitecaps",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#00245E"
+  },
+  {
+    "idnum": 11,
+    "id": "usa14",
+    "name": "Montreal Impact",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#003DA5",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 12,
+    "id": "usa14",
+    "name": "Colorado Rapids",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#862633",
+    "secondaryColor": "#8BB8E8"
+  },
+  {
+    "idnum": 13,
+    "id": "usa14",
+    "name": "FC Dallas",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/2.png",
+    "primaryColor": "#BF0D3E",
+    "secondaryColor": "#00205B"
+  },
+  {
+    "idnum": 14,
+    "id": "usa14",
+    "name": "New England Revolution",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/2.png",
+    "primaryColor": "#0A2240",
+    "secondaryColor": "#CE0E2D"
+  },
+  {
+    "idnum": 15,
+    "id": "usa14",
+    "name": "Philadelphia Union",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#071B2C",
+    "secondaryColor": "#B19B69"
+  },
+  {
+    "idnum": 16,
+    "id": "usa14",
+    "name": "Portland Timbers",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/1.png",
+    "primaryColor": "#00482B",
+    "secondaryColor": "#EAE827"
+  },
+  {
+    "idnum": 17,
+    "id": "usa14",
+    "name": "Chivas USA",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/4.png",
+    "primaryColor": "#E31B23",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 18,
+    "id": "usa14",
+    "name": "Toronto FC",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#B81137",
+    "secondaryColor": "#455560"
+  }
+]

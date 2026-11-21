@@ -3,13 +3,17 @@ import { useNavigate } from "react-router-dom";
 import '../assets/styles/Match.css';
 import { leagueDataMap, leagueDataMapD2 } from '../data/leagueData';
 import { leagueDataMapSA } from '../data/leagueDataSA';
+import { leagueDataMapNA } from '../data/leagueDataNA';
 import { qualifiersBySeason } from '../data/qualifiersBySeason';
 import { qualifiersBySeasonSA } from '../data/qualifiersBySeasonSA';
+import { qualifiersBySeasonNA } from '../data/qualifiersBySeasonNA';
 import { clRules } from '../data/cl/clRules';
 import { uefaRules } from '../data/uefa/uefaRules';
 import { ueclRules } from '../data/uecl/ueclRules';
 import { clibRules } from '../data/clib/clibRules';
-import { csudRules } from '../data/csud/csudRules'; import CountryFlag from './CountryFlag';
+import { csudRules } from '../data/csud/csudRules';
+import { concacafRules } from '../data/concacaf/concacafRules';
+import CountryFlag from './CountryFlag';
 import { createDomesticCup, getDomesticCupExpectation } from '../utils/domesticCupGenerator';
 import {
   loadSeasonRosters,
@@ -57,7 +61,7 @@ const TeamFlag = ({ primaryColor, secondaryColor, size = 120 }) => {
 };
 
 // Berger tables generator (inserts a bye slot when teamsList.length is odd)
-const generateRoundRobinFixtures = (teamsList) => {
+const generateRoundRobinFixtures = (teamsList, singleRound = false) => {
   const list = teamsList.length % 2 === 0 ? [...teamsList] : [...teamsList, null];
   const n = list.length;
   const fixtures = [];
@@ -77,6 +81,10 @@ const generateRoundRobinFixtures = (teamsList) => {
     }
     fixtures.push(roundFixtures);
     list.splice(1, 0, list.pop());
+  }
+
+  if (singleRound) {
+    return fixtures;
   }
 
   // Second Leg (swapped home/away)
@@ -159,7 +167,7 @@ const generateDynamicSchedules = (totalRounds, rules) => {
     } else {
       currentR = currentR - 1;
     }
-    slot.offset = currentR;
+    slot.offset = Math.max(1, currentR);
   }
 
   // 4. Resolve Overlap
@@ -214,10 +222,15 @@ const SOUTH_AMERICA_LEAGUES = [
   { id: 'colombia', name: 'Colombia', getTitle: () => 'Categoría Primera A' }
 ];
 
+const NORTH_AMERICA_LEAGUES = [
+  { id: 'usa', name: 'USA', getTitle: () => 'MLS' },
+  { id: 'mexico', name: 'Mexico', getTitle: () => 'Liga MX' }
+];
+
 export default function LeagueSelect() {
   const [season, setSeason] = useState("1993");
   const [country, setCountry] = useState("england");
-  const [regionTab, setRegionTab] = useState("europe"); // "europe" | "south_america"
+  const [regionTab, setRegionTab] = useState("europe"); // "europe" | "south_america" | "north_america"
   const [step, setStep] = useState("season"); // "season" | "league" | "teams"
   const [selectedTeamId, setSelectedTeamId] = useState(null);
   const [managerName, setManagerName] = useState("Sir Alex");
@@ -360,13 +373,16 @@ export default function LeagueSelect() {
 
   // Dynamically load the correct roster data
   const isSACountry = (country === "argentina" || country === "brazil" || country === "colombia");
+  const isNACountry = (country === "usa" || country === "mexico");
   const hasD2 = leagueDataMapD2[season] && leagueDataMapD2[season][country];
   const selectedData = isSACountry
     ? ((leagueDataMapSA[season] && leagueDataMapSA[season][country]) ? leagueDataMapSA[season][country] : leagueDataMapSA["2010"]["argentina"])
-    : (division === 2 && hasD2
-      ? leagueDataMapD2[season][country]
-      : ((leagueDataMap[season] && leagueDataMap[season][country]) ? leagueDataMap[season][country] : leagueDataMap["1993"]["england"])
-    );
+    : isNACountry
+      ? ((leagueDataMapNA[season] && leagueDataMapNA[season][country]) ? leagueDataMapNA[season][country] : (leagueDataMapNA[season]?.mexico || leagueDataMapNA["2010"]["mexico"]))
+      : (division === 2 && hasD2
+        ? leagueDataMapD2[season][country]
+        : ((leagueDataMap[season] && leagueDataMap[season][country]) ? leagueDataMap[season][country] : leagueDataMap["1993"]["england"])
+      );
 
 
   const roster = selectedData.map(team => {
@@ -566,10 +582,11 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
     window.lastFetchedStartingBudget = startingBudget;
 
     const expObj = getExpectation(activeTeamObj, roster);
-    const fixtures = generateRoundRobinFixtures(roster);
+    const fixtures = generateRoundRobinFixtures(roster, country === "usa");
 
-    // SA vs European Cup Initialization
+    // SA / NA / European Cup Initialization
     const isSA = (country === "argentina" || country === "brazil" || country === "colombia");
+    const isNA = (country === "usa" || country === "mexico");
     let europeanCup = null;
     let europeanCupState = null;
     let calendar = null;
@@ -577,19 +594,21 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
 
     const teamName = activeTeamObj.name;
 
-    if (isSA) {
-      // South America: use qualifiersBySeasonSA
-      const activeQualsSA = qualifiersBySeasonSA[season];
-      if (activeQualsSA) {
-        if (activeQualsSA.cl[country]?.includes(teamName)) {
+    if (isSA || isNA) {
+      // South America / North America continental initialization
+      const activeQualsRegional = isNA ? qualifiersBySeasonNA[season] : qualifiersBySeasonSA[season];
+      if (activeQualsRegional) {
+        if (activeQualsRegional.cl?.[country]?.includes(teamName)) {
           europeanCup = "cl";
-        } else if (activeQualsSA.uefa[country]?.includes(teamName)) {
+        } else if (!isNA && activeQualsRegional.uefa?.[country]?.includes(teamName)) {
           europeanCup = "uefa";
         }
       }
 
-      if (europeanCup && activeQualsSA) {
-        const rules = europeanCup === "cl" ? clibRules[season] : csudRules[season];
+      if (europeanCup && activeQualsRegional) {
+        const rules = isNA
+          ? (concacafRules[season] || concacafRules["2010"])
+          : (europeanCup === "cl" ? clibRules[season] : csudRules[season]);
 
         if (rules) {
           const totalDomesticRounds = fixtures.length;
@@ -617,12 +636,14 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
               const domesticNames = roster.map(t => t.name);
               let indexToReplace = clTeams.findIndex(t => domesticNames.includes(t.name) && t.name !== teamName);
               if (indexToReplace === -1) {
-                const saQuals = activeQualsSA[europeanCup] || {};
-                const mainPlayableTeams = [
-                  ...(saQuals.argentina || []),
-                  ...(saQuals.brazil || []),
-                  ...(saQuals.colombia || [])
-                ];
+                const regQuals = activeQualsRegional[europeanCup] || {};
+                const mainPlayableTeams = isNA
+                  ? [...(regQuals.mexico || []), ...(regQuals.usa || [])]
+                  : [
+                      ...(regQuals.argentina || []),
+                      ...(regQuals.brazil || []),
+                      ...(regQuals.colombia || [])
+                    ];
                 indexToReplace = clTeams.findIndex(t => !mainPlayableTeams.includes(t.name));
                 if (indexToReplace === -1) indexToReplace = clTeams.length - 1;
               }
@@ -1058,7 +1079,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
     const leagueState = {
       season: `${season}/${String((parseInt(season) + 1) % 100).padStart(2, '0')}`,
       country: country,
-      region: isSA ? "south_america" : "europe",
+      region: isSA ? "south_america" : (isNA ? "north_america" : "europe"),
       playerTeamId: selectedTeamId,
       managerName: managerName || "Manager",
       boardExpectation: expObj,
@@ -1096,8 +1117,12 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
     seasonsList.push(`${y}`);
   }
 
-  const activeRegionLeagues = (regionTab === "europe" ? EUROPE_LEAGUES : SOUTH_AMERICA_LEAGUES).filter((league) =>
-    regionTab === "europe" ? Boolean(leagueDataMap?.[season]?.[league.id]) : Boolean(leagueDataMapSA?.[season]?.[league.id])
+  const activeRegionLeagues = (
+    regionTab === "europe" ? EUROPE_LEAGUES : (regionTab === "south_america" ? SOUTH_AMERICA_LEAGUES : NORTH_AMERICA_LEAGUES)
+  ).filter((league) =>
+    regionTab === "europe"
+      ? Boolean(leagueDataMap?.[season]?.[league.id])
+      : (regionTab === "south_america" ? Boolean(leagueDataMapSA?.[season]?.[league.id]) : Boolean(leagueDataMapNA?.[season]?.[league.id]))
   );
 
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -1264,6 +1289,27 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
             >
               SOUTH AMERICA
             </button>
+            <button
+              type="button"
+              onClick={() => setRegionTab("north_america")}
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                fontFamily: 'Orbitron, sans-serif',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                border: regionTab === "north_america" ? '1.5px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.15)',
+                background: regionTab === "north_america" ? 'rgba(56, 189, 248, 0.18)' : 'rgba(10, 22, 13, 0.78)',
+                color: regionTab === "north_america" ? '#38bdf8' : '#9fb3a5',
+                boxShadow: regionTab === "north_america" ? '0 0 14px rgba(56, 189, 248, 0.25)' : 'none',
+                transition: 'all 0.2s ease',
+                letterSpacing: '0.8px'
+              }}
+            >
+              NORTH AMERICA
+            </button>
           </div>
 
           <div className="team-select-card" style={{ width: '100%', padding: '26px', maxWidth: '880px' }}>
@@ -1277,7 +1323,9 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                 const isSelected = country === league.id;
                 const clubsCount = regionTab === "europe"
                   ? (leagueDataMap?.[season]?.[league.id]?.length || 0)
-                  : (leagueDataMapSA?.[season]?.[league.id]?.length || 0);
+                  : (regionTab === "south_america"
+                    ? (leagueDataMapSA?.[season]?.[league.id]?.length || 0)
+                    : (leagueDataMapNA?.[season]?.[league.id]?.length || 0));
                 const hasDiv2 = regionTab === "europe" && Boolean(leagueDataMapD2?.[season]?.[league.id]?.length);
                 return (
                   <button

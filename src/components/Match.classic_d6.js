@@ -6,6 +6,7 @@ import { uefaRules } from '../data/uefa/uefaRules';
 import { ueclRules } from '../data/uecl/ueclRules';
 import { clibRules } from '../data/clib/clibRules';
 import { csudRules } from '../data/csud/csudRules';
+import { concacafRules } from '../data/concacaf/concacafRules';
 import { getModifiedStat as computeModifiedStat, adjustCPUTactic as runCPUTacticAdjustment, TacticsPanel } from './MatchTactics';
 import { getSubstitutionLimit, getStoppageLimit } from '../utils/matchRules';
 import { getSavedFormation, getCPUFormation, updateTeamStatsInStorage, getFormationSlots, getIdealSlotPosition, getPositionPenalty, generateDefaultLineup } from './FormationTactics';
@@ -405,7 +406,9 @@ export default function Match() {
 
     const toCamelCase = (str) => str.replace(/_([a-z0-9])/g, (g) => g[1].toUpperCase());
     const seasonShort = leagueState.season.split("/")[0];
-    const activeClRules = leagueState.region === "south_america" ? clibRules : clRules;
+    const activeClRules = leagueState.region === "south_america"
+      ? clibRules
+      : (leagueState.region === "north_america" ? concacafRules : clRules);
     const activeUefaRules = leagueState.region === "south_america" ? csudRules : uefaRules;
     const rules = leagueState.europeanCup === "cl" ? activeClRules[seasonShort] : (leagueState.europeanCup === "uefa" ? activeUefaRules[seasonShort] : ueclRules[seasonShort]);
     const hasGroupStage = rules && (
@@ -2517,7 +2520,9 @@ export default function Match() {
         }
 
         const seasonShort = stateCopy.season.split("/")[0];
-        const activeClRules = stateCopy.region === "south_america" ? clibRules : clRules;
+        const activeClRules = stateCopy.region === "south_america"
+          ? clibRules
+          : (stateCopy.region === "north_america" ? concacafRules : clRules);
         const activeUefaRules = stateCopy.region === "south_america" ? csudRules : uefaRules;
         const rules = stateCopy.europeanCup === "cl" ? activeClRules[seasonShort] : (stateCopy.europeanCup === "uefa" ? activeUefaRules[seasonShort] : ueclRules[seasonShort]);
         const currentIdx = rules.stages.indexOf(stg);
@@ -2565,7 +2570,9 @@ export default function Match() {
       const isUEFA = stateCopy.europeanCup === "uefa";
       const isUECL = stateCopy.europeanCup === "uecl";
       const seasonShort = stateCopy.season.split("/")[0];
-      const activeClRules = stateCopy.region === "south_america" ? clibRules : clRules;
+      const activeClRules = stateCopy.region === "south_america"
+        ? clibRules
+        : (stateCopy.region === "north_america" ? concacafRules : clRules);
       const activeUefaRules = stateCopy.region === "south_america" ? csudRules : uefaRules;
       const rules = isCL ? activeClRules[seasonShort] : (isUEFA ? activeUefaRules[seasonShort] : ueclRules[seasonShort]);
 
@@ -2644,6 +2651,50 @@ export default function Match() {
                 roundOf16Leg2: null,
                 quarterFinalsLeg1: null,
                 quarterFinalsLeg2: null,
+                semiFinalsLeg1: null,
+                semiFinalsLeg2: null,
+                final: null
+              };
+            } else if ([...new Set((cupState.teams || []).map(t => t.group))].filter(g => g && g !== "bye" && g !== "champion").length === 4 && cupState.fixtures.length <= 6 && seasonShort !== "1993") {
+              const groups = ["A", "B", "C", "D"];
+              const winners = {};
+              const runnersUp = {};
+              groups.forEach(g => {
+                const gTeams = cupState.teams.filter(t => t.group === g).map(t => {
+                  let gf = 0, ga = 0, points = 0;
+                  cupState.fixtures.forEach(matchdayFixtures => {
+                    matchdayFixtures.forEach(f => {
+                      if (f.played && f.group === g && (f.homeId === t.idnum || f.awayId === t.idnum)) {
+                        const isHome = f.homeId === t.idnum;
+                        const myScore = isHome ? f.homeScore : f.awayScore;
+                        const oppScore = isHome ? f.awayScore : f.homeScore;
+                        gf += myScore; ga += oppScore;
+                        if (myScore > oppScore) { points += 3; }
+                        else if (myScore === oppScore) { points += 1; }
+                      }
+                    });
+                  });
+                  return { ...t, points, gd: gf - ga, gf };
+                }).sort((a, b) => {
+                  if (b.points !== a.points) return b.points - a.points;
+                  if (b.gd !== a.gd) return b.gd - a.gd;
+                  return b.gf - a.gf;
+                });
+                winners[g] = gTeams[0];
+                runnersUp[g] = gTeams[1];
+              });
+              const qfLeg1 = [
+                { homeId: winners["A"].idnum, awayId: runnersUp["B"].idnum, played: false, homeScore: 0, awayScore: 0 },
+                { homeId: winners["B"].idnum, awayId: runnersUp["A"].idnum, played: false, homeScore: 0, awayScore: 0 },
+                { homeId: winners["C"].idnum, awayId: runnersUp["D"].idnum, played: false, homeScore: 0, awayScore: 0 },
+                { homeId: winners["D"].idnum, awayId: runnersUp["C"].idnum, played: false, homeScore: 0, awayScore: 0 }
+              ];
+              const qfLeg2 = qfLeg1.map(m => ({ homeId: m.awayId, awayId: m.homeId, played: false, homeScore: 0, awayScore: 0 }));
+              cupState.knockoutState = {
+                roundOf32Leg1: null, roundOf32Leg2: null,
+                roundOf16Leg1: null, roundOf16Leg2: null,
+                quarterFinalsLeg1: qfLeg1,
+                quarterFinalsLeg2: qfLeg2,
                 semiFinalsLeg1: null,
                 semiFinalsLeg2: null,
                 final: null
@@ -3274,7 +3325,9 @@ export default function Match() {
         const isCL = stateCopy.europeanCup === "cl";
         const isUEFA = stateCopy.europeanCup === "uefa";
         const seasonShort = stateCopy.season.split("/")[0];
-        const activeClRules = stateCopy.region === "south_america" ? clibRules : clRules;
+        const activeClRules = stateCopy.region === "south_america"
+          ? clibRules
+          : (stateCopy.region === "north_america" ? concacafRules : clRules);
         const activeUefaRules = stateCopy.region === "south_america" ? csudRules : uefaRules;
         const rules = isCL ? activeClRules[seasonShort] : (isUEFA ? activeUefaRules[seasonShort] : ueclRules[seasonShort]);
         const hasGroupStage = rules && (

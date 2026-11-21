@@ -1,0 +1,178 @@
+[
+  {
+    "idnum": 0,
+    "id": "concacaf22",
+    "name": "Pachuca",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/4.png",
+    "primaryColor": "#0033A0",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "concacaf22",
+    "name": "Tigres UANL",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FDB913",
+    "secondaryColor": "#003B71"
+  },
+  {
+    "idnum": 2,
+    "id": "concacaf22",
+    "name": "Monterrey",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/4.png",
+    "primaryColor": "#0A2240",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "concacaf22",
+    "name": "Club America",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFDC00",
+    "secondaryColor": "#002F6C"
+  },
+  {
+    "idnum": 4,
+    "id": "concacaf22",
+    "name": "LAFC",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger88/5.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#C39E6D"
+  },
+  {
+    "idnum": 5,
+    "id": "concacaf22",
+    "name": "Philadelphia Union",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#071B2C",
+    "secondaryColor": "#B19B69"
+  },
+  {
+    "idnum": 6,
+    "id": "concacaf22",
+    "name": "CF Montreal",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#0033A0",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 7,
+    "id": "concacaf22",
+    "name": "Austin FC",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/1.png",
+    "primaryColor": "#00B140",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 8,
+    "id": "concacaf22",
+    "name": "Comunicaciones",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 9,
+    "id": "concacaf22",
+    "name": "CSD Municipal",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/3.png",
+    "primaryColor": "#C8102E",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 10,
+    "id": "concacaf22",
+    "name": "Herediano",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/4.png",
+    "primaryColor": "#FEDD00",
+    "secondaryColor": "#E31B23"
+  },
+  {
+    "idnum": 11,
+    "id": "concacaf22",
+    "name": "Motagua",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#003B71",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "concacaf22",
+    "name": "CD FAS",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/3.png",
+    "primaryColor": "#E31B23",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 13,
+    "id": "concacaf22",
+    "name": "W Connection",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008542",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "concacaf22",
+    "name": "Harbour View",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD100",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 15,
+    "id": "concacaf22",
+    "name": "Violette",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0033A0",
+    "secondaryColor": "#FFFFFF"
+  }
+]
