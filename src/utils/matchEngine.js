@@ -21,18 +21,19 @@
 
 export const ENGINE_MODE_D10 = 'd10';
 export const ENGINE_MODE_CLASSIC_D6 = 'classic_d6';
+export const ENGINE_MODE_ZONES_12 = 'zones12';
 
 const STORAGE_KEY = 'football_match_engine_mode';
 
 /**
- * Retrieves the currently active engine mode ('d10' or 'classic_d6').
+ * Retrieves the currently active engine mode ('d10', 'zones12', or 'classic_d6').
  * Defaults to 'd10'.
  */
 export function getEngineMode() {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved === ENGINE_MODE_CLASSIC_D6 || saved === ENGINE_MODE_D10) {
+      if (saved === ENGINE_MODE_CLASSIC_D6 || saved === ENGINE_MODE_D10 || saved === ENGINE_MODE_ZONES_12) {
         return saved;
       }
     }
@@ -46,7 +47,9 @@ export function getEngineMode() {
  * Updates the active engine mode.
  */
 export function setEngineMode(mode) {
-  const targetMode = mode === ENGINE_MODE_CLASSIC_D6 ? ENGINE_MODE_CLASSIC_D6 : ENGINE_MODE_D10;
+  const targetMode = (mode === ENGINE_MODE_CLASSIC_D6 || mode === ENGINE_MODE_ZONES_12)
+    ? mode
+    : ENGINE_MODE_D10;
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       window.localStorage.setItem(STORAGE_KEY, targetMode);
@@ -58,11 +61,11 @@ export function setEngineMode(mode) {
 }
 
 /**
- * Checks whether the d10 engine is currently active.
+ * Checks whether a 1-10 scale engine ('d10' or 'zones12') is currently active.
  */
 export function isD10Engine(modeOverride = null) {
   const mode = modeOverride || getEngineMode();
-  return mode === ENGINE_MODE_D10;
+  return mode === ENGINE_MODE_D10 || mode === ENGINE_MODE_ZONES_12;
 }
 
 /**

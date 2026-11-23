@@ -44,9 +44,14 @@ export default function RoundResultsModal({
 }) {
   if (!isOpen || !fixtures || fixtures.length === 0) return null;
 
-  // Helper to find a team by idnum
-  const getTeam = (teamId) => {
+  // Helper to find a team by idnum (with optional name disambiguation for multi-division cups)
+  const getTeam = (teamId, preferredName = null) => {
     if (Array.isArray(teams)) {
+      if (preferredName) {
+        const exactMatch = teams.find(t => t.idnum === teamId && t.name === preferredName)
+          || teams.find(t => t.name === preferredName);
+        if (exactMatch) return exactMatch;
+      }
       return teams.find(t => t.idnum === teamId);
     }
     if (teams && typeof teams === 'object') {
@@ -103,8 +108,8 @@ export default function RoundResultsModal({
           paddingRight: '5px'
         }}>
           {fixtures.map((fixture, idx) => {
-            const homeTeam = getTeam(fixture.homeId);
-            const awayTeam = getTeam(fixture.awayId);
+            const homeTeam = getTeam(fixture.homeId, fixture.homeName);
+            const awayTeam = getTeam(fixture.awayId, fixture.awayName);
             const isPlayerFixture = fixture.homeId === playerTeamId || fixture.awayId === playerTeamId;
 
             return (
@@ -138,7 +143,7 @@ export default function RoundResultsModal({
                     overflow: 'hidden',
                     textOverflow: 'ellipsis'
                   }}>
-                    {homeTeam?.name || `Team ${fixture.homeId}`}
+                    {homeTeam?.name || fixture.homeName || `Team ${fixture.homeId}`}
                   </span>
                   <TeamFlag primaryColor={homeTeam?.primaryColor} secondaryColor={homeTeam?.secondaryColor} size={24} />
                 </div>
@@ -173,7 +178,7 @@ export default function RoundResultsModal({
                     overflow: 'hidden',
                     textOverflow: 'ellipsis'
                   }}>
-                    {awayTeam?.name || `Team ${fixture.awayId}`}
+                    {awayTeam?.name || fixture.awayName || `Team ${fixture.awayId}`}
                   </span>
                 </div>
               </div>

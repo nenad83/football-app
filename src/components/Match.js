@@ -8,6 +8,8 @@ import { clibRules } from '../data/clib/clibRules';
 import { csudRules } from '../data/csud/csudRules';
 import { concacafRules } from '../data/concacaf/concacafRules';
 import { getModifiedStat as computeModifiedStat, adjustCPUTactic as runCPUTacticAdjustment, TacticsPanel } from './MatchTactics';
+import PlayerInfoModal, { PlayerInfoButton } from './PlayerInfoModal';
+import PlayerRoleInstructionsModal from './PlayerRoleInstructionsModal';
 import { getSubstitutionLimit, getStoppageLimit } from '../utils/matchRules';
 import { getSavedFormation, getCPUFormation, updateTeamStatsInStorage, getFormationSlots, getIdealSlotPosition, getPositionPenalty, generateDefaultLineup, getSavedCaptain, resolveValidCaptain } from './FormationTactics';
 import { getPrebuiltRoster, getTeamDetails, getTeamDetailsSync, calculateMatchAttendance } from '../data/rosters/rosterRegistry';
@@ -16,6 +18,9 @@ import {
   calculateTeamTacticalStats,
   getRoleMetadata,
   getNextRoleForSlot,
+  getInstructionMetadata,
+  getSavedPlayerInstructions,
+  savePlayerInstructions,
   summarizeActiveRoles,
   normalizeMentality
 } from '../utils/tacticalRoleEngine';
@@ -52,8 +57,11 @@ import {
   resolveFoulCheck,
   simulateFixture as simulateFixtureEngine,
   ENGINE_MODE_D10,
-  ENGINE_MODE_CLASSIC_D6
+  ENGINE_MODE_CLASSIC_D6,
+  ENGINE_MODE_ZONES_12
 } from '../utils/matchEngine';
+import { simulateZone12Possession, resolveZone12PenaltyKick } from '../utils/zone12MatchEngine';
+import Zone12MatchView from './Zone12MatchView';
 
 const MATCH_REFEREES = [
   'Pierluigi Collina',
@@ -580,10 +588,13 @@ export default function Match() {
   const [playMode] = useState(startingTactics.playMode || "manual");
   const [isPlaying, setIsPlaying] = useState(false);
   const [simSpeed, setSimSpeed] = useState(2200);
-  const [engineMode, setEngineModeState] = useState(() => getEngineMode());
+  const [engineMode, setEngineModeState] = useState(() => startingTactics.engineMode || getEngineMode());
+  const [lastZone12Result, setLastZone12Result] = useState(null);
 
   const toggleEngineMode = useCallback(() => {
-    const nextMode = engineMode === ENGINE_MODE_D10 ? ENGINE_MODE_CLASSIC_D6 : ENGINE_MODE_D10;
+    const nextMode = engineMode === ENGINE_MODE_D10
+      ? ENGINE_MODE_ZONES_12
+      : (engineMode === ENGINE_MODE_ZONES_12 ? ENGINE_MODE_CLASSIC_D6 : ENGINE_MODE_D10);
     setEngineMode(nextMode);
     setEngineModeState(nextMode);
   }, [engineMode]);
@@ -598,7 +609,7 @@ export default function Match() {
       const opp = teamid[teamtwoname];
       if (team && opp) {
         const is10 = (team.attack > 5 || opp.attack > 5);
-        const threshold = is10 ? 6 : 3;
+        const threshold = is10 ? 9 : 3;
         const diff = (team.attack + team.midfield + team.defense) - (opp.attack + opp.midfield + opp.defense);
         if (diff <= -threshold) return "defense";
         if (diff >= threshold) return "attack";
@@ -615,7 +626,7 @@ export default function Match() {
       const opp = teamid[teamonename];
       if (team && opp) {
         const is10 = (team.attack > 5 || opp.attack > 5);
-        const threshold = is10 ? 6 : 3;
+        const threshold = is10 ? 9 : 3;
         const diff = (team.attack + team.midfield + team.defense) - (opp.attack + opp.midfield + opp.defense);
         if (diff <= -threshold) return "defense";
         if (diff >= threshold) return "attack";
@@ -649,6 +660,8 @@ export default function Match() {
   const [squad, setSquad] = useState([]);
   const [lineup, setLineup] = useState({});
   const [playerRoles, setPlayerRoles] = useState({});
+  const [playerInstructions, setPlayerInstructions] = useState(() => getSavedPlayerInstructions('', ''));
+  const [roleModalTarget, setRoleModalTarget] = useState(null);
   const [savedStartingRoles, setSavedStartingRoles] = useState({});
   const [selectedRosterPlayer, setSelectedRosterPlayer] = useState(null);
   const [draggedPlayer, setDraggedPlayer] = useState(null);
@@ -662,17 +675,35 @@ export default function Match() {
   const [cpuRoles, setCpuRoles] = useState({});
   const [captainName, setCaptainName] = useState("");
   const [showOpponentModal, setShowOpponentModal] = useState(null);
+  const [infoPlayer, setInfoPlayer] = useState(null);
   const [matchCards, setMatchCards] = useState([]);
 
   const matchCardsRef = useRef([]);
   const lineupRef = useRef(lineup);
   const cpuLineupsRef = useRef(cpuLineups);
+  const cpuRolesRef = useRef(cpuRoles);
+  const homeTacticRef = useRef(homeTactic);
+  const awayTacticRef = useRef(awayTactic);
+  const zone12PendingRef = useRef(null);
+  const zone12NextAttackerRef = useRef(null);
   const captainRef = useRef(captainName);
   const matchGoalEventsRef = useRef([]);
 
   useEffect(() => {
     lineupRef.current = lineup;
   }, [lineup]);
+
+  useEffect(() => {
+    cpuRolesRef.current = cpuRoles;
+  }, [cpuRoles]);
+
+  useEffect(() => {
+    homeTacticRef.current = homeTactic;
+  }, [homeTactic]);
+
+  useEffect(() => {
+    awayTacticRef.current = awayTactic;
+  }, [awayTactic]);
 
   useEffect(() => {
     captainRef.current = captainName;
@@ -800,6 +831,7 @@ export default function Match() {
         setSquad(loadedSquad);
         setLineup(loadedLineup);
         setPlayerRoles(loadedRoles);
+        setPlayerInstructions(getSavedPlayerInstructions(teamName, season));
         setSavedStartingLineup(JSON.parse(JSON.stringify(loadedLineup)));
         setSavedStartingRoles(JSON.parse(JSON.stringify(loadedRoles)));
         const initialCaptain = resolveValidCaptain(loadedLineup, getSavedCaptain(teamName, season));
@@ -898,7 +930,30 @@ export default function Match() {
     }
     if (resolvedPlayer && resolvedSlot && time > 0) {
       const meta = getRoleMetadata(resolvedSlot, resolvedPlayer, resolvedNextRole);
-      logEvent(`⚙️ Tactical duty: ${resolvedPlayer.name} (${resolvedSlot.idealPos || resolvedPlayer.position}) switched to ${meta.label}`, "normal");
+      logEvent(`⚙️ Tactical duty: ${resolvedPlayer.name} (${resolvedSlot.idealPos || resolvedPlayer.position}) switched to ${meta.label}`, "normal", "neutral", { skipBanner: true });
+    }
+  };
+
+  const handleChangePlayerInstruction = (slotId, nextInstruction, player, slot) => {
+    let resolvedSlot = slot;
+    let resolvedPlayer = player || (lineup ? lineup[slotId] : null);
+    if (!resolvedSlot) {
+      const foundSlot = getFormationSlots(getSavedFormation()).find(s => s.id === slotId);
+      if (foundSlot) {
+        resolvedSlot = {
+          ...foundSlot,
+          idealPos: getIdealSlotPosition(foundSlot.role, foundSlot.x, foundSlot.y)
+        };
+      }
+    }
+    const nextInstructions = { ...playerInstructions, [slotId]: nextInstruction };
+    setPlayerInstructions(nextInstructions);
+    const { teamName, season } = getPlayerTeamNameAndSeason();
+    savePlayerInstructions(teamName, season, nextInstructions);
+    if (resolvedPlayer && resolvedSlot && time > 0) {
+      const roleId = playerRoles[slotId] || 'normal';
+      const instrMeta = getInstructionMetadata(resolvedSlot, resolvedPlayer, roleId, nextInstruction);
+      logEvent(`🎯 Instruction: ${resolvedPlayer.name} (${resolvedSlot.idealPos || resolvedPlayer.position}) set to ${instrMeta.label}`, "normal", "neutral", { skipBanner: true });
     }
   };
 
@@ -928,8 +983,9 @@ export default function Match() {
 
     const startingNames = new Set(Object.values(lineup).filter(Boolean).map(p => p.name));
     const isSub = playerFromBench && !startingNames.has(playerFromBench.name);
+    const isPreKickoffChange = time === 0;
 
-    if (isSub) {
+    if (isSub && !isPreKickoffChange) {
       const playerRedCount = matchCardsRef.current.filter(
         c => c.teamKey === activePlayerTeamKey && (c.type === 'red' || c.type === 'second_yellow')
       ).length;
@@ -977,7 +1033,45 @@ export default function Match() {
       updateTeamStatsInStorage(newLineup, getSavedFormation());
     }
 
-    if (isSub) {
+    if (isSub && isPreKickoffChange) {
+      // Pre-kickoff (0') lineup adjustment: do not consume a match sub and keep starting XI / bench synced
+      setSavedStartingLineup(JSON.parse(JSON.stringify(newLineup)));
+      if (selectedBenchNames && selectedBenchNames.length > 0) {
+        const updatedBench = selectedBenchNames.filter(n => n !== playerFromBench.name);
+        if (playerToBench && !updatedBench.includes(playerToBench.name)) {
+          updatedBench.push(playerToBench.name);
+        }
+        setSelectedBenchNames(updatedBench);
+        if (teamName) {
+          localStorage.setItem(`retro_bench_${teamName}_${season}`, JSON.stringify(updatedBench));
+        }
+      }
+      if (playerToBench) {
+        reassignCaptainIfRemoved(newLineup, playerToBench.name, "replaced before kickoff");
+      }
+      setPlayerMinutes(prev => {
+        const next = { ...prev };
+        if (playerToBench && next[playerToBench.name]) {
+          next[playerToBench.name] = {
+            ...next[playerToBench.name],
+            started: false,
+            enteredAt: null,
+            exitedAt: null,
+            minutesPlayed: 0
+          };
+        }
+        if (playerFromBench && next[playerFromBench.name]) {
+          next[playerFromBench.name] = {
+            ...next[playerFromBench.name],
+            started: true,
+            enteredAt: 0,
+            exitedAt: null,
+            minutesPlayed: 0
+          };
+        }
+        return next;
+      });
+    } else if (isSub) {
       if (isPlayerHome) {
         setHomeSubs(prev => prev + 1);
         logEvent(`🔄 Sub: ${playerFromBench.name} comes on for ${playerToBench ? playerToBench.name : "empty slot"}!`, "normal");
@@ -1010,8 +1104,8 @@ export default function Match() {
         }
         return next;
       });
-    } else {
-      logEvent(`⚙️ Tactical realignment: ${playerFromBench.name} moved to ${targetSlotId.replace('-', ' ').toUpperCase()}`, "normal");
+    } else if (time > 0) {
+      logEvent(`⚙️ Tactical realignment: ${playerFromBench.name} moved to ${targetSlotId.replace('-', ' ').toUpperCase()}`, "normal", "neutral", { skipBanner: true });
     }
   };
 
@@ -1103,6 +1197,96 @@ export default function Match() {
 
   const [rollone, setrollOne] = useState(0);
   const [rolltwo, setRollTwo] = useState(0);
+  const [zone12DuelBreakdown, setZone12DuelBreakdown] = useState({ home: null, away: null });
+
+  const updateZone12RollDisplay = (step, attSide) => {
+    if (!step) return;
+    const isHomeAtt = attSide === 'home';
+    const attInfo = {
+      player: step.attacker,
+      pos: step.attackerPos,
+      skillName: step.attackerSkillName,
+      skill: step.attackerSkill,
+      bonus: step.attackerBonus || 0,
+      die: step.attackerDie,
+      total: step.attackerTotal,
+      phase: step.phase,
+      zone: step.zone,
+      diff: step.diff,
+      requiredDiff: step.requiredDiff,
+      isWinner: Boolean(step.success),
+      outcomeText: step.success
+        ? `WIN (${step.diff >= 0 ? `+${step.diff}` : step.diff} ≥ +${step.requiredDiff})`
+        : (step.counterTriggered ? 'LOST • COUNTER ⚡' : `STOPPED (${step.diff >= 0 ? `+${step.diff}` : step.diff} < +${step.requiredDiff})`)
+    };
+    const defInfo = {
+      player: step.defender,
+      pos: step.defenderPos,
+      skillName: step.defenderSkillName,
+      skill: step.defenderSkill,
+      bonus: step.defenderBonus || 0,
+      die: step.defenderDie,
+      total: step.defenderTotal,
+      phase: step.phase,
+      zone: step.zone,
+      diff: step.diff,
+      requiredDiff: step.requiredDiff,
+      isWinner: !step.success,
+      outcomeText: !step.success
+        ? (step.counterTriggered ? 'COUNTER WIN ⚡' : 'DEFENDED ✓')
+        : 'BEATEN'
+    };
+    setrollOne(isHomeAtt ? step.attackerTotal : step.defenderTotal);
+    setRollTwo(isHomeAtt ? step.defenderTotal : step.attackerTotal);
+    setZone12DuelBreakdown({
+      home: isHomeAtt ? attInfo : defInfo,
+      away: isHomeAtt ? defInfo : attInfo
+    });
+  };
+
+  const renderZone12BreakdownCard = (info) => {
+    if (engineMode !== ENGINE_MODE_ZONES_12 || !info) return null;
+    return (
+      <div style={{
+        marginTop: '6px',
+        padding: '6px 8px',
+        borderRadius: '6px',
+        background: 'rgba(0, 0, 0, 0.42)',
+        border: `1px solid ${info.isWinner ? 'rgba(0, 255, 100, 0.35)' : 'rgba(255, 255, 255, 0.1)'}`,
+        width: '100%',
+        boxSizing: 'border-box',
+        textAlign: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2px'
+      }}>
+        <div style={{ fontSize: '7.5px', fontFamily: 'Orbitron', color: '#ffd700', fontWeight: 'bold', letterSpacing: '0.4px' }}>
+          {info.phase}{info.zone ? ` • ${info.zone.toUpperCase()}` : ''}
+        </div>
+        <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {info.player} <span style={{ color: '#94a3b8', fontSize: '9px' }}>({info.pos})</span>
+        </div>
+        <div style={{ fontSize: '9.5px', color: '#cbd5e1' }}>
+          d10:<strong style={{ color: '#fff' }}>{info.die}</strong> + {info.skillName}:<strong style={{ color: '#00e5ff' }}>{info.skill}</strong>
+          {info.bonus !== 0 && (
+            <strong style={{ color: info.bonus > 0 ? '#00ff64' : '#ff6b6b' }}>
+              {info.bonus > 0 ? ` +${info.bonus}` : ` ${info.bonus}`}
+            </strong>
+          )}
+          {' = '}<strong style={{ color: '#ffd700' }}>{info.total}</strong>
+        </div>
+        <div style={{
+          fontSize: '8px',
+          fontFamily: 'Orbitron',
+          fontWeight: 'bold',
+          color: info.isWinner ? '#00ff64' : '#ff7b72',
+          marginTop: '1px'
+        }}>
+          {info.outcomeText}
+        </div>
+      </div>
+    );
+  };
 
   const [scorehome, setScoreHome] = useState(0);
   const [scoreaway, setScoreAway] = useState(0);
@@ -1212,7 +1396,7 @@ export default function Match() {
     }
   }, []);
 
-  const logEvent = useCallback((payload, type = 'normal', side = 'neutral') => {
+  const logEvent = useCallback((payload, type = 'normal', side = 'neutral', options = {}) => {
     let text = payload;
     let sound = null;
     let eventSide = side;
@@ -1232,7 +1416,9 @@ export default function Match() {
 
     const newEvent = { time, text: String(text), type, side: eventSide };
     setChronicle(prev => [newEvent, ...prev]);
-    setLiveBanner(newEvent);
+    if (!options?.skipBanner) {
+      setLiveBanner(newEvent);
+    }
   }, [time, playCMSound]);
 
   const getTeamLineup = useCallback((teamKey) => {
@@ -1395,17 +1581,17 @@ export default function Match() {
   // Manage referee whistle sounds on key match transitions
   useEffect(() => {
     // 1. Kickoffs (whistle.mp3)
-    if (prevTimeRef.current === 90 && time === 93) {
+    if (prevTimeRef.current === 90 && time > 90) {
       // Extra Time kickoff
       playSoundFile(whistleAudioRef);
     }
 
     // 2. End of halves (final_whistle.mp3)
-    if (prevTimeRef.current === 42 && time === 45) {
+    if (prevTimeRef.current < 45 && time === 45) {
       playSoundFile(finalWhistleAudioRef);
-    } else if (prevTimeRef.current === 87 && time === 90) {
+    } else if (prevTimeRef.current < 90 && time === 90) {
       playSoundFile(finalWhistleAudioRef);
-    } else if (prevTimeRef.current === 117 && time === 120) {
+    } else if (prevTimeRef.current < 120 && time === 120) {
       playSoundFile(finalWhistleAudioRef);
     }
 
@@ -1591,6 +1777,13 @@ export default function Match() {
     return (cpuRoles && cpuRoles[teamKey]) ? cpuRoles[teamKey] : {};
   };
 
+  const getActiveInstructionsForTeam = (teamKey) => {
+    if (playerTeamId !== null && teamKey === playerTeamId) return playerInstructions || {};
+    if (teamKey === teamonename && !isHomeDisabled && !cpuLineupsRef.current[teamonename]) return playerInstructions || {};
+    if (teamKey === teamtwoname && !isAwayDisabled && !cpuLineupsRef.current[teamtwoname]) return playerInstructions || {};
+    return {};
+  };
+
   const extractMatchScorersAndAssists = () => {
     const events = matchGoalEventsRef.current || [];
     const scorers = events.map(e => e.scorer).filter(Boolean).sort((a, b) => a.minute - b.minute);
@@ -1632,6 +1825,7 @@ export default function Match() {
           newBenches[teamonename] = res.bench;
           newRoles[teamonename] = res.roles || {};
           if (isMounted && res.mentality) {
+            homeTacticRef.current = res.mentality;
             setHomeTactic(res.mentality);
           }
         }
@@ -1658,6 +1852,7 @@ export default function Match() {
           newBenches[teamtwoname] = res.bench;
           newRoles[teamtwoname] = res.roles || {};
           if (isMounted && res.mentality) {
+            awayTacticRef.current = res.mentality;
             setAwayTactic(res.mentality);
           }
         }
@@ -1665,6 +1860,7 @@ export default function Match() {
 
       if (isMounted) {
         cpuLineupsRef.current = newLineups;
+        cpuRolesRef.current = newRoles;
         setCpuStats(newStats);
         setCpuLineups(newLineups);
         setCpuBenches(newBenches);
@@ -1686,10 +1882,10 @@ export default function Match() {
     const oppFormation = isHomeSide ? awayFormation : homeFormation;
     const selfLineup = cpuLineupsRef.current[teamKey] || cpuLineups[teamKey] || {};
     const oppLineup = (opponentKey === playerTeamId) ? (lineupRef.current || lineup) : (cpuLineupsRef.current[opponentKey] || cpuLineups[opponentKey] || {});
-    const oppActiveRoles = (opponentKey === playerTeamId) ? (playerRoles || {}) : (cpuRoles[opponentKey] || {});
-    const oppActiveMentality = isHomeSide ? awayTactic : homeTactic;
-    const currentTactic = isHomeSide ? homeTactic : awayTactic;
-    const currentTeamRoles = cpuRoles[teamKey] || {};
+    const oppActiveRoles = (opponentKey === playerTeamId) ? (playerRoles || {}) : (cpuRolesRef.current[opponentKey] || cpuRoles[opponentKey] || {});
+    const oppActiveMentality = isHomeSide ? awayTacticRef.current : homeTacticRef.current;
+    const currentTactic = isHomeSide ? homeTacticRef.current : awayTacticRef.current;
+    const currentTeamRoles = cpuRolesRef.current[teamKey] || cpuRoles[teamKey] || {};
 
     let proposedTactic = currentTactic;
     let proposedRoles = currentTeamRoles;
@@ -1726,22 +1922,32 @@ export default function Match() {
       .map(s => `${s.lastName} (${s.shortLabel})`).join(', ');
 
     if (prevSummary !== nextSummary) {
+      cpuRolesRef.current = {
+        ...cpuRolesRef.current,
+        [teamKey]: proposedRoles
+      };
       setCpuRoles(prev => ({
         ...prev,
         [teamKey]: proposedRoles
       }));
-      if (currentMatchTime > 0 && nextSummary) {
-        logEvent(`🧠 ${teamName} tactical shift: ${nextSummary}`, "normal");
+      if (currentMatchTime > 3 && nextSummary) {
+        logEvent(`🧠 ${teamName} tactical shift: ${nextSummary}`, "normal", "neutral", { skipBanner: true });
       }
     }
 
     const tacticChanged = proposedTactic !== currentTactic;
 
     if (tacticChanged) {
+      if (isHomeSide) {
+        homeTacticRef.current = proposedTactic;
+      } else {
+        awayTacticRef.current = proposedTactic;
+      }
       setTactic(proposedTactic);
-      if (currentMatchTime > 0) {
+      // Only log mid-match mentality changes after initial kickoff synchronization (> 3')
+      if (currentMatchTime > 3) {
         const label = proposedTactic === 'defense' ? 'DEFENSIVE' : (proposedTactic === 'attack' ? 'ATTACKING' : 'NORMAL');
-        logEvent(`📋 ${teamName} changes mentality to ${label}!`, "normal");
+        logEvent(`📋 ${teamName} changes mentality to ${label}!`, "normal", "neutral", { skipBanner: true });
       }
     }
   };
@@ -1763,6 +1969,42 @@ export default function Match() {
   function increaseTime() {
     if (isGameOver) return;
 
+    const nextMilestone = time < 45 ? 45 : (time < 90 ? 90 : 120);
+    // In 12-Box Skills Engine, clock increases by +2 mins in the midfield only
+    const timeDelta = engineMode === ENGINE_MODE_ZONES_12
+      ? Math.min(2, Math.max(1, nextMilestone - time))
+      : 3;
+    let zoneRes = null;
+
+    if (engineMode === ENGINE_MODE_ZONES_12) {
+      const homeLineupData = resolveLiveLineup(teamonename);
+      const awayLineupData = resolveLiveLineup(teamtwoname);
+      const homeRolesActive = getActiveRolesForTeam(teamonename);
+      const awayRolesActive = getActiveRolesForTeam(teamtwoname);
+      const homeTeamObj = teamid[teamonename] || {};
+      const awayTeamObj = teamid[teamtwoname] || {};
+
+      zoneRes = simulateZone12Possession({
+        homeLineup: homeLineupData,
+        awayLineup: awayLineupData,
+        homeRoles: homeRolesActive,
+        awayRoles: awayRolesActive,
+        homeInstructions: getActiveInstructionsForTeam(teamonename),
+        awayInstructions: getActiveInstructionsForTeam(teamtwoname),
+        homeFormation,
+        awayFormation,
+        homeTactic,
+        awayTactic,
+        homeTeam: homeTeamObj,
+        awayTeam: awayTeamObj,
+        minute: time,
+        maxMinute: nextMilestone,
+        preferredAttacker: (time === 0 || time === 45 || time === 90) ? null : zone12NextAttackerRef.current
+      });
+    }
+
+    const minuteScale = timeDelta / 3;
+
     // Deplete individual player conditions for the active lineup
     const { teamName, season } = getPlayerTeamNameAndSeason();
     if (Object.keys(lineup).length > 0) {
@@ -1779,12 +2021,12 @@ export default function Match() {
           let drop = 0;
           if (sp.position === "GK") {
             // GK depletes much slower: ~1-2% chance of 1% drop per 3 mins
-            drop = Math.random() < 0.06 ? 1 : 0;
+            drop = Math.random() < (0.06 * minuteScale) ? 1 : 0;
           } else {
             // Other positions deplete ~5-9% over 90 mins (approx 0.27-0.39% drop per 3-min turn)
             // Pressing increases fatigue
             const isPressingActive = isPlayerHome ? homePressing : awayPressing;
-            const threshold = isPressingActive ? 0.39 : 0.27;
+            const threshold = (isPressingActive ? 0.39 : 0.27) * minuteScale;
             drop = Math.random() < threshold ? 1 : 0;
           }
 
@@ -1805,7 +2047,7 @@ export default function Match() {
               turnInjuryChance = 0.001; // 0.1% chance per turn
             }
 
-            if (Math.random() < turnInjuryChance) {
+            if (Math.random() < (turnInjuryChance * minuteScale)) {
               const injuries = [
                 { name: "Bruised Ribs", duration: 1 + Math.floor(Math.random() * 2) },
                 { name: "Twisted Ankle", duration: 2 + Math.floor(Math.random() * 2) },
@@ -1866,15 +2108,15 @@ export default function Match() {
     }
 
     if (homePressing) {
-      setHomePressingDuration(prev => prev + 3);
+      setHomePressingDuration(prev => prev + timeDelta);
     } else {
-      setHomePressingDuration(prev => Math.max(0, prev - 3));
+      setHomePressingDuration(prev => Math.max(0, prev - timeDelta));
     }
 
     if (awayPressing) {
-      setAwayPressingDuration(prev => prev + 3);
+      setAwayPressingDuration(prev => prev + timeDelta);
     } else {
-      setAwayPressingDuration(prev => Math.max(0, prev - 3));
+      setAwayPressingDuration(prev => Math.max(0, prev - timeDelta));
     }
 
     setHasHomeChance(false);
@@ -1883,8 +2125,80 @@ export default function Match() {
     setHasAwayScoreChance(false);
     setBallPosition("center");
 
-    const nextTime = time + 3;
+    const nextTime = Math.min(nextMilestone, time + timeDelta);
     setTime(nextTime);
+
+    if (engineMode === ENGINE_MODE_ZONES_12 && zoneRes) {
+      const isMilestoneStop = nextTime === 45 || nextTime === 90 || nextTime === 120;
+      const step1 = zoneRes.steps[0];
+      const s1Side = zoneRes.step1Side || zoneRes.attackingSide;
+      const s1DefSide = s1Side === 'home' ? 'away' : 'home';
+      const s1AttKey = s1Side === 'home' ? teamonename : teamtwoname;
+      const s1DefKey = s1Side === 'home' ? teamtwoname : teamonename;
+      if (step1) {
+        updateZone12RollDisplay(step1, s1Side);
+      }
+
+      const s1AttFoul = (!isMilestoneStop && step1) ? evaluateDuelFoul({
+        teamKey: s1AttKey,
+        side: s1Side,
+        rawRoll: step1.attackerDie,
+        rollSides: 10,
+        sector: 'mid',
+        isPressing: s1Side === 'home' ? homePressing : awayPressing,
+        opponentKey: s1DefKey,
+        forcedOffender: step1.attackerPlayer ? { player: step1.attackerPlayer, slotId: step1.attackerSlotId } : null
+      }) : null;
+      const s1DefFoul = (!isMilestoneStop && step1) ? evaluateDuelFoul({
+        teamKey: s1DefKey,
+        side: s1DefSide,
+        rawRoll: step1.defenderDie,
+        rollSides: 10,
+        sector: 'mid',
+        isPressing: s1DefSide === 'home' ? homePressing : awayPressing,
+        opponentKey: s1AttKey,
+        forcedOffender: step1.defenderPlayer ? { player: step1.defenderPlayer, slotId: step1.defenderSlotId } : null
+      }) : null;
+
+      if (!step1 || (!step1.success && !step1.counterTriggered) || isMilestoneStop) {
+        // Midfield stopped cleanly (turnover) or half/full-time whistle reached
+        zone12PendingRef.current = null;
+        zone12NextAttackerRef.current = isMilestoneStop ? null : (zoneRes.nextAttacker || s1DefSide);
+        setLastZone12Result({
+          ...zoneRes,
+          steps: step1 ? [step1] : [],
+          zonePath: [zoneRes.startZone],
+          activeZone: zoneRes.startZone,
+          isGoal: false
+        });
+        if (!isMilestoneStop && step1?.stepLog) {
+          logDuelWithFouls(step1.stepLog.text, step1.stepLog.type || "normal", "neutral", [s1AttFoul, s1DefFoul]);
+        }
+        setBallPosition("center");
+      } else {
+        // Either initiator broke through (diff >= +2) OR defender stole it for instant counter (diff <= -2)
+        zone12PendingRef.current = zoneRes;
+        zone12NextAttackerRef.current = zoneRes.nextAttacker || (zoneRes.attackingSide === 'home' ? 'away' : 'home');
+        const secondZone = zoneRes.zonePath[1] || zoneRes.startZone;
+        setLastZone12Result({
+          ...zoneRes,
+          steps: [step1],
+          zonePath: secondZone === zoneRes.startZone ? [zoneRes.startZone] : zoneRes.zonePath.slice(0, 2),
+          activeZone: secondZone,
+          isGoal: false
+        });
+        if (step1.stepLog) {
+          logDuelWithFouls(step1.stepLog.text, step1.stepLog.type || "chance", zoneRes.attackingSide, [s1AttFoul, s1DefFoul]);
+        }
+        if (zoneRes.attackingSide === 'home') {
+          setHasHomeChance(true);
+          setBallPosition("home-attack");
+        } else {
+          setHasAwayChance(true);
+          setBallPosition("away-attack");
+        }
+      }
+    }
 
     // AI CPU substitutions
     if (nextTime >= 45) {
@@ -1899,7 +2213,7 @@ export default function Match() {
           if (isStoppage && maxStoppages < 99) {
             setHomeStoppagesUsed(prev => prev + 1);
           }
-          logEvent(`🔄 Substitution for ${teamid[teamonename].name}: fresh legs brought on!`, "normal");
+          logEvent(`🔄 Substitution for ${teamid[teamonename].name}: fresh legs brought on!`, "normal", "home", { skipBanner: true });
         }
       }
       // Away CPU sub
@@ -1910,7 +2224,7 @@ export default function Match() {
           if (isStoppage && maxStoppages < 99) {
             setAwayStoppagesUsed(prev => prev + 1);
           }
-          logEvent(`🔄 Substitution for ${teamid[teamtwoname].name}: fresh legs brought on!`, "normal");
+          logEvent(`🔄 Substitution for ${teamid[teamtwoname].name}: fresh legs brought on!`, "normal", "away", { skipBanner: true });
         }
       }
     }
@@ -2113,7 +2427,7 @@ export default function Match() {
   /**
    * Evaluates a duel roll for fouls, yellow cards, second yellows, and direct red cards.
    */
-  const evaluateDuelFoul = ({ teamKey, side, rawRoll, rollSides, sector, isPressing, opponentKey }) => {
+  const evaluateDuelFoul = ({ teamKey, side, rawRoll, rollSides, sector, isPressing, opponentKey, forcedOffender = null }) => {
     const teamRedCards = matchCardsRef.current.filter(
       c => c.teamKey === teamKey && (c.type === 'red' || c.type === 'second_yellow')
     ).length;
@@ -2131,7 +2445,15 @@ export default function Match() {
     });
     if (!check.foul) return null;
 
-    const offender = pickFoulPlayerForSector(teamKey, sector);
+    const liveForTeam = resolveLiveLineup(teamKey);
+    const hasForcedSlot = Boolean(forcedOffender?.player?.name && forcedOffender?.slotId && liveForTeam?.[forcedOffender.slotId]);
+    const offender = (forcedOffender && forcedOffender.player && forcedOffender.player.name)
+      ? {
+        slotId: hasForcedSlot ? forcedOffender.slotId : null,
+        player: forcedOffender.player,
+        isSynthetic: !hasForcedSlot
+      }
+      : pickFoulPlayerForSector(teamKey, sector);
     const offenderTeamName = teamid[teamKey]?.name || 'Team';
     const opponentTeamName = teamid[opponentKey]?.name || 'Opponent';
     const oppLineup = resolveLiveLineup(opponentKey);
@@ -2234,13 +2556,17 @@ export default function Match() {
         setCpuLineups(prev => ({ ...prev, [teamKey]: updatedCpuLineup }));
 
         const isHomeTeam = teamKey === teamonename;
-        const currentCpuTactic = isHomeTeam ? homeTactic : awayTactic;
+        const currentCpuTactic = isHomeTeam ? homeTacticRef.current : awayTacticRef.current;
         const setCpuTactic = isHomeTeam ? setHomeTactic : setAwayTactic;
         const selfScore = isHomeTeam ? scorehome : scoreaway;
         const oppScore = isHomeTeam ? scoreaway : scorehome;
         if (currentCpuTactic === 'attack') {
+          if (isHomeTeam) homeTacticRef.current = 'balanced';
+          else awayTacticRef.current = 'balanced';
           setCpuTactic('balanced');
         } else if (selfScore >= oppScore && time >= 55 && currentCpuTactic !== 'defense') {
+          if (isHomeTeam) homeTacticRef.current = 'defense';
+          else awayTacticRef.current = 'defense';
           setCpuTactic('defense');
         }
       }
@@ -2266,18 +2592,19 @@ export default function Match() {
 
     warnings.forEach(w => {
       const warnText = w.payload && typeof w.payload === 'object' ? w.payload.text : String(w.payload);
-      logEvent({ text: warnText, sound: null, side: w.side }, 'foul', w.side);
+      logEvent({ text: warnText, sound: null, side: w.side }, 'foul', w.side, { skipBanner: duelType === 'goal' });
     });
 
     if (cards.length > 0) {
       const duelText = duelPayload && typeof duelPayload === 'object' ? duelPayload.text : String(duelPayload);
       logEvent({ text: duelText, sound: null, side: duelSide }, duelType, duelSide);
       cards.forEach((c, idx) => {
+        const skipCardBanner = duelType === 'goal';
         if (idx === cards.length - 1) {
-          logEvent(c.payload, c.type, c.side);
+          logEvent(c.payload, c.type, c.side, { skipBanner: skipCardBanner });
         } else {
           const cardText = c.payload && typeof c.payload === 'object' ? c.payload.text : String(c.payload);
-          logEvent({ text: cardText, sound: null, side: c.side }, c.type, c.side);
+          logEvent({ text: cardText, sound: null, side: c.side }, c.type, c.side, { skipBanner: skipCardBanner });
         }
       });
     } else {
@@ -2463,6 +2790,11 @@ export default function Match() {
 
     // Midfield calculations
     if (time > 0 && !isGameOver && !isPenaltyShootout) {
+      if (engineMode === ENGINE_MODE_ZONES_12) {
+        // 12-Box Skills Engine executes possession & dynamic +1/+2/+3 minute clock directly inside increaseTime()
+        return;
+      }
+
       const m1 = getModifiedStat(teamonename, "midfield");
       const m2 = getModifiedStat(teamtwoname, "midfield");
       const roll1Result = rollMidfield(m1, engineMode);
@@ -2529,9 +2861,249 @@ export default function Match() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [time]);
 
+  // Helper to award a goal in 12-Box Skills Engine during Step 2 (Long Shot) or Step 3 (Box Shot/Header)
+  const applyZone12Goal = (zoneRes) => {
+    const isHomeGoal = zoneRes.attackingSide === 'home';
+    const homeTeamObj = teamid[teamonename] || {};
+    const awayTeamObj = teamid[teamtwoname] || {};
+    const scoringTeamName = isHomeGoal ? homeTeamObj.name : awayTeamObj.name;
+    const goalMinute = Math.max(1, time);
+
+    if (zoneRes.scorer) {
+      matchGoalEventsRef.current.push({
+        type: 'goal',
+        side: isHomeGoal ? 'home' : 'away',
+        team: scoringTeamName,
+        minute: goalMinute,
+        scorer: {
+          name: zoneRes.scorer.name,
+          position: zoneRes.scorer.position || 'ST',
+          team: scoringTeamName,
+          minute: goalMinute
+        },
+        assister: zoneRes.assister ? {
+          name: zoneRes.assister.name,
+          position: zoneRes.assister.position || 'MC',
+          team: scoringTeamName,
+          minute: goalMinute
+        } : null
+      });
+    }
+
+    if (isHomeGoal) {
+      const nextHomeScore = scorehome + 1;
+      setScoreHome(nextHomeScore);
+      setBallPosition("home-goal");
+      triggerGoalFlash(homeTeamObj);
+      if (playerTeamId === null || teamonename !== playerTeamId) {
+        adjustCPUTactic(teamonename, teamtwoname, nextHomeScore, scoreaway, true, handleCPUTacticChangeHome, setHomeCounter, setHomePressing, time);
+      }
+      if (playerTeamId === null || teamtwoname !== playerTeamId) {
+        adjustCPUTactic(teamtwoname, teamonename, scoreaway, nextHomeScore, false, handleCPUTacticChangeAway, setAwayCounter, setAwayPressing, time);
+      }
+    } else {
+      const nextAwayScore = scoreaway + 1;
+      setScoreAway(nextAwayScore);
+      setBallPosition("away-goal");
+      triggerGoalFlash(awayTeamObj);
+      if (playerTeamId === null || teamonename !== playerTeamId) {
+        adjustCPUTactic(teamonename, teamtwoname, scorehome, nextAwayScore, true, handleCPUTacticChangeHome, setHomeCounter, setHomePressing, time);
+      }
+      if (playerTeamId === null || teamtwoname !== playerTeamId) {
+        adjustCPUTactic(teamtwoname, teamonename, nextAwayScore, scorehome, false, handleCPUTacticChangeAway, setAwayCounter, setAwayPressing, time);
+      }
+    }
+  };
+
+  // Shared 12-Box Step 2 handler (Wing Cross / Wing Dribble / Through-Ball / Long Shot) with d10 foul checks
+  const resolveZone12Step2 = (side) => {
+    const zoneRes = zone12PendingRef.current;
+    const step2 = zoneRes?.steps?.[1];
+    if (!zoneRes || !step2) {
+      zone12PendingRef.current = null;
+      setBallPosition("center");
+      return;
+    }
+
+    const isHomeAtt = side === 'home';
+    const defSide = isHomeAtt ? 'away' : 'home';
+    const attKey = isHomeAtt ? teamonename : teamtwoname;
+    const defKey = isHomeAtt ? teamtwoname : teamonename;
+    const attPress = isHomeAtt ? homePressing : awayPressing;
+    const defPress = isHomeAtt ? awayPressing : homePressing;
+    const isCenterDuel = step2.zone === 'c2' || step2.zone === 'b2';
+
+    updateZone12RollDisplay(step2, side);
+
+    const attFoul = evaluateDuelFoul({
+      teamKey: attKey,
+      side,
+      rawRoll: step2.attackerDie,
+      rollSides: 10,
+      sector: isCenterDuel && step2.phase !== 'LONG DISTANCE SHOT' ? 'mid' : 'att',
+      isPressing: attPress,
+      opponentKey: defKey,
+      forcedOffender: step2.attackerPlayer ? { player: step2.attackerPlayer, slotId: step2.attackerSlotId } : null
+    });
+    const defFoul = evaluateDuelFoul({
+      teamKey: defKey,
+      side: defSide,
+      rawRoll: step2.defenderDie,
+      rollSides: 10,
+      sector: isCenterDuel && step2.phase !== 'LONG DISTANCE SHOT' ? 'mid' : 'def',
+      isPressing: defPress,
+      opponentKey: attKey,
+      forcedOffender: step2.defenderPlayer ? { player: step2.defenderPlayer, slotId: step2.defenderSlotId } : null
+    });
+
+    const hasStep3 = zoneRes.steps.length >= 3;
+    if (hasStep3 && step2.success) {
+      const boxPreviewZone = zoneRes.zonePath.find(z => z.startsWith('d') || z.startsWith('a')) || step2.zone;
+      const previewIdx = zoneRes.zonePath.indexOf(boxPreviewZone);
+      setLastZone12Result({
+        ...zoneRes,
+        steps: zoneRes.steps.slice(0, 2),
+        zonePath: previewIdx >= 0 ? zoneRes.zonePath.slice(0, previewIdx + 1) : zoneRes.zonePath,
+        activeZone: boxPreviewZone,
+        isGoal: false
+      });
+      if (step2.stepLog) {
+        logDuelWithFouls(step2.stepLog.text, step2.stepLog.type || "chance", side, [attFoul, defFoul]);
+      }
+      if (isHomeAtt) setHasHomeScoreChance(true);
+      else setHasAwayScoreChance(true);
+    } else {
+      zone12PendingRef.current = null;
+      zone12NextAttackerRef.current = zoneRes.nextAttacker || defSide;
+      setLastZone12Result(zoneRes);
+      if (step2.stepLog) {
+        logDuelWithFouls(
+          step2.stepLog.text,
+          step2.stepLog.type || (zoneRes.isGoal ? "goal" : "save"),
+          zoneRes.isGoal ? side : defSide,
+          [attFoul, defFoul]
+        );
+      }
+      if (zoneRes.isGoal) {
+        applyZone12Goal(zoneRes);
+      } else {
+        setBallPosition("center");
+      }
+    }
+  };
+
+  // Shared 12-Box Step 3 handler (Box Shot / Header) with d10 foul checks & in-match Penalty Kick awards
+  const resolveZone12Step3 = (side) => {
+    const zoneRes = zone12PendingRef.current;
+    zone12PendingRef.current = null;
+    if (!zoneRes) {
+      setBallPosition("center");
+      return;
+    }
+
+    const isHomeAtt = side === 'home';
+    const defSide = isHomeAtt ? 'away' : 'home';
+    const attKey = isHomeAtt ? teamonename : teamtwoname;
+    const defKey = isHomeAtt ? teamtwoname : teamonename;
+    const attPress = isHomeAtt ? homePressing : awayPressing;
+    const defPress = isHomeAtt ? awayPressing : homePressing;
+    zone12NextAttackerRef.current = zoneRes.nextAttacker || defSide;
+
+    const step3 = zoneRes.steps[2] || zoneRes.steps[zoneRes.steps.length - 1];
+    if (step3) {
+      updateZone12RollDisplay(step3, side);
+    }
+
+    const attFoul = step3 ? evaluateDuelFoul({
+      teamKey: attKey,
+      side,
+      rawRoll: step3.attackerDie,
+      rollSides: 10,
+      sector: 'att',
+      isPressing: attPress,
+      opponentKey: defKey,
+      forcedOffender: step3.attackerPlayer ? { player: step3.attackerPlayer, slotId: step3.attackerSlotId } : null
+    }) : null;
+    const defFoul = step3 ? evaluateDuelFoul({
+      teamKey: defKey,
+      side: defSide,
+      rawRoll: step3.defenderDie,
+      rollSides: 10,
+      sector: 'def',
+      isPressing: defPress,
+      opponentKey: attKey,
+      forcedOffender: step3.defenderPlayer ? { player: step3.defenderPlayer, slotId: step3.defenderSlotId } : null
+    }) : null;
+
+    if (step3?.stepLog) {
+      logDuelWithFouls(
+        step3.stepLog.text,
+        step3.stepLog.type || (zoneRes.isGoal ? "goal" : "save"),
+        zoneRes.isGoal ? side : defSide,
+        [attFoul, defFoul]
+      );
+    }
+
+    if (zoneRes.isGoal) {
+      setLastZone12Result(zoneRes);
+      applyZone12Goal(zoneRes);
+      return;
+    }
+
+    // Defensive foul inside the penalty box (Step 3) when not already a goal -> Penalty Kick!
+    if (defFoul) {
+      const attTeamName = teamid[attKey]?.name || 'Attacker';
+      const defTeamName = teamid[defKey]?.name || 'Defender';
+      const offenderLabel = defFoul.cardEntry?.playerName || step3?.defender || 'Defender';
+      logEvent(
+        `🚨 PENALTY KICK! ${offenderLabel} (${defTeamName}) commits a foul inside the penalty area on ${step3?.attacker || 'the attacker'}! Referee ${referee} points to the spot!`,
+        "chance",
+        side
+      );
+
+      const taker = isHomeAtt ? zoneRes.homePenaltyTaker : zoneRes.awayPenaltyTaker;
+      const gk = isHomeAtt ? zoneRes.awayGk : zoneRes.homeGk;
+      const penRes = resolveZone12PenaltyKick({
+        attackingSide: side,
+        zone: step3?.zone || (isHomeAtt ? 'd2' : 'a2'),
+        taker,
+        gk,
+        attTeamName,
+        defTeamName,
+        minute: Math.max(1, time)
+      });
+
+      updateZone12RollDisplay(penRes.step, side);
+      setLastZone12Result({
+        ...zoneRes,
+        steps: [...(zoneRes.steps || []), penRes.step],
+        isGoal: penRes.isGoal,
+        scorer: penRes.isGoal ? penRes.taker : null,
+        assister: null
+      });
+      logEvent(penRes.log.text, penRes.isGoal ? "goal" : "save", penRes.isGoal ? side : defSide);
+
+      if (penRes.isGoal) {
+        applyZone12Goal({ attackingSide: side, scorer: penRes.taker, assister: null });
+      } else {
+        setBallPosition("center");
+      }
+      return;
+    }
+
+    setLastZone12Result(zoneRes);
+    setBallPosition("center");
+  };
+
   // Home Attacks
   function handleHomeChance() {
     setHasHomeChance(false);
+
+    if (engineMode === ENGINE_MODE_ZONES_12 && zone12PendingRef.current) {
+      resolveZone12Step2('home');
+      return;
+    }
+
     const homeAttStat = getModifiedStat(teamonename, "attack");
     const awayDefStat = getModifiedStat(teamtwoname, "defense");
     const homeAttRes = rollAttackDef(homeAttStat, engineMode);
@@ -2602,6 +3174,12 @@ export default function Match() {
 
   function handleHomeScoreChance() {
     setHasHomeScoreChance(false);
+
+    if (engineMode === ENGINE_MODE_ZONES_12 && zone12PendingRef.current) {
+      resolveZone12Step3('home');
+      return;
+    }
+
     const awaySaveMod = resolveGoalkeeperSaveMod(teamtwoname);
     const homeShotRes = rollShotOnGoal(0);
     const awaySaveRes = rollShotOnGoal(awaySaveMod);
@@ -2662,6 +3240,12 @@ export default function Match() {
   // Away Attacks
   function handleAwayChance() {
     setHasAwayChance(false);
+
+    if (engineMode === ENGINE_MODE_ZONES_12 && zone12PendingRef.current) {
+      resolveZone12Step2('away');
+      return;
+    }
+
     const awayAttStat = getModifiedStat(teamtwoname, "attack");
     const homeDefStat = getModifiedStat(teamonename, "defense");
     const awayAttRes = rollAttackDef(awayAttStat, engineMode);
@@ -2717,6 +3301,12 @@ export default function Match() {
 
   function handleAwayScoreChance() {
     setHasAwayScoreChance(false);
+
+    if (engineMode === ENGINE_MODE_ZONES_12 && zone12PendingRef.current) {
+      resolveZone12Step3('away');
+      return;
+    }
+
     const homeSaveMod = resolveGoalkeeperSaveMod(teamonename);
     const awayShotRes = rollShotOnGoal(0);
     const homeSaveRes = rollShotOnGoal(homeSaveMod);
@@ -4545,6 +5135,8 @@ export default function Match() {
 
   const isHomeSubDisabled = isHomeDisabled || homeSubs >= maxSubs || (time !== 45 && time !== 0 && homeStoppagesUsed >= maxStoppages) || time === 0 || isGameOver || isPenaltyShootout;
   const isAwaySubDisabled = isAwayDisabled || awaySubs >= maxSubs || (time !== 45 && time !== 0 && awayStoppagesUsed >= maxStoppages) || time === 0 || isGameOver || isPenaltyShootout;
+  const isHomeTacticsDisabled = isHomeDisabled || (!(squad && squad.length > 0) && isHomeSubDisabled);
+  const isAwayTacticsDisabled = isAwayDisabled || (!(squad && squad.length > 0) && isAwaySubDisabled);
 
   const activePlayerTeamKey = isPlayerHome ? teamonename : teamtwoname;
   const playerRedCountInMatch = activePlayerTeamKey === teamonename ? homeRedCount : awayRedCount;
@@ -4712,7 +5304,11 @@ export default function Match() {
           }}
         >
           <span>🎲</span>
-          <span>{engineMode === 'd10' ? 'ENGINE: d10 (1-10 scale)' : 'ENGINE: d6 (1-5 classic)'}</span>
+          <span>
+            {engineMode === ENGINE_MODE_ZONES_12
+              ? 'ENGINE: 12-Box Skills (Test)'
+              : (engineMode === 'd10' ? 'ENGINE: d10 (1-10 scale)' : 'ENGINE: d6 (1-5 classic)')}
+          </span>
         </button>
       </div>
 
@@ -4783,7 +5379,7 @@ export default function Match() {
               const diffDef = modDef - baseDef;
               const defSpan = diffDef > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffDef}</span> : (diffDef < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffDef}</span> : null);
 
-              const statScale = (baseAtt > 5 || baseMid > 5 || baseDef > 5 || engineMode === 'd10') ? 10 : 20;
+              const statScale = (baseAtt > 5 || baseMid > 5 || baseDef > 5 || engineMode === 'd10' || engineMode === ENGINE_MODE_ZONES_12) ? 10 : 20;
 
               return (
                 <>
@@ -4809,7 +5405,7 @@ export default function Match() {
                       )}
                     </span>
                     <button
-                      disabled={isHomeSubDisabled}
+                      disabled={isHomeTacticsDisabled}
                       onClick={() => {
                         if (squad && squad.length > 0) {
                           setIsPlaying(false);
@@ -4819,23 +5415,23 @@ export default function Match() {
                         }
                       }}
                       style={{
-                        background: isHomeSubDisabled ? 'rgba(255,255,255,0.03)' : 'rgba(0, 229, 255, 0.1)',
-                        border: isHomeSubDisabled ? '1px solid rgba(255,255,255,0.05)' : '1px solid #00e5ff',
-                        color: isHomeSubDisabled ? '#888' : '#00e5ff',
+                        background: isHomeTacticsDisabled ? 'rgba(255,255,255,0.03)' : 'rgba(0, 229, 255, 0.1)',
+                        border: isHomeTacticsDisabled ? '1px solid rgba(255,255,255,0.05)' : '1px solid #00e5ff',
+                        color: isHomeTacticsDisabled ? '#888' : '#00e5ff',
                         padding: '3px 8px',
                         borderRadius: '12px',
                         fontSize: '8px',
-                        cursor: isHomeSubDisabled ? 'not-allowed' : 'pointer',
+                        cursor: isHomeTacticsDisabled ? 'not-allowed' : 'pointer',
                         fontWeight: 'bold',
                         transition: 'all 0.2s ease',
-                        opacity: isHomeSubDisabled ? 0.4 : 1,
+                        opacity: isHomeTacticsDisabled ? 0.4 : 1,
                         display: 'flex',
                         alignItems: 'center',
                         gap: '4px',
-                        boxShadow: isHomeSubDisabled ? 'none' : '0 0 10px rgba(0, 229, 255, 0.2)',
-                        textShadow: isHomeSubDisabled ? 'none' : '0 0 3px rgba(0, 229, 255, 0.5)'
+                        boxShadow: isHomeTacticsDisabled ? 'none' : '0 0 10px rgba(0, 229, 255, 0.2)',
+                        textShadow: isHomeTacticsDisabled ? 'none' : '0 0 3px rgba(0, 229, 255, 0.5)'
                       }}
-                      title="Open team tactics and substitutions"
+                      title="Open team tactics, positions, roles, instructions, and substitutions"
                     >
                       ⚙️ TACTICS
                     </button>
@@ -4846,8 +5442,9 @@ export default function Match() {
           </div>
 
           <div className="dice-roll-container">
-            <span className="roll-label">{engineMode === 'd10' ? 'MIDFIELD ROLL (d10)' : 'MIDFIELD ROLL (d6)'}</span>
+            <span className="roll-label">{engineMode === ENGINE_MODE_ZONES_12 ? 'ZONE DUEL TOTAL (d10+SKILL)' : (engineMode === 'd10' ? 'MIDFIELD ROLL (d10)' : 'MIDFIELD ROLL (d6)')}</span>
             <div className="roll-number-glowing">{rollone}</div>
+            {renderZone12BreakdownCard(zone12DuelBreakdown.home)}
           </div>
 
           {renderTeamDisciplineStrip(homeCards, homeYellowCount, homeRedCount)}
@@ -4866,6 +5463,8 @@ export default function Match() {
             formation={homeFormation || getSavedFormation() || '4-4-2'}
             playerRoles={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? playerRoles : (cpuRoles[teamonename] || {})}
             onToggleRole={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? handleTogglePlayerRole : undefined}
+            playerInstructions={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? playerInstructions : {}}
+            onChangeInstruction={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? handleChangePlayerInstruction : undefined}
             captainName={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? captainName : ''}
             onSelectCaptain={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? handleSelectMatchCaptain : undefined}
           />
@@ -4874,27 +5473,37 @@ export default function Match() {
         {/* Center Side: Active Pitch Controller & Chronicle Feed */}
         <div className="pitch-controller-center">
 
-          {/* Animated SVG/CSS Football Pitch */}
-          <div className="retro-tactical-pitch">
-            <div className="pitch-goal-net net-left"></div>
-            <div className="pitch-goal-net net-right"></div>
+          {engineMode === ENGINE_MODE_ZONES_12 ? (
+            <Zone12MatchView
+              lastZoneResult={lastZone12Result}
+              homeTeamName={teamid[teamonename]?.name}
+              awayTeamName={teamid[teamtwoname]?.name}
+            />
+          ) : (
+            <>
+              {/* Animated SVG/CSS Football Pitch */}
+              <div className="retro-tactical-pitch">
+                <div className="pitch-goal-net net-left"></div>
+                <div className="pitch-goal-net net-right"></div>
 
-            {/* Glowing Football animation */}
-            <div className={`glowing-football ball-pos-${ballPosition}`}>
-              ⚽
-            </div>
-          </div>
+                {/* Glowing Football animation */}
+                <div className={`glowing-football ball-pos-${ballPosition}`}>
+                  ⚽
+                </div>
+              </div>
 
-          {/* Momentum Indicator Bar */}
-          <div className="momentum-bar-wrapper">
-            <span className="momentum-title">MIDFIELD MOMENTUM</span>
-            <div className="momentum-gauge">
-              <div className="momentum-gauge-fill" style={{
-                left: `${Math.max(5, Math.min(95, 50 + ((rollone - rolltwo) * (engineMode === 'd10' ? 3.5 : 6))))}%`,
-                width: '12px'
-              }}></div>
-            </div>
-          </div>
+              {/* Momentum Indicator Bar */}
+              <div className="momentum-bar-wrapper">
+                <span className="momentum-title">MIDFIELD MOMENTUM</span>
+                <div className="momentum-gauge">
+                  <div className="momentum-gauge-fill" style={{
+                    left: `${Math.max(5, Math.min(95, 50 + ((rollone - rolltwo) * (engineMode === 'd10' ? 3.5 : 6))))}%`,
+                    width: '12px'
+                  }}></div>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Interactive Arena Actions */}
           <div className="arena-game-controls">
@@ -4918,25 +5527,25 @@ export default function Match() {
             {/* Active RPG Play buttons */}
             {playMode === "manual" && hasHomeChance && (
               <button className="match-control-btn active-attack-btn glowing-btn pulse" onClick={handleHomeChance}>
-                🔥 {teamid[teamonename].name} Attack! ({engineMode === 'd10' ? 'd10' : 'd6'})
+                🔥 {teamid[teamonename].name} Attack! ({engineMode === ENGINE_MODE_ZONES_12 ? '12-Box' : (engineMode === 'd10' ? 'd10' : 'd6')})
               </button>
             )}
 
             {playMode === "manual" && hasHomeScoreChance && (
               <button className="match-control-btn score-shoot-btn glowing-btn pulse-glow" onClick={handleHomeScoreChance}>
-                🎯 {teamid[teamonename].name} Shooting Chance! Shoot on Goal (d6)
+                🎯 {teamid[teamonename].name} Shooting Chance! Shoot on Goal ({engineMode === ENGINE_MODE_ZONES_12 ? 'd10 + Skill' : 'd6'})
               </button>
             )}
 
             {playMode === "manual" && hasAwayChance && (
               <button className="match-control-btn active-attack-btn glowing-btn pulse" onClick={handleAwayChance}>
-                🔥 {teamid[teamtwoname].name} Attack! ({engineMode === 'd10' ? 'd10' : 'd6'})
+                🔥 {teamid[teamtwoname].name} Attack! ({engineMode === ENGINE_MODE_ZONES_12 ? '12-Box' : (engineMode === 'd10' ? 'd10' : 'd6')})
               </button>
             )}
 
             {playMode === "manual" && hasAwayScoreChance && (
               <button className="match-control-btn score-shoot-btn glowing-btn pulse-glow" onClick={handleAwayScoreChance}>
-                🎯 {teamid[teamtwoname].name} Shooting Chance! Shoot on Goal (d6)
+                🎯 {teamid[teamtwoname].name} Shooting Chance! Shoot on Goal ({engineMode === ENGINE_MODE_ZONES_12 ? 'd10 + Skill' : 'd6'})
               </button>
             )}
 
@@ -5268,7 +5877,7 @@ export default function Match() {
               const diffDef = modDef - baseDef;
               const defSpan = diffDef > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffDef}</span> : (diffDef < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffDef}</span> : null);
 
-              const statScale = (baseAtt > 5 || baseMid > 5 || baseDef > 5 || engineMode === 'd10') ? 10 : 20;
+              const statScale = (baseAtt > 5 || baseMid > 5 || baseDef > 5 || engineMode === 'd10' || engineMode === ENGINE_MODE_ZONES_12) ? 10 : 20;
 
               return (
                 <>
@@ -5294,7 +5903,7 @@ export default function Match() {
                       )}
                     </span>
                     <button
-                      disabled={isAwaySubDisabled}
+                      disabled={isAwayTacticsDisabled}
                       onClick={() => {
                         if (squad && squad.length > 0) {
                           setIsPlaying(false);
@@ -5304,23 +5913,23 @@ export default function Match() {
                         }
                       }}
                       style={{
-                        background: isAwaySubDisabled ? 'rgba(255,255,255,0.03)' : 'rgba(0, 229, 255, 0.1)',
-                        border: isAwaySubDisabled ? '1px solid rgba(255,255,255,0.05)' : '1px solid #00e5ff',
-                        color: isAwaySubDisabled ? '#888' : '#00e5ff',
+                        background: isAwayTacticsDisabled ? 'rgba(255,255,255,0.03)' : 'rgba(0, 229, 255, 0.1)',
+                        border: isAwayTacticsDisabled ? '1px solid rgba(255,255,255,0.05)' : '1px solid #00e5ff',
+                        color: isAwayTacticsDisabled ? '#888' : '#00e5ff',
                         padding: '3px 8px',
                         borderRadius: '12px',
                         fontSize: '8px',
-                        cursor: isAwaySubDisabled ? 'not-allowed' : 'pointer',
+                        cursor: isAwayTacticsDisabled ? 'not-allowed' : 'pointer',
                         fontWeight: 'bold',
                         transition: 'all 0.2s ease',
-                        opacity: isAwaySubDisabled ? 0.4 : 1,
+                        opacity: isAwayTacticsDisabled ? 0.4 : 1,
                         display: 'flex',
                         alignItems: 'center',
                         gap: '4px',
-                        boxShadow: isAwaySubDisabled ? 'none' : '0 0 10px rgba(0, 229, 255, 0.2)',
-                        textShadow: isAwaySubDisabled ? 'none' : '0 0 3px rgba(0, 229, 255, 0.5)'
+                        boxShadow: isAwayTacticsDisabled ? 'none' : '0 0 10px rgba(0, 229, 255, 0.2)',
+                        textShadow: isAwayTacticsDisabled ? 'none' : '0 0 3px rgba(0, 229, 255, 0.5)'
                       }}
-                      title="Open team tactics and substitutions"
+                      title="Open team tactics, positions, roles, instructions, and substitutions"
                     >
                       ⚙️ TACTICS
                     </button>
@@ -5331,8 +5940,9 @@ export default function Match() {
           </div>
 
           <div className="dice-roll-container">
-            <span className="roll-label">{engineMode === 'd10' ? 'MIDFIELD ROLL (d10)' : 'MIDFIELD ROLL (d6)'}</span>
+            <span className="roll-label">{engineMode === ENGINE_MODE_ZONES_12 ? 'ZONE DUEL TOTAL (d10+SKILL)' : (engineMode === 'd10' ? 'MIDFIELD ROLL (d10)' : 'MIDFIELD ROLL (d6)')}</span>
             <div className="roll-number-glowing">{rolltwo}</div>
+            {renderZone12BreakdownCard(zone12DuelBreakdown.away)}
           </div>
 
           {renderTeamDisciplineStrip(awayCards, awayYellowCount, awayRedCount)}
@@ -5351,6 +5961,8 @@ export default function Match() {
             formation={awayFormation || getSavedFormation() || '4-4-2'}
             playerRoles={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? playerRoles : (cpuRoles[teamtwoname] || {})}
             onToggleRole={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? handleTogglePlayerRole : undefined}
+            playerInstructions={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? playerInstructions : {}}
+            onChangeInstruction={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? handleChangePlayerInstruction : undefined}
             captainName={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? captainName : ''}
             onSelectCaptain={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? handleSelectMatchCaptain : undefined}
           />
@@ -5463,10 +6075,13 @@ export default function Match() {
                   {getFormationSlots(getSavedFormation()).map(slot => {
                     const assignedPlayer = lineup[slot.id];
                     const idealPos = getIdealSlotPosition(slot.role, slot.x, slot.y);
-                    const slotWithPos = { ...slot, idealPos };
+                    const slotWithPos = { ...slot, idealPos, label: idealPos };
                     const currentRole = playerRoles[slot.id] || 'normal';
                     const roleMeta = assignedPlayer
                       ? getRoleMetadata(slotWithPos, assignedPlayer, currentRole)
+                      : null;
+                    const instrMeta = assignedPlayer
+                      ? getInstructionMetadata(slotWithPos, assignedPlayer, roleMeta?.id || 'normal', playerInstructions[slot.id])
                       : null;
 
                     let displayRating = 1;
@@ -5512,6 +6127,10 @@ export default function Match() {
                             }}
                             onClick={() => {
                               if (selectedRosterPlayer) {
+                                if (selectedRosterPlayer.name === assignedPlayer.name) {
+                                  setSelectedRosterPlayer(null);
+                                  return;
+                                }
                                 executeSwap(selectedRosterPlayer, slot.id, assignedPlayer);
                                 setSelectedRosterPlayer(null);
                               } else {
@@ -5594,16 +6213,20 @@ export default function Match() {
                               >
                                 ⚡{assignedPlayer.condition}%
                               </span>
+                              <PlayerInfoButton
+                                player={assignedPlayer}
+                                onOpen={(pl) => setInfoPlayer({ player: pl, teamName: teamid[activePlayerTeamKey]?.name || '' })}
+                                size="xs"
+                              />
                             </div>
-                            {slot.role !== 'gk' && roleMeta && (
+                            {roleMeta && (
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const nextRole = getNextRoleForSlot(slotWithPos, assignedPlayer, roleMeta.id);
-                                  handleTogglePlayerRole(slot.id, nextRole, assignedPlayer, slotWithPos);
+                                  setRoleModalTarget({ slot: slotWithPos, player: assignedPlayer });
                                 }}
-                                title={`${roleMeta.label}: ${roleMeta.desc} (Click to change role)`}
+                                title={`${roleMeta.label} • ${instrMeta?.label || 'Standard'}: ${instrMeta?.desc || roleMeta.desc} (Click to configure role & instructions)`}
                                 style={{
                                   marginTop: '2px',
                                   padding: '1px 4px',
@@ -5611,14 +6234,14 @@ export default function Match() {
                                   fontFamily: 'Orbitron, sans-serif',
                                   fontWeight: 'bold',
                                   borderRadius: '3px',
-                                  border: `1px solid ${roleMeta.color}`,
+                                  border: `1px solid ${slot.role === 'gk' ? (instrMeta?.color || '#ffd700') : roleMeta.color}`,
                                   background: roleMeta.id === 'normal' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.75)',
-                                  color: roleMeta.color,
+                                  color: slot.role === 'gk' ? (instrMeta?.color || '#ffd700') : roleMeta.color,
                                   cursor: 'pointer',
                                   lineHeight: 1.2
                                 }}
                               >
-                                {roleMeta.shortLabel} ↻
+                                {slot.role === 'gk' ? `GK • ${instrMeta?.shortLabel || 'SHORT'}` : `${roleMeta.shortLabel} • ${instrMeta?.shortLabel || 'PASS'}`} ⚙
                               </button>
                             )}
                           </div>
@@ -5707,6 +6330,11 @@ export default function Match() {
                             <span className="sub-modal-roster-item-name">
                               {isSentOff ? "🟥 " : (isSuspended ? "🟥 " : (isInjured ? "🤕 " : ""))}{player.name}
                             </span>
+                            <PlayerInfoButton
+                              player={player}
+                              onOpen={(pl) => setInfoPlayer({ player: pl, teamName: teamid[activePlayerTeamKey]?.name || '' })}
+                              size="xs"
+                            />
                           </div>
 
                           <div className="sub-modal-roster-item-stats">
@@ -5955,6 +6583,11 @@ export default function Match() {
                                 <span style={{ fontSize: '7.5px', color: '#ffd700', fontWeight: 'bold' }}>
                                   ★{p.rating}
                                 </span>
+                                <PlayerInfoButton
+                                  player={p}
+                                  onOpen={(pl) => setInfoPlayer({ player: pl, teamName: oppTeam?.name || '' })}
+                                  size="xs"
+                                />
                               </div>
                               <span style={{ fontSize: '8.5px', fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '75px', textAlign: 'center' }}>
                                 {getPlayerMatchCardStatus(showOpponentModal, p.name).yellows > 0 ? "🟨 " : ""}{getLastName(p.name)}
@@ -6065,6 +6698,11 @@ export default function Match() {
                             <span style={{ color: '#fff', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>
                               {p.name}
                             </span>
+                            <PlayerInfoButton
+                              player={p}
+                              onOpen={(pl) => setInfoPlayer({ player: pl, teamName: oppTeam?.name || '' })}
+                              size="xs"
+                            />
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', flexShrink: 0 }}>
                             {p.age && <span style={{ color: '#888' }}>{p.age}y</span>}
@@ -6117,6 +6755,26 @@ export default function Match() {
           </div>
         );
       })()}
+
+      {infoPlayer && (
+        <PlayerInfoModal
+          player={infoPlayer.player}
+          teamName={infoPlayer.teamName}
+          onClose={() => setInfoPlayer(null)}
+        />
+      )}
+      {roleModalTarget && (
+        <PlayerRoleInstructionsModal
+          isOpen={Boolean(roleModalTarget)}
+          onClose={() => setRoleModalTarget(null)}
+          player={roleModalTarget.player}
+          slot={roleModalTarget.slot}
+          currentRoleId={playerRoles[roleModalTarget.slot.id] || 'normal'}
+          currentInstructionId={playerInstructions[roleModalTarget.slot.id]}
+          onSelectRole={handleTogglePlayerRole}
+          onSelectInstruction={handleChangePlayerInstruction}
+        />
+      )}
     </div>
   );
 }

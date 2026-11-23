@@ -9,8 +9,12 @@ import {
 import {
   calculateTeamTacticalStats,
   getRoleMetadata,
-  getNextRoleForSlot
+  getInstructionMetadata,
+  getSavedPlayerInstructions,
+  savePlayerInstructions
 } from '../utils/tacticalRoleEngine';
+import PlayerInfoModal, { PlayerInfoButton } from './PlayerInfoModal';
+import PlayerRoleInstructionsModal from './PlayerRoleInstructionsModal';
 
 // Formation definitions with pitch positions (department bonuses now come from player positions & tactical roles)
 export const FORMATIONS = {
@@ -1459,12 +1463,15 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
   const [lineup, setLineup] = useState({});
   const [captainName, setCaptainName] = useState("");
   const [playerRoles, setPlayerRoles] = useState({});
+  const [playerInstructions, setPlayerInstructions] = useState({});
+  const [roleModalTarget, setRoleModalTarget] = useState(null);
   const [loading, setLoading] = useState(false);
   const [draggedPlayer, setDraggedPlayer] = useState(null);
   const [draggedOrigin, setDraggedOrigin] = useState(null); // slot id if dragged from pitch
   const [dragOverSlotId, setDragOverSlotId] = useState(null);
   const [selectedRosterPlayer, setSelectedRosterPlayer] = useState(null);
   const [selectedBenchNames, setSelectedBenchNames] = useState([]);
+  const [infoPlayer, setInfoPlayer] = useState(null);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const teamInfo = React.useMemo(() => getActiveTeamInfo(mode), [isOpen, mode]);
@@ -1767,6 +1774,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
 
     setLineup(activeLineup);
     setPlayerRoles(activeRoles);
+    setPlayerInstructions(getSavedPlayerInstructions(info.name, info.season));
     updateTeamStatsInStorage(activeLineup, activeFormation, activeRoles);
 
     const savedCap = getSavedCaptain(info.name, info.season);
@@ -1856,6 +1864,15 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
     const rolesKey = `retro_roles_${teamInfo.name}_${teamInfo.season}`;
     localStorage.setItem(rolesKey, JSON.stringify(newRoles));
 
+    const newInstructions = { ...playerInstructions };
+    Object.keys(newInstructions).forEach(k => {
+      if (!newSlotsIds.has(k)) {
+        delete newInstructions[k];
+      }
+    });
+    setPlayerInstructions(newInstructions);
+    savePlayerInstructions(teamInfo.name, teamInfo.season, newInstructions);
+
     if (changed) {
       setLineup(newLineup);
       const lineupKey = `retro_lineup_${teamInfo.name}_${teamInfo.season}`;
@@ -1874,15 +1891,27 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
   };
 
   const handleToggleSlotRole = (e, slot, assignedPlayer) => {
-    e.stopPropagation();
-    if (!assignedPlayer || slot.role === 'gk') return;
-    const currentRole = playerRoles[slot.id] || 'normal';
-    const nextRole = getNextRoleForSlot(slot, assignedPlayer, currentRole);
-    const nextRoles = { ...playerRoles, [slot.id]: nextRole };
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (!assignedPlayer || !slot) return;
+    const idealPos = slot.idealPos || getIdealSlotPosition(slot.role, slot.x, slot.y);
+    setRoleModalTarget({
+      slot: { ...slot, idealPos, label: idealPos },
+      player: assignedPlayer
+    });
+  };
+
+  const handleSelectRoleInModal = (slotId, nextRole) => {
+    const nextRoles = { ...playerRoles, [slotId]: nextRole };
     setPlayerRoles(nextRoles);
     const rolesKey = `retro_roles_${teamInfo.name}_${teamInfo.season}`;
     localStorage.setItem(rolesKey, JSON.stringify(nextRoles));
     updateTeamStatsInStorage(lineup, selectedFormation, nextRoles);
+  };
+
+  const handleSelectInstructionInModal = (slotId, nextInstruction) => {
+    const nextInstructions = { ...playerInstructions, [slotId]: nextInstruction };
+    setPlayerInstructions(nextInstructions);
+    savePlayerInstructions(teamInfo.name, teamInfo.season, nextInstructions);
   };
 
   const handleClose = () => {
@@ -2381,11 +2410,15 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
       ? Math.max(1, player.rating - 1)
       : player.rating;
 
-    // Tactical role if in starting lineup
+    // Tactical role & instruction if in starting lineup
     const roleId = isStarting ? (playerRoles[assignment.slotId] || 'normal') : null;
     const slotObj = isStarting ? slots.find(s => s.id === assignment.slotId) : null;
-    const roleMeta = (isStarting && slotObj) ? getRoleMetadata(slotObj, player, roleId) : null;
-    const hasRole = roleMeta && roleMeta.id !== 'normal';
+    const slotWithIdeal = slotObj ? { ...slotObj, idealPos: getIdealSlotPosition(slotObj.role, slotObj.x, slotObj.y) } : null;
+    const roleMeta = (isStarting && slotWithIdeal) ? getRoleMetadata(slotWithIdeal, player, roleId) : null;
+    const instrMeta = (isStarting && slotWithIdeal)
+      ? getInstructionMetadata(slotWithIdeal, player, roleMeta?.id || 'normal', playerInstructions[assignment.slotId])
+      : null;
+    const hasRole = Boolean(isStarting && slotWithIdeal && roleMeta);
 
     return (
       <div
@@ -2500,6 +2533,8 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
             {player.name}
           </span>
 
+          <PlayerInfoButton player={player} onOpen={setInfoPlayer} size="xs" />
+
           {captainName === player.name && (
             <span
               style={{
@@ -2521,29 +2556,30 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
 
           {renderSeasonCardPills(player)}
 
-          {/* Tactical role badge if starting */}
+          {/* Tactical role & instruction badge if starting */}
           {hasRole && (
             <span
               onClick={(e) => {
                 e.stopPropagation();
-                if (slotObj) handleToggleSlotRole(e, slotObj, player);
+                if (slotWithIdeal) handleToggleSlotRole(e, slotWithIdeal, player);
               }}
               style={{
                 fontSize: '7px',
                 fontWeight: 'bold',
                 fontFamily: 'Orbitron',
-                color: roleMeta.color,
-                background: 'rgba(0,0,0,0.5)',
-                border: `1px solid ${roleMeta.color}`,
+                color: roleMeta.id !== 'normal' ? roleMeta.color : (instrMeta?.color || '#00ff88'),
+                background: 'rgba(0,0,0,0.55)',
+                border: `1px solid ${roleMeta.id !== 'normal' ? roleMeta.color : (instrMeta?.color || '#00ff88')}88`,
                 borderRadius: '3px',
-                padding: '0.5px 3px',
+                padding: '0.5px 4px',
                 cursor: 'pointer',
                 flexShrink: 0
               }}
-              title={`Role: ${roleMeta.label}. Click to cycle duty.`}
+              title={`Role: ${roleMeta.label} | Instruction: ${instrMeta?.label || 'Standard'}. Click to configure role & instructions.`}
             >
-              {roleMeta.shortName}
+              {slotWithIdeal.role === 'gk' ? `GK • ${instrMeta?.shortLabel || 'SHORT'}` : `${roleMeta.shortLabel} • ${instrMeta?.shortLabel || 'PASS'}`} ⚙
             </span>
+          )}
           )}
         </div>
 
@@ -3369,7 +3405,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                           </span>
                         </div>
                         <span style={{ fontSize: '7.5px', color: '#ffd700', opacity: 0.85 }}>
-                          CLICK ROLE BADGE TO CHANGE DUTY
+                          CLICK ROLE BADGE FOR INSTRUCTIONS
                         </span>
                       </div>
                     );
@@ -3401,8 +3437,11 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                     {slots.map(slot => {
                       const assignedPlayer = lineup[slot.id];
                       const idealPos = getIdealSlotPosition(slot.role, slot.x, slot.y);
-                      const slotWithPos = { ...slot, idealPos };
+                      const slotWithPos = { ...slot, idealPos, label: idealPos };
                       const roleMeta = assignedPlayer ? getRoleMetadata(slotWithPos, assignedPlayer, playerRoles[slot.id] || 'normal') : null;
+                      const instrMeta = assignedPlayer
+                        ? getInstructionMetadata(slotWithPos, assignedPlayer, roleMeta?.id || 'normal', playerInstructions[slot.id])
+                        : null;
 
                       let displayRating = 1;
                       let penalty = 0;
@@ -3490,6 +3529,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                                 }} title={assignedPlayer.suspensionMatchesLeft > 0 ? `Suspended: ${assignedPlayer.suspensionReason || 'Ban'} (${assignedPlayer.suspensionMatchesLeft}m)` : (assignedPlayer.injuryMatchesLeft > 0 ? `Injured: ${assignedPlayer.injury || 'Unknown'}` : `Condition: ${assignedPlayer.condition !== undefined ? assignedPlayer.condition : 100}%`)}>
                                   {assignedPlayer.suspensionMatchesLeft > 0 ? `🟥${assignedPlayer.suspensionMatchesLeft}m` : (assignedPlayer.injuryMatchesLeft > 0 ? `🤕${assignedPlayer.injuryMatchesLeft}m` : `⚡${assignedPlayer.condition !== undefined ? assignedPlayer.condition : 100}%`)}
                                 </span>
+                                <PlayerInfoButton player={assignedPlayer} onOpen={setInfoPlayer} size="xs" />
                               </div>
                               <span className="pitch-slot-name" style={{
                                 fontSize: '11px',
@@ -3529,7 +3569,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                                   {getLastName(assignedPlayer.name)}
                                 </span>
                               </span>
-                              {slot.role !== 'gk' && roleMeta && (
+                              {roleMeta && (
                                 <button
                                   type="button"
                                   onClick={(e) => handleToggleSlotRole(e, slotWithPos, assignedPlayer)}
@@ -3537,19 +3577,19 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                                     marginTop: '1px',
                                     padding: '1.5px 6px',
                                     borderRadius: '4px',
-                                    border: `1px solid ${roleMeta.color}88`,
+                                    border: `1px solid ${(slot.role === 'gk' ? (instrMeta?.color || '#ffd700') : roleMeta.color)}88`,
                                     background: roleMeta.id === 'normal' ? 'rgba(255,255,255,0.06)' : `${roleMeta.color}25`,
-                                    color: roleMeta.color,
-                                    fontSize: '7.5px',
+                                    color: slot.role === 'gk' ? (instrMeta?.color || '#ffd700') : roleMeta.color,
+                                    fontSize: '7px',
                                     fontWeight: 'bold',
                                     fontFamily: 'Orbitron',
                                     cursor: 'pointer',
                                     whiteSpace: 'nowrap',
                                     lineHeight: 1.2
                                   }}
-                                  title={`${roleMeta.label}: ${roleMeta.desc} (Click to toggle)`}
+                                  title={`${roleMeta.label} • ${instrMeta?.label || 'Standard'}: ${instrMeta?.desc || roleMeta.desc} (Click to open Player Role & Instructions)`}
                                 >
-                                  {roleMeta.shortLabel} ↻
+                                  {slot.role === 'gk' ? `GK • ${instrMeta?.shortLabel || 'SHORT'}` : `${roleMeta.shortLabel} • ${instrMeta?.shortLabel || 'PASS'}`} ⚙
                                 </button>
                               )}
                             </div>
@@ -3730,6 +3770,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                                 }} title={player.name}>
                                   {player.name}
                                 </span>
+                                <PlayerInfoButton player={player} onOpen={setInfoPlayer} size="xs" />
                                 {renderSeasonCardPills(player)}
                               </div>
 
@@ -3860,6 +3901,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                                   }} title={player.name}>
                                     {player.name}
                                   </span>
+                                  <PlayerInfoButton player={player} onOpen={setInfoPlayer} size="xs" />
                                   {renderSeasonCardPills(player)}
                                 </div>
 
@@ -4116,6 +4158,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                                 }} title={player.name}>
                                   {player.name}
                                 </span>
+                                <PlayerInfoButton player={player} onOpen={setInfoPlayer} size="xs" />
                               </div>
 
                               {/* Right: Badges, Age, Condition, Stars & Quick Action */}
@@ -4740,6 +4783,28 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
             </div>
           </div>
         </div>
+      )}
+
+      {infoPlayer && (
+        <PlayerInfoModal
+          player={infoPlayer}
+          teamName={teamInfo?.name || ''}
+          onClose={() => setInfoPlayer(null)}
+        />
+      )}
+
+      {roleModalTarget && (
+        <PlayerRoleInstructionsModal
+          isOpen={Boolean(roleModalTarget)}
+          onClose={() => setRoleModalTarget(null)}
+          player={roleModalTarget.player}
+          slot={roleModalTarget.slot}
+          currentRoleId={playerRoles[roleModalTarget.slot.id] || 'normal'}
+          currentInstructionId={playerInstructions[roleModalTarget.slot.id]}
+          onSelectRole={handleSelectRoleInModal}
+          onSelectInstruction={handleSelectInstructionInModal}
+          teamColor={teamInfo?.primaryColor || '#00ff64'}
+        />
       )}
     </div>
   );

@@ -168,17 +168,20 @@ if (!cmDataDir && zipToExtract && fs.existsSync(zipToExtract)) {
   fs.mkdirSync(extractDest, { recursive: true });
   execSync(`powershell -Command "Expand-Archive -Path '${zipToExtract}' -DestinationPath '${extractDest}' -Force"`);
 
-  const subEntries = fs.readdirSync(extractDest, { withFileTypes: true });
-  for (const se of subEntries) {
-    const subPath = path.join(extractDest, se.name);
-    if (se.isDirectory() && fs.existsSync(path.join(subPath, 'staff.dat'))) {
-      cmDataDir = subPath;
-      break;
+  const findDatDir = (dir, depth = 3) => {
+    if (fs.existsSync(path.join(dir, 'staff.dat')) && fs.existsSync(path.join(dir, 'club.dat'))) {
+      return dir;
     }
-  }
-  if (!cmDataDir && fs.existsSync(path.join(extractDest, 'staff.dat'))) {
-    cmDataDir = extractDest;
-  }
+    if (depth <= 0) return null;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        const found = findDatDir(path.join(dir, entry.name), depth - 1);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  cmDataDir = findDatDir(extractDest, 3);
 }
 
 if (!cmDataDir || !fs.existsSync(cmDataDir)) {
@@ -484,6 +487,11 @@ function loadCMDatabase(cmDir) {
       const fn = readStringTable(fnBuf, fnId);
       const sn = readStringTable(snBuf, snId);
       return `${fn} ${sn}`.trim() || "Unknown Player";
+    },
+    readFullName(fnId, snId) {
+      const fn = readStringTable(fnBuf, fnId);
+      const sn = readStringTable(snBuf, snId);
+      return `${fn} ${sn}`.trim();
     }
   };
 }
@@ -696,6 +704,51 @@ function decodePlayer10(staffBuf, staffOffset, cmDb, seasonYear, clubIdOverride 
   // 1 to 10 Star Rating from 0-200 CA
   const rating = getRating10(currentAbility);
 
+  // Extract 9 core 1-10 player skills from CM 01/02 70-byte player record (pOffset + 27 + attrIdx)
+  // CM stores 1-20 values (or 0 if random/unset in editor). Convert 1-20 -> 1-10, fallback to position-adjusted rating.
+  const primaryPos = uniquePositions[0] || "MC";
+  const dept = getGeneralPosition(primaryPos);
+  const scaleCM20To10 = (rawVal, fallback10) => {
+    if (rawVal >= 1 && rawVal <= 20) {
+      return Math.max(1, Math.min(10, Math.round(rawVal / 2)));
+    }
+    return Math.max(1, Math.min(10, Math.round(fallback10)));
+  };
+
+  const rawCrossing  = staffBuf.readUInt8(pOffset + 27 + 8);
+  const rawDribbling = staffBuf.readUInt8(pOffset + 27 + 11);
+  const rawFinishing = staffBuf.readUInt8(pOffset + 27 + 12);
+  const rawHandling  = staffBuf.readUInt8(pOffset + 27 + 15);
+  const rawHeading   = staffBuf.readUInt8(pOffset + 27 + 16);
+  const rawLongShots = staffBuf.readUInt8(pOffset + 27 + 22);
+  const rawMarking   = staffBuf.readUInt8(pOffset + 27 + 23);
+  const rawPassing   = staffBuf.readUInt8(pOffset + 27 + 28);
+  const rawTackling  = staffBuf.readUInt8(pOffset + 27 + 35);
+
+  const isWide = ['ML', 'MR', 'AML', 'AMR', 'DL', 'DR', 'LW', 'RW'].includes(primaryPos);
+  const skills = {
+    passing:   scaleCM20To10(rawPassing,   dept === 'MF' ? rating : (dept === 'GK' ? Math.max(2, rating - 3) : Math.max(3, rating - 1))),
+    marking:   scaleCM20To10(rawMarking,   dept === 'DF' ? rating : (primaryPos === 'DMC' ? rating : (dept === 'MF' ? Math.max(3, rating - 2) : Math.max(1, rating - 4)))),
+    tackling:  scaleCM20To10(rawTackling,  dept === 'DF' ? rating : (primaryPos === 'DMC' ? rating : (dept === 'MF' ? Math.max(3, rating - 1) : Math.max(1, rating - 4)))),
+    dribbling: scaleCM20To10(rawDribbling, (dept === 'FW' || isWide || primaryPos === 'AMC') ? rating : (dept === 'MF' ? Math.max(3, rating - 1) : Math.max(2, rating - 3))),
+    crossing:  scaleCM20To10(rawCrossing,  isWide ? rating : (dept === 'MF' || dept === 'FW' ? Math.max(3, rating - 2) : Math.max(2, rating - 3))),
+    heading:   scaleCM20To10(rawHeading,   (primaryPos === 'DC' || primaryPos === 'ST' || primaryPos === 'CF') ? rating : Math.max(3, rating - 2)),
+    finishing: scaleCM20To10(rawFinishing, dept === 'FW' ? rating : (primaryPos === 'AMC' ? Math.max(4, rating - 1) : (dept === 'MF' ? Math.max(3, rating - 2) : Math.max(1, rating - 4)))),
+    longShots: scaleCM20To10(rawLongShots, (primaryPos === 'AMC' || primaryPos === 'MC' || dept === 'FW') ? Math.max(4, rating - 1) : Math.max(2, rating - 3)),
+    handling:  scaleCM20To10(rawHandling,  dept === 'GK' ? rating : 1)
+  };
+
+  const rawLeftFoot  = staffBuf.readUInt8(pOffset + 27 + 21);
+  const rawRightFoot = staffBuf.readUInt8(pOffset + 27 + 32);
+  let foot;
+  if (rawLeftFoot > 0 || rawRightFoot > 0) {
+    if (rawLeftFoot >= 15 && rawRightFoot >= 15) foot = 'Either';
+    else if (rawLeftFoot >= 15 && rawRightFoot < 15) foot = 'Left';
+    else if (rawRightFoot >= 15 && rawLeftFoot < 15) foot = 'Right';
+    else if (rawLeftFoot > rawRightFoot) foot = 'Left';
+    else if (rawRightFoot > rawLeftFoot) foot = 'Right';
+  }
+
   // Age Filtering
   const refYear = seasonYear > 2001 ? 2001 : seasonYear;
   const realAge = birthYear > 1900 ? (refYear - birthYear) : -1;
@@ -706,6 +759,11 @@ function decodePlayer10(staffBuf, staffOffset, cmDb, seasonYear, clubIdOverride 
   if (isNaN(age) || age < 16 || age > 45) age = 25;
 
   const name = cmDb.readName(fnId, snId, cnId);
+  const rawFull = cmDb.readFullName(fnId, snId);
+  const fullName = (rawFull && rawFull !== name) ? rawFull : undefined;
+  const natId = staffBuf.readInt32LE(staffOffset + 0x1A);
+  const nationalityRaw = cmDb.getNation(natId);
+  const nationality = (nationalityRaw && nationalityRaw !== 'Unknown') ? nationalityRaw : undefined;
 
   // Transfer & Loan Status Decoding
   const ownClubId = clubIdOverride !== null ? clubIdOverride : staffBuf.readInt32LE(staffOffset + 0x39);
@@ -723,10 +781,14 @@ function decodePlayer10(staffBuf, staffOffset, cmDb, seasonYear, clubIdOverride 
 
   return {
     name,
+    ...(fullName ? { fullName } : {}),
     position: uniquePositions[0],
     positions: uniquePositions,
     rating, // 1 to 10
+    skills,
     age,
+    ...(nationality ? { nationality } : {}),
+    ...(foot ? { foot } : {}),
     currentAbility,
     squadNumber: squadNumber > 0 && squadNumber < 100 ? squadNumber : undefined,
     value: playerVal,
@@ -1189,11 +1251,26 @@ function synthesizeSquadFiller10(existingPlayers, team, seasonYear, region = "")
     const ln = lastNames[(Math.floor(fillerIdx / firstNames.length) + fillerIdx * 3) % lastNames.length];
     const pName = `${fn} ${ln}`;
 
+    const isWide = ['ML', 'MR', 'AML', 'AMR', 'DL', 'DR', 'LW', 'RW'].includes(pos);
+    const clamp10 = (v) => Math.max(1, Math.min(10, Math.round(v)));
+    const skills = {
+      passing:   clamp10(dept === 'MF' ? rating : (dept === 'GK' ? rating - 3 : rating - 1)),
+      marking:   clamp10(dept === 'DF' || pos === 'DMC' ? rating : (dept === 'MF' ? rating - 2 : rating - 4)),
+      tackling:  clamp10(dept === 'DF' || pos === 'DMC' ? rating : (dept === 'MF' ? rating - 1 : rating - 4)),
+      dribbling: clamp10((dept === 'FW' || isWide || pos === 'AMC') ? rating : (dept === 'MF' ? rating - 1 : rating - 3)),
+      crossing:  clamp10(isWide ? rating : (dept === 'MF' || dept === 'FW' ? rating - 2 : rating - 3)),
+      heading:   clamp10((pos === 'DC' || pos === 'ST' || pos === 'CF') ? rating : rating - 2),
+      finishing: clamp10(dept === 'FW' ? rating : (pos === 'AMC' ? rating - 1 : (dept === 'MF' ? rating - 2 : rating - 4))),
+      longShots: clamp10((pos === 'AMC' || pos === 'MC' || dept === 'FW') ? rating - 1 : rating - 3),
+      handling:  clamp10(dept === 'GK' ? rating : 1)
+    };
+
     squad.push({
       name: pName,
       position: pos,
       positions: [pos],
       rating, // 1 to 10
+      skills,
       age,
       currentAbility: rating * 18,
       squadNumber: squad.length + 1,

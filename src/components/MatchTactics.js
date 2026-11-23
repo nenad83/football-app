@@ -7,11 +7,13 @@ import {
   normalizeMentality,
   calculateTeamTacticalStats,
   getRoleMetadata,
-  getNextRoleForSlot,
+  getInstructionMetadata,
   summarizeActiveRoles,
   computeCPUTacticalPlan,
   getPlayerEffectiveSkill
 } from '../utils/tacticalRoleEngine';
+import PlayerInfoModal, { PlayerInfoButton } from './PlayerInfoModal';
+import PlayerRoleInstructionsModal from './PlayerRoleInstructionsModal';
 
 /**
  * Calculates a team's effective department stat (attack, midfield, defense)
@@ -129,9 +131,13 @@ export const TacticsPanel = ({
   formation = '4-4-2',
   playerRoles = {},
   onToggleRole = null,
+  playerInstructions = {},
+  onChangeInstruction = null,
   captainName = '',
   onSelectCaptain = null
 }) => {
+  const [infoPlayer, setInfoPlayer] = React.useState(null);
+  const [roleModalTarget, setRoleModalTarget] = React.useState(null);
   const normTactic = normalizeMentality(tactic);
   const isMentalityDisabled = disabled;
 
@@ -140,16 +146,22 @@ export const TacticsPanel = ({
     setTactic(newTactic);
   };
 
-  // Build ordered outfield slot list for role controls / display
+  // Build ordered slot list (including GK) for role & individual instructions controls
   const rawSlots = getFormationSlots(formation || '4-4-2');
   const outfieldSlots = rawSlots
-    .filter(s => s.role !== 'gk' && lineup && lineup[s.id])
+    .filter(s => lineup && lineup[s.id])
     .map(s => {
       const player = lineup[s.id];
       const idealPos = getIdealSlotPosition(s.role, s.x, s.y);
-      const slotWithPos = { ...s, idealPos };
+      const slotWithPos = { ...s, idealPos, label: idealPos };
       const roleId = (playerRoles && playerRoles[s.id]) || 'normal';
       const roleMeta = getRoleMetadata(slotWithPos, player, roleId);
+      const instrMeta = getInstructionMetadata(
+        slotWithPos,
+        player,
+        roleMeta.id,
+        playerInstructions && playerInstructions[s.id]
+      );
       const effSkill = getPlayerEffectiveSkill(player, slotWithPos);
       const lastName = player.name ? player.name.trim().split(/\s+/).pop() : idealPos;
       return {
@@ -158,6 +170,7 @@ export const TacticsPanel = ({
         idealPos,
         roleId: roleMeta.id,
         roleMeta,
+        instrMeta,
         effSkill,
         lastName
       };
@@ -314,25 +327,22 @@ export const TacticsPanel = ({
             marginBottom: '5px'
           }}>
             <span className="roll-label" style={{ fontSize: '8.5px', margin: 0, color: '#00ff64' }}>
-              PLAYER ROLES (CLICK TO CHANGE)
+              ROLES &amp; INSTRUCTIONS (CLICK)
             </span>
           </div>
           <div style={{
             display: 'flex',
             flexDirection: 'column',
             gap: '3px',
-            maxHeight: '155px',
+            maxHeight: '165px',
             overflowY: 'auto',
             paddingRight: '2px'
           }}>
-            {outfieldSlots.map(({ slot, player, idealPos, roleMeta, effSkill, lastName }) => (
+            {outfieldSlots.map(({ slot, player, idealPos, roleMeta, instrMeta, effSkill, lastName }) => (
               <div
                 key={slot.id}
                 onClick={() => {
-                  if (onToggleRole) {
-                    const nextRole = getNextRoleForSlot(slot, player, roleMeta.id);
-                    onToggleRole(slot.id, nextRole, player, slot);
-                  }
+                  setRoleModalTarget({ slot, player });
                 }}
                 style={{
                   display: 'flex',
@@ -346,14 +356,14 @@ export const TacticsPanel = ({
                   fontSize: '8.5px',
                   userSelect: 'none'
                 }}
-                title={`${player.name} (${idealPos}, ★${effSkill}) — ${roleMeta.label}: ${roleMeta.desc}`}
+                title={`${player.name} (${idealPos}, ★${effSkill}) — ${roleMeta.label} | ${instrMeta?.label || 'Standard'}: ${instrMeta?.desc || roleMeta.desc}`}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
                   <span style={{
                     fontFamily: 'Orbitron',
                     fontSize: '7.5px',
                     fontWeight: 'bold',
-                    color: slot.role === 'def' ? '#00e5ff' : (slot.role === 'mid' ? '#00ff64' : '#ff4500'),
+                    color: slot.role === 'gk' ? '#ffd700' : (slot.role === 'def' ? '#00e5ff' : (slot.role === 'mid' ? '#00ff64' : '#ff4500')),
                     minWidth: '22px'
                   }}>
                     {idealPos}
@@ -364,26 +374,27 @@ export const TacticsPanel = ({
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    maxWidth: '72px'
+                    maxWidth: '64px'
                   }}>
                     {lastName}
                   </span>
                   <span style={{ color: '#ffd700', fontSize: '7.5px', fontFamily: 'Orbitron' }}>
                     ★{effSkill}
                   </span>
+                  <PlayerInfoButton player={player} onOpen={setInfoPlayer} size="xs" />
                 </div>
                 <span style={{
                   fontFamily: 'Orbitron',
-                  fontSize: '7px',
+                  fontSize: '6.8px',
                   fontWeight: 'bold',
-                  color: roleMeta.color,
+                  color: slot.role === 'gk' ? (instrMeta?.color || '#ffd700') : roleMeta.color,
                   background: 'rgba(0,0,0,0.35)',
                   padding: '1px 4px',
                   borderRadius: '3px',
-                  border: `1px solid ${roleMeta.color}55`,
+                  border: `1px solid ${(slot.role === 'gk' ? (instrMeta?.color || '#ffd700') : roleMeta.color)}55`,
                   whiteSpace: 'nowrap'
                 }}>
-                  {roleMeta.shortLabel} ↻
+                  {slot.role === 'gk' ? `GK • ${instrMeta?.shortLabel || 'SHORT'}` : `${roleMeta.shortLabel} • ${instrMeta?.shortLabel || 'PASS'}`} ⚙
                 </span>
               </div>
             ))}
@@ -435,6 +446,28 @@ export const TacticsPanel = ({
             </div>
           )}
         </div>
+      )}
+      {infoPlayer && (
+        <PlayerInfoModal
+          player={infoPlayer}
+          onClose={() => setInfoPlayer(null)}
+        />
+      )}
+      {roleModalTarget && (
+        <PlayerRoleInstructionsModal
+          isOpen={Boolean(roleModalTarget)}
+          onClose={() => setRoleModalTarget(null)}
+          player={roleModalTarget.player}
+          slot={roleModalTarget.slot}
+          currentRoleId={(playerRoles && playerRoles[roleModalTarget.slot.id]) || 'normal'}
+          currentInstructionId={playerInstructions && playerInstructions[roleModalTarget.slot.id]}
+          onSelectRole={(slotId, nextRole, pl, sl) => {
+            if (onToggleRole) onToggleRole(slotId, nextRole, pl, sl);
+          }}
+          onSelectInstruction={(slotId, nextInstr, pl, sl) => {
+            if (onChangeInstruction) onChangeInstruction(slotId, nextInstr, pl, sl);
+          }}
+        />
       )}
     </div>
   );

@@ -99,14 +99,21 @@ export function getAvailableRolesForSlot(slot, player = null) {
           label: 'Full Back (Defend)',
           shortLabel: 'FB (DEF)',
           color: '#00e5ff',
-          desc: '100% skill in Defense'
+          desc: 'Stays in defensive flank (a1/a3) to guard wingers (100% Defense)'
         },
         {
           id: 'support_mid',
           label: 'Wing Back (+Midfield)',
           shortLabel: 'WB (+MID)',
           color: '#00ff64',
-          desc: '50/50 split: 50% Defense, 50% Midfield'
+          desc: 'Moves up to c1/c3 (50% Def, 50% Mid) — can Cross before goal or play Through-Balls!'
+        },
+        {
+          id: 'support_att',
+          label: 'Attacking Wing Back (+Attack)',
+          shortLabel: 'WB (+ATT)',
+          color: '#ff4500',
+          desc: 'Overlaps all the way to d1/d3 (50% Def, +50% Att) — can Dribble & Shoot or Cross!'
         }
       ];
     }
@@ -329,6 +336,12 @@ export function calculatePlayerContribution(
       // Exact 50/50 split: e.g. Finnan (9) -> 4.5 to Defense, 4.5 to Midfield
       def = eff * 0.5;
       mid = eff * 0.5 * (midDiv / defDiv);
+    } else if (validRole === 'support_att') {
+      // Attacking Wing Back (Giggs / Roberto Carlos / Trent style): 50% Defense, +50% Attack
+      def = eff * 0.5;
+      att = rawAttCount === 1
+        ? eff * 0.5
+        : eff * 0.5 * (attDiv / defDiv);
     } else {
       def = eff;
     }
@@ -1150,3 +1163,368 @@ export function pickWeightedGoalScorerAndAssister(
     attackingPool: attackingEntries.map(e => e.player)
   };
 }
+
+/**
+ * Returns the available Individual Match Instructions for a given slot, player, and tactical role.
+ */
+export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal') {
+  if (!slot) {
+    return [{
+      id: 'pass',
+      label: 'Standard Play',
+      shortLabel: 'PASS',
+      icon: '⚽',
+      color: '#00ff88',
+      desc: 'Standard passing and movement.'
+    }];
+  }
+
+  const slotRole = slot.role;
+  const idealPos = (slot.idealPos || getIdealSlotPosition(slot.role, slot.x, slot.y) || '').toUpperCase();
+  const labelPos = (slot.label || idealPos || '').toUpperCase();
+
+  // 1. Goalkeeper (GK)
+  if (slotRole === 'gk' || idealPos === 'GK' || labelPos === 'GK') {
+    return [
+      {
+        id: 'short',
+        label: 'Short Distribution',
+        shortLabel: 'SHORT',
+        icon: '🛡️',
+        color: '#00e5ff',
+        desc: 'Passes safely into the next build-up box (b2 / c2) to start controlled midfield possession.'
+      },
+      {
+        id: 'long',
+        label: 'Long Distribution',
+        shortLabel: 'LONG',
+        icon: '🚀',
+        color: '#ffcc00',
+        desc: 'Launches long from a2/d2 directly to c1, c2, or c3 (b1/b2/b3)! Players there contest a Tackle duel to win the ball and start an instant attack.'
+      }
+    ];
+  }
+
+  // 2. Full Backs / Wing Backs (DL / DR)
+  if (slotRole === 'def' && (idealPos === 'DL' || idealPos === 'DR' || labelPos === 'DL' || labelPos === 'DR')) {
+    if (roleId === 'support_mid') {
+      return [
+        {
+          id: 'high_cross',
+          label: 'High Cross from Flank (c1/c3)',
+          shortLabel: 'HIGH CROSS',
+          icon: '🎯',
+          color: '#00ff88',
+          desc: 'Moves a1→c1 / a3→c3 (50% share if winger present). Rolls Crossing vs Marking (diff >= 2) → Striker Heading vs (DC Heading + GK Handling)/2.'
+        },
+        {
+          id: 'low_cross',
+          label: 'Low Whipped Cross (c1/c3)',
+          shortLabel: 'LOW CROSS',
+          icon: '⚡',
+          color: '#00e5ff',
+          desc: 'Moves a1→c1 / a3→c3 (50% share if winger present). Rolls Crossing vs Marking (diff >= 2) → Striker Finishing vs (DC Tackling + GK Handling)/2.'
+        },
+        {
+          id: 'through_ball',
+          label: 'Through Ball into Box',
+          shortLabel: 'THROUGH',
+          icon: '🗡️',
+          color: '#ffd700',
+          desc: 'Moves to c1/c3 and plays a killer ball into nearby box (needs diff >= 4). If successful, Striker gets +4 Finishing!'
+        }
+      ];
+    }
+
+    if (roleId === 'support_att') {
+      return [
+        {
+          id: 'high_cross',
+          label: 'Byline High Cross (d1/d3)',
+          shortLabel: 'HIGH CROSS',
+          icon: '🎯',
+          color: '#00ff88',
+          desc: 'Charges all the way to d1/d3 (50% share with winger). Rolls Crossing vs Marking → Striker Heading vs (DC Heading + GK Handling)/2.'
+        },
+        {
+          id: 'low_cross',
+          label: 'Byline Low Cutback (d1/d3)',
+          shortLabel: 'LOW CROSS',
+          icon: '⚡',
+          color: '#00e5ff',
+          desc: 'Charges to d1/d3 (50% share with winger). Rolls Crossing vs Marking → Striker Finishing vs (DC Tackling + GK Handling)/2.'
+        },
+        {
+          id: 'dribble',
+          label: 'Overlap Dribble & Shoot',
+          shortLabel: 'DRIBBLE',
+          icon: '🔥',
+          color: '#ff4500',
+          desc: 'Giggs / Roberto Carlos / Trent overlap to d1/d3! Beats opponent Tackling (diff >= 2) to go 1-on-1 with the Keeper and shoot!'
+        }
+      ];
+    }
+
+    // Normal FB (DEF)
+    return [
+      {
+        id: 'hold_line',
+        label: 'Stay Back & Guard Flank',
+        shortLabel: 'STAY BACK',
+        icon: '🛡️',
+        color: '#00e5ff',
+        desc: 'Stays strictly in defensive corner (a1/a3 or d1/d3) to mark & tackle opposition wingers.'
+      },
+      {
+        id: 'tight_mark_winger',
+        label: 'Tight Mark Winger (+1 vs Cross)',
+        shortLabel: 'TIGHT MARK',
+        icon: '🔒',
+        color: '#38bdf8',
+        desc: 'Stays at a1/a3 and presses wide: +1 Marking against High/Low Crosses, -1 Tackling against Dribbles.'
+      },
+      {
+        id: 'aggressive_press',
+        label: 'Stop Dribblers (+1 vs Dribble)',
+        shortLabel: 'HARD TACKLE',
+        icon: '⚔️',
+        color: '#f97316',
+        desc: 'Stays at a1/a3 and dives into challenges: +1 Tackling against Winger Dribbles, -1 Marking against Crosses.'
+      }
+    ];
+  }
+
+  // 3. Center Backs (DC)
+  if (slotRole === 'def') {
+    return [
+      {
+        id: 'tight_marking',
+        label: 'Aerial & Tight Marking',
+        shortLabel: 'TIGHT MARK',
+        icon: '🛡️',
+        color: '#00e5ff',
+        desc: 'Standard center-back screen: +1 Heading/Marking when contesting High Crosses in the box.'
+      },
+      {
+        id: 'aggressive_tackle',
+        label: 'Aggressive Box Tackler',
+        shortLabel: 'AGGR TACKLE',
+        icon: '⚔️',
+        color: '#f97316',
+        desc: 'Steps in hard on the ground: +1 Tackling when defending Low Crosses and 1-on-1 shots.'
+      },
+      {
+        id: 'direct_pass',
+        label: 'Ball-Playing DC (+1 Build-Up)',
+        shortLabel: 'BALL PLAY',
+        icon: '🎯',
+        color: '#00ff88',
+        desc: 'Steps into b2/c2 build-up when on Support Midfield or launching counters (+1 Passing).'
+      }
+    ];
+  }
+
+  // 4. Wingers & Wide Midfielders (AMR, AML, ML, MR, LW, RW)
+  const isWingerSlot = ['AMR', 'AML', 'ML', 'MR', 'LW', 'RW', 'DML', 'DMR'].includes(idealPos) ||
+    ['AMR', 'AML', 'ML', 'MR', 'LW', 'RW'].includes(labelPos);
+  if (isWingerSlot) {
+    return [
+      {
+        id: 'high_cross',
+        label: 'High Cross (Aerial Target)',
+        shortLabel: 'HIGH CROSS',
+        icon: '🎯',
+        color: '#00ff88',
+        desc: 'Crossing vs FB Marking (diff >= 2) → Striker Heading vs (Opp DC Heading + GK Handling)/2 (50% chance which DC & Striker).'
+      },
+      {
+        id: 'low_cross',
+        label: 'Low Cross (Ground Cutback)',
+        shortLabel: 'LOW CROSS',
+        icon: '⚡',
+        color: '#00e5ff',
+        desc: 'Crossing vs FB Marking (diff >= 2) → Striker Finishing vs (Opp DC Tackling + GK Handling)/2 (50% chance which DC & Striker).'
+      },
+      {
+        id: 'dribble',
+        label: 'Cut Inside & Dribble (1v1)',
+        shortLabel: 'DRIBBLE',
+        icon: '🔥',
+        color: '#ff4500',
+        desc: 'Dribbling vs FB Tackling (diff >= 2) → Winger goes straight into a 1-on-1 shooting chance against the Keeper!'
+      }
+    ];
+  }
+
+  // 5. Attacking Midfielder Central (AMC)
+  if (idealPos === 'AMC' || labelPos === 'AMC') {
+    return [
+      {
+        id: 'through_ball',
+        label: 'Killer Through Ball (+4 Striker)',
+        shortLabel: 'THROUGH',
+        icon: '🗡️',
+        color: '#ffd700',
+        desc: 'Tries to split defense to find a Striker in space (requires diff >= 4 vs DMC/DC). If successful, Striker rolls Finishing with +4!'
+      },
+      {
+        id: 'dribble',
+        label: 'Dribble Through & Shoot 1v1',
+        shortLabel: 'DRIBBLE 1V1',
+        icon: '🔥',
+        color: '#ff4500',
+        desc: 'Takes on opponent DMC or DC (Dribbling vs Tackling, diff >= 2). If successful, AMC shoots 1-on-1 against the Keeper!'
+      },
+      {
+        id: 'pass',
+        label: 'Standard Box Pass',
+        shortLabel: 'PASS',
+        icon: '⚽',
+        color: '#00ff88',
+        desc: 'Reliable short pass into the box (requires diff >= 2 vs DMC/DC Marking) to set up a Striker.'
+      },
+      {
+        id: 'long_shot',
+        label: 'Shoot from Distance',
+        shortLabel: 'LONG SHOT',
+        icon: '🚀',
+        color: '#a855f7',
+        desc: 'Unleashes a long-range strike from c2/b2 (d10 + Long Shots vs Defense, requires diff >= 5 to score).'
+      }
+    ];
+  }
+
+  // 6. Defensive Midfielder Central (DMC)
+  if (idealPos === 'DMC' || labelPos === 'DMC') {
+    return [
+      {
+        id: 'pass',
+        label: 'Simple Recycle Pass (Safe)',
+        shortLabel: 'PASS',
+        icon: '⚽',
+        color: '#00ff88',
+        desc: 'Always plays a controlled pass from b2 to c1/c2/c3 (requires standard diff >= 2).'
+      },
+      {
+        id: 'through_ball',
+        label: 'Deep Playmaker Through Ball',
+        shortLabel: 'THROUGH',
+        icon: '🗡️',
+        color: '#ffd700',
+        desc: 'Hits a defence-splitting pass from b2 to c1/c2/c3 (requires diff >= 4). If successful, receiver gets +4 skill on their next move!'
+      },
+      {
+        id: 'man_mark',
+        label: 'Man-Mark Opponent AMC (+1 Mark)',
+        shortLabel: 'MAN MARK',
+        icon: '🔒',
+        color: '#00e5ff',
+        desc: 'Screens central zone b2/c2 tightly (+1 Marking against opponent AMC passes & through-balls) and plays simple passes.'
+      }
+    ];
+  }
+
+  // 7. Central Midfielder (MC)
+  if (slotRole === 'mid') {
+    return [
+      {
+        id: 'pass',
+        label: 'Standard Pass (Always Pass)',
+        shortLabel: 'PASS',
+        icon: '⚽',
+        color: '#00ff88',
+        desc: 'Always passes the ball from b2 to c1, c2 (if AMC), or c3 with standard diff >= 2.'
+      },
+      {
+        id: 'through_ball',
+        label: 'Through Ball (+4 to Receiver)',
+        shortLabel: 'THROUGH',
+        icon: '🗡️',
+        color: '#ffd700',
+        desc: 'Passes from b2 to c1, c2 (if AMC), or c3 requiring diff >= 4 instead of 2! If successful, AMR/AMC/AML is free and rolls with Skill + 4 on their next move!'
+      }
+    ];
+  }
+
+  // 8. Strikers / Center Forwards (ST / CF)
+  if (slotRole === 'att') {
+    return [
+      {
+        id: 'balanced_finisher',
+        label: 'Complete Forward (Balanced)',
+        shortLabel: 'BALANCED',
+        icon: '⚽',
+        color: '#00ff88',
+        desc: 'Ready for any service: uses pure Heading on High Crosses and pure Finishing on Low Crosses & 1-on-1 shots.'
+      },
+      {
+        id: 'target_man',
+        label: 'Aerial Target Man (+1 Heading)',
+        shortLabel: 'TARGET MAN',
+        icon: '🎯',
+        color: '#ffcc00',
+        desc: 'Dominates the air: +1 Heading on High Crosses, -1 Finishing on Low Crosses.'
+      },
+      {
+        id: 'poacher',
+        label: 'Box Poacher (+1 Low/1v1 Finish)',
+        shortLabel: 'POACHER',
+        icon: '⚡',
+        color: '#ff4500',
+        desc: 'Clinical on the deck: +1 Finishing on Low Crosses & Through-Balls, -1 Heading on High Crosses.'
+      }
+    ];
+  }
+
+  return [
+    {
+      id: 'pass',
+      label: 'Standard Play',
+      shortLabel: 'PASS',
+      icon: '⚽',
+      color: '#00ff88',
+      desc: 'Standard passing and movement.'
+    }
+  ];
+}
+
+export function getDefaultInstructionForSlot(slot, player, roleId = 'normal') {
+  const list = getAvailableInstructionsForSlot(slot, player, roleId);
+  return list[0]?.id || 'pass';
+}
+
+export function getInstructionMetadata(slot, player, roleId = 'normal', instructionId) {
+  const list = getAvailableInstructionsForSlot(slot, player, roleId);
+  if (instructionId) {
+    const found = list.find(i => i.id === instructionId);
+    if (found) return found;
+  }
+  return list[0];
+}
+
+export function getSavedPlayerInstructions(teamName, season) {
+  try {
+    if (teamName && season) {
+      const saved = localStorage.getItem(`retro_instructions_${teamName}_${season}`);
+      if (saved) return JSON.parse(saved);
+    }
+    const fallback = localStorage.getItem('retro_player_instructions');
+    if (fallback) return JSON.parse(fallback);
+  } catch (e) {
+    // ignore storage errors
+  }
+  return {};
+}
+
+export function savePlayerInstructions(teamName, season, instructionsMap) {
+  try {
+    const payload = JSON.stringify(instructionsMap || {});
+    if (teamName && season) {
+      localStorage.setItem(`retro_instructions_${teamName}_${season}`, payload);
+    }
+    localStorage.setItem('retro_player_instructions', payload);
+  } catch (e) {
+    // ignore storage errors
+  }
+}
+

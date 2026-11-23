@@ -1096,6 +1096,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
       aperturaChampion: null,
       clausuraChampion: null,
       division: division,
+      statScale: "1-10",
       budget: window.lastFetchedStartingBudget || 10.0,
       payrollBudget: startingPayrollBudget || undefined,
       weeklyWageCap: startingWageCap || undefined,

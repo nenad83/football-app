@@ -20,9 +20,16 @@ import {
   getSavedCaptain,
   resolveValidCaptain
 } from './FormationTactics';
-import { calculateTeamTacticalStats, getRoleMetadata } from '../utils/tacticalRoleEngine';
+import {
+  calculateTeamTacticalStats,
+  getRoleMetadata,
+  getSavedPlayerInstructions,
+  savePlayerInstructions
+} from '../utils/tacticalRoleEngine';
 import { getCPUMatchLineupAndStats } from '../utils/cpuSquadManager';
-import { getTeamDetails, getTeamDetailsSync } from '../data/rosters/rosterRegistry';
+import { getTeamDetails, getTeamDetailsSync, getPrebuiltRoster } from '../data/rosters/rosterRegistry';
+import { getEngineMode, setEngineMode, ENGINE_MODE_D10, ENGINE_MODE_ZONES_12 } from '../utils/matchEngine';
+import PlayerInfoModal, { PlayerInfoButton } from './PlayerInfoModal';
 
 const getLastName = (name) => {
   if (!name) return "";
@@ -243,9 +250,11 @@ export default function PreMatch() {
       const team = teamid[teamonename];
       const opp = teamid[teamtwoname];
       if (team && opp && teamonename !== playerTeamId) {
+        const is10 = Boolean(isLeague || isEurope || team.attack > 5 || opp.attack > 5);
+        const threshold = is10 ? 9 : 3;
         const diff = (team.attack + team.midfield + team.defense) - (opp.attack + opp.midfield + opp.defense);
-        if (diff <= -3) return "defense";
-        if (diff >= 3) return "attack";
+        if (diff <= -threshold) return "defense";
+        if (diff >= threshold) return "attack";
       }
     }
     return "balanced";
@@ -256,9 +265,11 @@ export default function PreMatch() {
       const team = teamid[teamtwoname];
       const opp = teamid[teamonename];
       if (team && opp && teamtwoname !== playerTeamId) {
+        const is10 = Boolean(isLeague || isEurope || team.attack > 5 || opp.attack > 5);
+        const threshold = is10 ? 9 : 3;
         const diff = (team.attack + team.midfield + team.defense) - (opp.attack + opp.midfield + opp.defense);
-        if (diff <= -3) return "defense";
-        if (diff >= 3) return "attack";
+        if (diff <= -threshold) return "defense";
+        if (diff >= threshold) return "attack";
       }
     }
     return "balanced";
@@ -270,7 +281,16 @@ export default function PreMatch() {
   const [awayPressing, setAwayPressing] = useState(false);
   // Selected play mode for the match simulation (manual or auto) - default is auto
   const [playMode, setPlayMode] = useState("auto");
+  const [selectedEngine, setSelectedEngine] = useState(() => {
+    const cur = getEngineMode();
+    return cur === ENGINE_MODE_ZONES_12 ? ENGINE_MODE_ZONES_12 : ENGINE_MODE_D10;
+  });
+  const handleSelectEngine = (mode) => {
+    setSelectedEngine(mode);
+    setEngineMode(mode);
+  };
   const [showLineupsModal, setShowLineupsModal] = useState(false);
+  const [infoPlayer, setInfoPlayer] = useState(null);
   const [cpuHomeData, setCpuHomeData] = useState(null);
   const [cpuAwayData, setCpuAwayData] = useState(null);
   const [playerBench, setPlayerBench] = useState([]);
@@ -295,7 +315,7 @@ export default function PreMatch() {
     return { playerTeamName: "", playerSeason: "1995" };
   })();
 
-  const [playerLineup] = useState(() => {
+  const [playerLineup, setPlayerLineup] = useState(() => {
     if (!playerTeamName) return {};
     try {
       const raw = localStorage.getItem(`retro_lineup_${playerTeamName}_${playerSeason}`);
@@ -350,6 +370,16 @@ export default function PreMatch() {
     }
   };
 
+  const [playerInstructions, setPlayerInstructions] = useState(() =>
+    getSavedPlayerInstructions(playerTeamName, playerSeason)
+  );
+
+  const handleChangePlayerInstruction = (slotId, nextInstruction) => {
+    const nextInstructions = { ...playerInstructions, [slotId]: nextInstruction };
+    setPlayerInstructions(nextInstructions);
+    savePlayerInstructions(playerTeamName, playerSeason, nextInstructions);
+  };
+
   const year = (() => {
     if (leagueState && leagueState.season) {
       const yearStr = leagueState.season.split("/")[0];
@@ -385,8 +415,15 @@ export default function PreMatch() {
     ? playerFormation
     : getCPUFormation(awayTeamRaw, homeTeamRaw, year);
 
+  const isScale10Mode = Boolean(
+    isLeague ||
+    isEurope ||
+    leagueState?.statScale === '1-10' ||
+    getEngineMode() === ENGINE_MODE_D10
+  );
+
   const ensureTeam10Stats = (t) => {
-    if (!t) return t;
+    if (!t || isScale10Mode) return t;
     const att = Number(t.attack) || 6;
     const mid = Number(t.midfield) || 6;
     const def = Number(t.defense) || 6;
@@ -492,16 +529,44 @@ export default function PreMatch() {
   useEffect(() => {
     let isMounted = true;
     const loadPreMatchSquads = async () => {
-      // 1. If player team is involved, load player bench from localStorage
+      // 1. If player team is involved, ensure roster + lineup exist even before opening Tactics
       if (playerTeamName) {
         try {
-          const rawRoster = localStorage.getItem(`retro_roster_${playerTeamName}_${playerSeason}`);
-          const rawBench = localStorage.getItem(`retro_bench_${playerTeamName}_${playerSeason}`);
-          const squad = rawRoster ? JSON.parse(rawRoster) : [];
+          const rosterKey = `retro_roster_${playerTeamName}_${playerSeason}`;
+          const lineupKey = `retro_lineup_${playerTeamName}_${playerSeason}`;
+          const benchKey = `retro_bench_${playerTeamName}_${playerSeason}`;
+          const rawRoster = localStorage.getItem(rosterKey);
+          const rawLineup = localStorage.getItem(lineupKey);
+          const rawBench = localStorage.getItem(benchKey);
+
+          let squad = rawRoster ? JSON.parse(rawRoster) : [];
+          if (!Array.isArray(squad) || squad.length === 0) {
+            const pTeamRaw = leagueState?.teams?.find(t => t.name === playerTeamName)
+              || tournamentState?.teams?.find(t => t.name === playerTeamName)
+              || { name: playerTeamName, attack: 5, midfield: 5, defense: 5 };
+            squad = await getPrebuiltRoster(
+              playerTeamName,
+              year,
+              pTeamRaw,
+              leagueState?.country || tournamentState?.cupId || 'england',
+              playerSeason
+            );
+            if (Array.isArray(squad) && squad.length > 0) {
+              localStorage.setItem(rosterKey, JSON.stringify(squad));
+            }
+          }
+
+          let activeLineupObj = rawLineup ? JSON.parse(rawLineup) : {};
+          if ((!activeLineupObj || Object.values(activeLineupObj).filter(Boolean).length < 7) && Array.isArray(squad) && squad.length > 0) {
+            activeLineupObj = generateDefaultLineup(squad, playerFormation);
+            localStorage.setItem(lineupKey, JSON.stringify(activeLineupObj));
+            if (isMounted) setPlayerLineup(activeLineupObj);
+          }
+
           const benchNames = rawBench ? JSON.parse(rawBench) : [];
-          const startingNames = new Set(Object.values(playerLineup).filter(Boolean).map(p => p.name));
+          const startingNames = new Set(Object.values(activeLineupObj || {}).filter(Boolean).map(p => p.name));
           let bench = benchNames.map(name => squad.find(p => p.name === name)).filter(Boolean);
-          if (bench.length === 0) {
+          if (bench.length === 0 && Array.isArray(squad)) {
             bench = squad.filter(p => !startingNames.has(p.name)).slice(0, 7);
           }
           if (isMounted) setPlayerBench(bench);
@@ -526,6 +591,9 @@ export default function PreMatch() {
           );
           if (isMounted && res) {
             setCpuHomeData(res);
+            if (res.mentality) {
+              setHomeTactic(res.mentality);
+            }
           }
         } catch (e) {
           console.error("Error loading CPU home lineup in PreMatch", e);
@@ -548,6 +616,9 @@ export default function PreMatch() {
           );
           if (isMounted && res) {
             setCpuAwayData(res);
+            if (res.mentality) {
+              setAwayTactic(res.mentality);
+            }
           }
         } catch (e) {
           console.error("Error loading CPU away lineup in PreMatch", e);
@@ -596,6 +667,7 @@ export default function PreMatch() {
       return;
     }
 
+    setEngineMode(selectedEngine);
     navigate(`/match${url}`, {
       state: {
         homeTactic,
@@ -604,7 +676,8 @@ export default function PreMatch() {
         awayTactic,
         awayCounter,
         awayPressing,
-        playMode
+        playMode,
+        engineMode: selectedEngine
       }
     });
   };
@@ -739,6 +812,7 @@ export default function PreMatch() {
                       <span style={{ fontSize: '7.5px', color: '#ffd700', fontWeight: 'bold' }}>
                         ★{p.rating}
                       </span>
+                      <PlayerInfoButton player={p} onOpen={(pl) => setInfoPlayer({ player: pl, teamName: team?.name || '' })} size="xs" />
                     </div>
                     <span style={{ fontSize: '8.5px', fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '75px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
                       {captainName === p.name && (
@@ -844,6 +918,7 @@ export default function PreMatch() {
                     <span style={{ color: '#fff', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }}>
                       {p.name}
                     </span>
+                    <PlayerInfoButton player={p} onOpen={(pl) => setInfoPlayer({ player: pl, teamName: team?.name || '' })} size="xs" />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9.5px', flexShrink: 0 }}>
                     {p.age && <span style={{ color: '#888' }}>{p.age}y</span>}
@@ -981,7 +1056,7 @@ export default function PreMatch() {
           )}
 
           {(() => {
-            const statScale = (homeTeam.attack > 5 || homeTeam.midfield > 5 || homeTeam.defense > 5) ? 10 : 20;
+            const statScale = (isScale10Mode || homeTeam.attack > 5 || homeTeam.midfield > 5 || homeTeam.defense > 5) ? 10 : 20;
             return (
               <div className="team-card-bars" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div className="rpg-bar">
@@ -1012,6 +1087,8 @@ export default function PreMatch() {
             formation={homeFormation}
             playerRoles={playerTeamId !== null && teamonename === playerTeamId ? playerRoles : undefined}
             onToggleRole={playerTeamId !== null && teamonename === playerTeamId ? handleTogglePlayerRole : undefined}
+            playerInstructions={playerTeamId !== null && teamonename === playerTeamId ? playerInstructions : undefined}
+            onChangeInstruction={playerTeamId !== null && teamonename === playerTeamId ? handleChangePlayerInstruction : undefined}
           />
         </div>
 
@@ -1057,6 +1134,55 @@ export default function PreMatch() {
                 <div style={{ flex: homeTeam.defense, background: '#ff4500' }}></div>
                 <div style={{ flex: awayTeam.defense, background: '#00ff64' }}></div>
               </div>
+            </div>
+          </div>
+
+          {/* Match Engine Selector (Standard d10 vs 12-Box Skills Test Engine) */}
+          <div className="glass-card simulation-mode-box" style={{ width: '100%', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '5px' }}>
+            <h4 style={{ fontSize: '11px', fontFamily: 'Orbitron', color: '#00e5ff', margin: '0 0 3px 0', textTransform: 'uppercase', textAlign: 'center', letterSpacing: '1px' }}>
+              MATCH ENGINE
+            </h4>
+            <div className="sim-mode-toggle-group" style={{ display: 'flex', gap: '8px', width: '100%' }}>
+              <button
+                type="button"
+                onClick={() => handleSelectEngine(ENGINE_MODE_D10)}
+                style={{
+                  flex: 1,
+                  padding: '9px 8px',
+                  fontFamily: 'Orbitron',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  border: selectedEngine === ENGINE_MODE_D10 ? '1.5px solid #00e5ff' : '1.5px solid rgba(255,255,255,0.08)',
+                  background: selectedEngine === ENGINE_MODE_D10 ? 'rgba(0, 229, 255, 0.14)' : 'rgba(0,0,0,0.3)',
+                  color: selectedEngine === ENGINE_MODE_D10 ? '#00e5ff' : '#888',
+                  boxShadow: selectedEngine === ENGINE_MODE_D10 ? '0 0 10px rgba(0, 229, 255, 0.2)' : 'none',
+                  transition: 'all 0.25s ease'
+                }}
+              >
+                ⚡ Standard (d10)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectEngine(ENGINE_MODE_ZONES_12)}
+                style={{
+                  flex: 1,
+                  padding: '9px 8px',
+                  fontFamily: 'Orbitron',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  border: selectedEngine === ENGINE_MODE_ZONES_12 ? '1.5px solid #00ff64' : '1.5px solid rgba(255,255,255,0.08)',
+                  background: selectedEngine === ENGINE_MODE_ZONES_12 ? 'rgba(0, 255, 100, 0.14)' : 'rgba(0,0,0,0.3)',
+                  color: selectedEngine === ENGINE_MODE_ZONES_12 ? '#00ff64' : '#888',
+                  boxShadow: selectedEngine === ENGINE_MODE_ZONES_12 ? '0 0 10px rgba(0, 255, 100, 0.2)' : 'none',
+                  transition: 'all 0.25s ease'
+                }}
+              >
+                🎯 12-Box Skills
+              </button>
             </div>
           </div>
 
@@ -1241,7 +1367,7 @@ export default function PreMatch() {
           )}
 
           {(() => {
-            const statScale = (awayTeam.attack > 5 || awayTeam.midfield > 5 || awayTeam.defense > 5) ? 10 : 20;
+            const statScale = (isScale10Mode || awayTeam.attack > 5 || awayTeam.midfield > 5 || awayTeam.defense > 5) ? 10 : 20;
             return (
               <div className="team-card-bars" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div className="rpg-bar">
@@ -1272,6 +1398,8 @@ export default function PreMatch() {
             formation={awayFormation}
             playerRoles={playerTeamId !== null && teamtwoname === playerTeamId ? playerRoles : undefined}
             onToggleRole={playerTeamId !== null && teamtwoname === playerTeamId ? handleTogglePlayerRole : undefined}
+            playerInstructions={playerTeamId !== null && teamtwoname === playerTeamId ? playerInstructions : undefined}
+            onChangeInstruction={playerTeamId !== null && teamtwoname === playerTeamId ? handleChangePlayerInstruction : undefined}
           />
         </div>
 
@@ -1386,6 +1514,14 @@ export default function PreMatch() {
             </div>
           </div>
         </div>
+      )}
+
+      {infoPlayer && (
+        <PlayerInfoModal
+          player={infoPlayer.player}
+          teamName={infoPlayer.teamName}
+          onClose={() => setInfoPlayer(null)}
+        />
       )}
     </div>
   );

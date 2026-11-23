@@ -1260,9 +1260,10 @@ export function cleanStale1To5Rosters() {
                 calibratePlayerRating(p);
                 if (p.rating !== prev) updated = true;
               });
-              // If still entirely <= 5 (no high rated players), purge to fetch authentic prebuilt squad
-              const hasHighRating = data.some(p => Number(p.rating) >= 7);
-              if (!hasHighRating) {
+              // If still entirely 1-5 without historical/CA markers (or 2001 cache missing newly extracted 9-skill objects), purge to fetch authentic prebuilt squad
+              const has1To10Scale = data.some(p => Number(p.rating) >= 6 || p.currentAbility !== undefined || p.isHistorical);
+              const missing2001Skills = key.includes('2001') && !data.some(p => p && p.skills);
+              if (!has1To10Scale || missing2001Skills) {
                 keysToRemove.push(key);
               } else if (updated) {
                 localStorage.setItem(key, JSON.stringify(data));
@@ -1285,8 +1286,9 @@ export function cleanStale1To5Rosters() {
                 calibratePlayerRating(p);
                 if (p.rating !== prev) updated = true;
               });
-              const hasHighRating = players.some(p => Number(p.rating) >= 7);
-              if (!hasHighRating) {
+              const has1To10Scale = players.some(p => Number(p.rating) >= 6 || p.currentAbility !== undefined || p.isHistorical);
+              const missing2001Skills = key.includes('2001') && !players.some(p => p && p.skills);
+              if (!has1To10Scale || missing2001Skills) {
                 keysToRemove.push(key);
               } else if (updated) {
                 localStorage.setItem(key, JSON.stringify(data));
@@ -1303,18 +1305,19 @@ export function cleanStale1To5Rosters() {
       console.log(`[rosterRegistry] Purged ${keysToRemove.length} stale roster/lineup caches.`);
     }
 
-    // Check retro_league_career to ensure career teams are on 1-10 scale
+    // Check retro_league_career to ensure legacy 1-5 career teams are upgraded to 1-10 scale once
     const careerRaw = localStorage.getItem('retro_league_career');
     if (careerRaw) {
       try {
         const career = JSON.parse(careerRaw);
-        if (career && Array.isArray(career.teams) && career.teams.length > 0) {
+        if (career && career.statScale !== '1-10' && Array.isArray(career.teams) && career.teams.length > 0) {
           let updated = false;
-          career.teams = career.teams.map(t => {
-            const att = Number(t.attack) || 6;
-            const mid = Number(t.midfield) || 6;
-            const def = Number(t.defense) || 6;
-            if (att <= 5 || mid <= 5 || def <= 5) {
+          const allTeamsLegacy = career.teams.every(t => (Number(t.attack) || 0) <= 5 && (Number(t.midfield) || 0) <= 5 && (Number(t.defense) || 0) <= 5);
+          if (allTeamsLegacy) {
+            career.teams = career.teams.map(t => {
+              const att = Number(t.attack) || 3;
+              const mid = Number(t.midfield) || 3;
+              const def = Number(t.defense) || 3;
               updated = true;
               return {
                 ...t,
@@ -1322,16 +1325,15 @@ export function cleanStale1To5Rosters() {
                 midfield: scaleStatTo10(mid),
                 defense: scaleStatTo10(def)
               };
-            }
-            return t;
-          });
+            });
+          }
 
-          if (career.europeanCupState && Array.isArray(career.europeanCupState.teams)) {
+          if (allTeamsLegacy && career.europeanCupState && Array.isArray(career.europeanCupState.teams)) {
             career.europeanCupState.teams = career.europeanCupState.teams.map(t => {
-              const att = Number(t.attack) || 6;
-              const mid = Number(t.midfield) || 6;
-              const def = Number(t.defense) || 6;
-              if (att <= 5 || mid <= 5 || def <= 5) {
+              const att = Number(t.attack) || 3;
+              const mid = Number(t.midfield) || 3;
+              const def = Number(t.defense) || 3;
+              if (att <= 5 && mid <= 5 && def <= 5) {
                 updated = true;
                 return {
                   ...t,
@@ -1344,9 +1346,10 @@ export function cleanStale1To5Rosters() {
             });
           }
 
+          career.statScale = '1-10';
+          localStorage.setItem('retro_league_career', JSON.stringify(career));
           if (updated) {
-            localStorage.setItem('retro_league_career', JSON.stringify(career));
-            console.log('[rosterRegistry] Upgraded career team stats to 1-10 scale.');
+            console.log('[rosterRegistry] Upgraded legacy career team stats to 1-10 scale.');
           }
         }
       } catch (e) {}

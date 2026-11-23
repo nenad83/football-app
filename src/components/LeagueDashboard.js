@@ -909,27 +909,24 @@ export default function LeagueDashboard() {
       }).catch(() => { });
     }
 
-    // Auto-upgrade teams to 1-10 scale if needed
-    if (parsedCareer.teams && Array.isArray(parsedCareer.teams)) {
-      let upgraded = false;
-      parsedCareer.teams = parsedCareer.teams.map(t => {
-        const att = Number(t.attack) || 6;
-        const mid = Number(t.midfield) || 6;
-        const def = Number(t.defense) || 6;
-        if (att <= 5 || mid <= 5 || def <= 5) {
-          upgraded = true;
+    // Auto-upgrade legacy 1-5 saves to 1-10 scale once (never re-double teams already on 1-10)
+    if (parsedCareer.statScale !== "1-10" && parsedCareer.teams && Array.isArray(parsedCareer.teams)) {
+      const allTeamsLegacy = parsedCareer.teams.every(t => (Number(t.attack) || 0) <= 5 && (Number(t.midfield) || 0) <= 5 && (Number(t.defense) || 0) <= 5);
+      if (allTeamsLegacy) {
+        parsedCareer.teams = parsedCareer.teams.map(t => {
+          const att = Number(t.attack) || 3;
+          const mid = Number(t.midfield) || 3;
+          const def = Number(t.defense) || 3;
           return {
             ...t,
             attack: scaleStatTo10(att),
             midfield: scaleStatTo10(mid),
             defense: scaleStatTo10(def)
           };
-        }
-        return t;
-      });
-      if (upgraded) {
-        localStorage.setItem("retro_league_career", JSON.stringify(parsedCareer));
+        });
       }
+      parsedCareer.statScale = "1-10";
+      localStorage.setItem("retro_league_career", JSON.stringify(parsedCareer));
     }
 
     // Auto-initialize budget for pre-existing saves if undefined
@@ -2480,6 +2477,7 @@ export default function LeagueDashboard() {
       aperturaChampion: null,
       clausuraChampion: null,
       division: nextDivision,
+      statScale: "1-10",
       budget: nextBudget,
       payrollBudget: nextPayrollBudget,
       newsFeed: initialNextNewsFeed,
@@ -6609,10 +6607,15 @@ export default function LeagueDashboard() {
         fixtures={resultsModalFixtures}
         teams={resultsModalTheme === "#00e5ff"
           ? leagueState?.europeanCupState?.teams
-          : [
-              ...(leagueState?.teams || []),
-              ...(leagueState?.europeanQualifierState?.opponent ? [leagueState.europeanQualifierState.opponent] : [])
-            ]}
+          : resultsModalTheme === "#ff0055"
+            ? [
+                ...(leagueState?.domesticCupState?.participatingTeams || []),
+                ...(leagueState?.teams || [])
+              ]
+            : [
+                ...(leagueState?.teams || []),
+                ...(leagueState?.europeanQualifierState?.opponent ? [leagueState.europeanQualifierState.opponent] : [])
+              ]}
         playerTeamId={resultsModalTheme === "#00e5ff" ? leagueState?.europeanCupState?.europeanPlayerTeamId : leagueState?.playerTeamId}
         roundTitle={resultsModalTitle}
         themeColor={resultsModalTheme}
