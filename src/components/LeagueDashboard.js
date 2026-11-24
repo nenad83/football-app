@@ -27,6 +27,7 @@ import { checkMonthConclusion, generateMatchEvents, recordMatchEventsInStats, ca
 import { loadSeasonRosters, cleanStale1To5Rosters, scaleStatTo10, getTeamDetailsSync, getPrebuiltRoster, getTransferMarketPool, advancePlayerSquadForNextSeason, calculateSquadTacticalAverages, clearCareerTransferLedger } from '../data/rosters/rosterRegistry';
 import { applyTeamTheme } from '../utils/themeManager';
 import { simulateFixture as simulateFixtureEngine } from '../utils/matchEngine';
+import { calculateBoardExpectation } from '../utils/boardExpectationEngine';
 import {
   isUefaCountryBanned,
   determineEuropeanQualifier,
@@ -1272,119 +1273,20 @@ export default function LeagueDashboard() {
     reader.readAsDataURL(file);
   };
 
-  const getExpectation = (team, allTeams = null, forceDivision = null) => {
-    if (!team) return null;
-    const avg = (team.attack + team.midfield + team.defense) / 3;
-    const teamCountry = team.country || leagueState?.country;
-    const isSA = (teamCountry === "argentina" || teamCountry === "brazil" || teamCountry === "colombia");
-    const division = (forceDivision !== null && forceDivision !== undefined) ? forceDivision : (leagueState?.division || 1);
-
-    if (division === 2) {
-      if (allTeams && allTeams.length > 0) {
-        const sortedByRating = [...allTeams]
-          .map(t => ({ idnum: t.idnum, rating: (t.attack + t.midfield + t.defense) / 3 }))
-          .sort((a, b) => b.rating - a.rating);
-
-        const teamIndex = sortedByRating.findIndex(t => t.idnum === team.idnum);
-        const rank = teamIndex !== -1 ? teamIndex + 1 : 1;
-        const N = allTeams.length;
-        const pct = rank / N;
-
-        if (pct <= 0.15 || avg >= 2.8) {
-          return { text: "Win Promotion! 🏆", rank: 1, desc: "Title Contender / Automatic Promotion" };
-        } else if (pct <= 0.45 || avg >= 2.3) {
-          return { text: "Promote / Reach Playoffs ↗️", rank: 3, desc: "Promotion Challenger" };
-        } else if (pct <= 0.75 || avg >= 1.8) {
-          return { text: "Finish in Top 10", rank: 10, desc: "Top 10 Finisher" };
-        } else {
-          return { text: "Avoid Relegation", rank: 17, desc: "Avoid Relegation" };
-        }
-      }
-      if (avg >= 2.8) return { text: "Win Promotion! 🏆", rank: 1, desc: "Title Contender / Automatic Promotion" };
-      if (avg >= 2.3) return { text: "Promote / Reach Playoffs ↗️", rank: 3, desc: "Promotion Challenger" };
-      if (avg >= 1.8) return { text: "Finish in Top 10", rank: 10, desc: "Top 10 Finisher" };
-      return { text: "Avoid Relegation", rank: 17, desc: "Avoid Relegation" };
-    }
-
-    if (allTeams && allTeams.length > 0) {
-      const sortedByRating = [...allTeams]
-        .map(t => ({ idnum: t.idnum, rating: (t.attack + t.midfield + t.defense) / 3 }))
-        .sort((a, b) => b.rating - a.rating);
-
-      const teamIndex = sortedByRating.findIndex(t => t.idnum === team.idnum);
-      const rank = teamIndex !== -1 ? teamIndex + 1 : 1;
-      const N = allTeams.length;
-      const pct = rank / N;
-
-      let exp = { text: "Avoid Relegation", rank: 17, desc: "Avoid Relegation" };
-
-      if (pct <= 0.12) {
-        exp = { text: "Win the League!", rank: 1, desc: "Title Contender" };
-      } else if (pct <= 0.28) {
-        exp = {
-          text: isSA ? "Finish in Top Spots (Continental)" : "Finish in Top 4 (Europe)",
-          rank: 4,
-          desc: isSA ? "Continental Challenger" : "European Challenger"
-        };
-      } else if (pct <= 0.40) {
-        exp = {
-          text: isSA ? "Finish in Top Spots (Continental)" : "Finish in Top 6 (Europe)",
-          rank: 6,
-          desc: isSA ? "Continental Challenger" : "European Challenger"
-        };
-      } else if (pct <= 0.55) {
-        exp = { text: "Finish in Top 10", rank: 10, desc: "Top 10 Finisher" };
-      } else if (pct <= 0.80) {
-        exp = { text: "Finish in Mid-Table (10th-14th)", rank: 14, desc: "Mid-Table Stability" };
-      } else {
-        exp = { text: "Avoid Relegation", rank: 17, desc: "Avoid Relegation" };
-      }
-
-      // Enforce Absolute Rating Floor:
-      // If a team is rated highly, we override low relative expectations to match their prestige
-      if (avg >= 4.5 && exp.rank > 1) {
-        exp = { text: "Win the League!", rank: 1, desc: "Title Contender" };
-      } else if (avg >= 4.2 && exp.rank > 4) {
-        exp = {
-          text: isSA ? "Finish in Top Spots (Continental)" : "Finish in Top 4 (Europe)",
-          rank: 4,
-          desc: isSA ? "Continental Challenger" : "European Challenger"
-        };
-      } else if (avg >= 3.8 && exp.rank > 6) {
-        exp = {
-          text: isSA ? "Finish in Top Spots (Continental)" : "Finish in Top 6 (Europe)",
-          rank: 6,
-          desc: isSA ? "Continental Challenger" : "European Challenger"
-        };
-      } else if (avg >= 3.2 && exp.rank > 10) {
-        exp = { text: "Finish in Top 10", rank: 10, desc: "Top 10 Finisher" };
-      }
-
-      return exp;
-    }
-
-    if (avg >= 4.5) {
-      return { text: "Win the League!", rank: 1, desc: "Title Contender" };
-    } else if (avg >= 4.2) {
-      return {
-        text: isSA ? "Finish in Top Spots (Continental)" : "Finish in Top 4 (Europe)",
-        rank: 4,
-        desc: isSA ? "Continental Challenger" : "European Challenger"
-      };
-    } else if (avg >= 3.8) {
-      return {
-        text: isSA ? "Finish in Top Spots (Continental)" : "Finish in Top 6 (Europe)",
-        rank: 6,
-        desc: isSA ? "Continental Challenger" : "European Challenger"
-      };
-    } else if (avg >= 3.2) {
-      return { text: "Finish in Top 10", rank: 10, desc: "Top 10 Finisher" };
-    } else if (avg >= 2.3) {
-      return { text: "Finish in Mid-Table (10th-14th)", rank: 14, desc: "Mid-Table Stability" };
-    } else {
-      return { text: "Avoid Relegation", rank: 17, desc: "Avoid Relegation" };
-    }
-  };
+  const getExpectation = (
+    team,
+    allTeams = null,
+    forceDivision = null,
+    forceCountry = null,
+    forceSeason = null
+  ) =>
+    calculateBoardExpectation({
+      team,
+      allTeams,
+      country: forceCountry || team?.country || leagueState?.country || 'england',
+      season: forceSeason || leagueState?.season || '2001',
+      division: (forceDivision !== null && forceDivision !== undefined) ? forceDivision : (leagueState?.division || 1)
+    });
 
   const generateJobOffers = (updatedTeamsList, tier, nextStartYr, currentCountry) => {
     if (tier === "disgraced") return [];
@@ -1535,7 +1437,7 @@ export default function LeagueDashboard() {
       const countryRoster = (targetMap[nextStartYrStr] && targetMap[nextStartYrStr][team.country]) || [];
       return {
         ...team,
-        expectation: getExpectation(team, countryRoster, team.division)
+        expectation: getExpectation(team, countryRoster, team.division, team.country, nextStartYrStr)
       };
     });
   };
@@ -2329,7 +2231,7 @@ export default function LeagueDashboard() {
 
     // 6. Generate fresh Round-Robin Fixtures for domestic league
     const nextFixtures = generateRoundRobinFixtures(finalNextSeasonTeams, finalCountry === "usa");
-    const newBoardExpectation = getExpectation(selectedTeamObj, finalNextSeasonTeams, nextDivision);
+    const newBoardExpectation = getExpectation(selectedTeamObj, finalNextSeasonTeams, nextDivision, finalCountry, nextSeasonStr.split("/")[0]);
 
     // Compute budget for next season
     const avgRating = (selectedTeamObj.attack + selectedTeamObj.midfield + selectedTeamObj.defense) / 3;

@@ -95,8 +95,8 @@
     "midfield": 5,
     "defense": 5,
     "kit": "uefa94/3.png",
-    "primaryColor": "#FFFF00",
-    "secondaryColor": "#0000FF"
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
   },
   {
     "idnum": 9,

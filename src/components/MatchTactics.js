@@ -134,7 +134,9 @@ export const TacticsPanel = ({
   playerInstructions = {},
   onChangeInstruction = null,
   captainName = '',
-  onSelectCaptain = null
+  onSelectCaptain = null,
+  onOpenTeamInstructions = null,
+  teamInstructionsSummary = ''
 }) => {
   const [infoPlayer, setInfoPlayer] = React.useState(null);
   const [roleModalTarget, setRoleModalTarget] = React.useState(null);
@@ -269,6 +271,37 @@ export const TacticsPanel = ({
           ⚔️ ATT
         </button>
       </div>
+
+      {/* Team Instructions Modal Button (Live Match) */}
+      {!disabled && onOpenTeamInstructions && (
+        <button
+          type="button"
+          onClick={onOpenTeamInstructions}
+          style={{
+            width: '100%',
+            padding: '5px 8px',
+            marginBottom: '8px',
+            borderRadius: '6px',
+            border: '1px solid rgba(0, 229, 255, 0.45)',
+            background: 'rgba(0, 229, 255, 0.1)',
+            color: '#00e5ff',
+            fontFamily: 'Orbitron, sans-serif',
+            fontSize: '9px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '6px'
+          }}
+          title="View or change Team Instructions (Attacking Focus, Passing, Tackling, Pressing, Counter Attack)"
+        >
+          <span>⚙️ TEAM INSTRUCTIONS</span>
+          {teamInstructionsSummary ? (
+            <span style={{ color: '#ffd700', fontSize: '8px' }}>{teamInstructionsSummary}</span>
+          ) : null}
+        </button>
+      )}
 
       {/* Match Captain Selector */}
       {!disabled && onSelectCaptain && pitchPlayers.length > 0 && (

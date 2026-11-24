@@ -11,10 +11,18 @@ import {
   getRoleMetadata,
   getInstructionMetadata,
   getSavedPlayerInstructions,
-  savePlayerInstructions
+  savePlayerInstructions,
+  DEFAULT_TEAM_TACTICS,
+  getSavedTeamTactics,
+  saveTeamTactics,
+  getSavedPenaltyTakers,
+  savePenaltyTakers,
+  resolveValidPenaltyTakers
 } from '../utils/tacticalRoleEngine';
 import PlayerInfoModal, { PlayerInfoButton } from './PlayerInfoModal';
 import PlayerRoleInstructionsModal from './PlayerRoleInstructionsModal';
+import TeamInstructionsModal from './TeamInstructionsModal';
+import { getZone12MatchPreviewPlacements, getPlayerSkills } from '../utils/zone12MatchEngine';
 
 // Formation definitions with pitch positions (department bonuses now come from player positions & tactical roles)
 export const FORMATIONS = {
@@ -1454,6 +1462,7 @@ const getActiveTeamInfo = (mode) => {
 export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false }) => {
   const [selectedFormation, setSelectedFormation] = useState(getSavedFormation());
   const [activeTab, setActiveTab] = useState("tactics"); // "tactics" | "squad"
+  const [pitchViewMode, setPitchViewMode] = useState("formation"); // "formation" | "match_roles"
   const [showFormationModal, setShowFormationModal] = useState(false);
   const [assigningPlayerMenu, setAssigningPlayerMenu] = useState(null);
   const [activeAssignSlot, setActiveAssignSlot] = useState(null);
@@ -1462,6 +1471,9 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
   const [squad, setSquad] = useState([]);
   const [lineup, setLineup] = useState({});
   const [captainName, setCaptainName] = useState("");
+  const [penaltyTakers, setPenaltyTakers] = useState([]);
+  const [teamTactics, setTeamTactics] = useState({ ...DEFAULT_TEAM_TACTICS });
+  const [showTeamMentalityModal, setShowTeamMentalityModal] = useState(false);
   const [playerRoles, setPlayerRoles] = useState({});
   const [playerInstructions, setPlayerInstructions] = useState({});
   const [roleModalTarget, setRoleModalTarget] = useState(null);
@@ -1784,6 +1796,15 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
       saveCaptain(info.name, info.season, validCap);
     }
 
+    const savedPen = getSavedPenaltyTakers(info.name, info.season);
+    const validPen = resolveValidPenaltyTakers(activeLineup, savedPen, 5);
+    setPenaltyTakers(validPen);
+    if (JSON.stringify(validPen) !== JSON.stringify(savedPen)) {
+      savePenaltyTakers(info.name, info.season, validPen);
+    }
+
+    setTeamTactics(getSavedTeamTactics(info.name, info.season));
+
     // Load selected bench names
     const benchKey = `retro_bench_${info.name}_${info.season}`;
     const cachedBench = localStorage.getItem(benchKey);
@@ -1890,6 +1911,42 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
     saveCaptain(teamInfo.name, teamInfo.season, nextCaptain);
   };
 
+  const handleUpdateTeamTactics = (patch) => {
+    const next = saveTeamTactics(teamInfo.name, teamInfo.season, { ...teamTactics, ...patch });
+    setTeamTactics(next);
+  };
+
+  const handleSetPenaltyTakers = (nextList) => {
+    const valid = resolveValidPenaltyTakers(lineup, nextList, 5);
+    setPenaltyTakers(valid);
+    savePenaltyTakers(teamInfo.name, teamInfo.season, valid);
+  };
+
+  const handleAddOrPromotePenaltyTaker = (playerName) => {
+    const next = [playerName, ...penaltyTakers.filter(n => n !== playerName)].slice(0, 5);
+    handleSetPenaltyTakers(next);
+  };
+
+  const handleMovePenaltyTaker = (idx, dir) => {
+    const targetIdx = idx + dir;
+    if (targetIdx < 0 || targetIdx >= penaltyTakers.length) return;
+    const next = [...penaltyTakers];
+    const tmp = next[idx];
+    next[idx] = next[targetIdx];
+    next[targetIdx] = tmp;
+    handleSetPenaltyTakers(next);
+  };
+
+  const handleRemovePenaltyTaker = (playerName) => {
+    const remaining = penaltyTakers.filter(n => n !== playerName);
+    setPenaltyTakers(remaining);
+    savePenaltyTakers(teamInfo.name, teamInfo.season, remaining);
+  };
+
+  const handleAutoPickPenaltyTakers = () => {
+    handleSetPenaltyTakers([]);
+  };
+
   const handleToggleSlotRole = (e, slot, assignedPlayer) => {
     if (e && e.stopPropagation) e.stopPropagation();
     if (!assignedPlayer || !slot) return;
@@ -1962,6 +2019,12 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
     if (validCap !== captainName) {
       setCaptainName(validCap);
       saveCaptain(teamInfo.name, teamInfo.season, validCap);
+    }
+
+    const validPen = resolveValidPenaltyTakers(newLineup, penaltyTakers, 5);
+    if (JSON.stringify(validPen) !== JSON.stringify(penaltyTakers)) {
+      setPenaltyTakers(validPen);
+      savePenaltyTakers(teamInfo.name, teamInfo.season, validPen);
     }
 
     // Automatically remove any starting player from selectedBenchNames or sync all non-starters if unlimited
@@ -2849,6 +2912,25 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
             🛡️ TACTICS
           </button>
           <button
+            onClick={() => setActiveTab("captain_pens")}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === "captain_pens" ? '3px solid #ffd700' : '3px solid transparent',
+              color: activeTab === "captain_pens" ? '#ffd700' : '#888',
+              fontFamily: 'Orbitron',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              padding: '10px 0',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              letterSpacing: '1px'
+            }}
+          >
+            👑 CAPTAIN &amp; PENALTIES
+          </button>
+          <button
             onClick={() => setActiveTab("squad")}
             style={{
               flex: 1,
@@ -2869,7 +2951,327 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
           </button>
         </div>
 
-        {activeTab === "squad" ? (
+        {activeTab === "captain_pens" ? (
+          /* CAPTAIN & PENALTY TAKERS TAB */
+          (() => {
+            const starters = slots
+              .map(slot => {
+                const p = lineup[slot.id];
+                if (!p) return null;
+                const idealPos = getIdealSlotPosition(slot.role, slot.x, slot.y);
+                const sk = getPlayerSkills(p);
+                return { slot, idealPos, player: p, skills: sk };
+              })
+              .filter(Boolean);
+
+            const orderedTakers = resolveValidPenaltyTakers(lineup, penaltyTakers, 5);
+            const starterByName = new Map(starters.map(s => [s.player.name, s]));
+            const currentCaptainInfo = starterByName.get(captainName);
+
+            return (
+              <div style={{
+                display: 'flex',
+                gap: '14px',
+                height: '490px',
+                overflow: 'hidden'
+              }}>
+                {/* Left Column: Team Captain Selection */}
+                <div style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  background: 'rgba(255, 215, 0, 0.03)',
+                  border: '1.5px solid rgba(255, 215, 0, 0.25)',
+                  borderRadius: '12px',
+                  padding: '14px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,215,0,0.18)', paddingBottom: '8px' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 'bold', fontFamily: 'Orbitron', color: '#ffd700' }}>
+                        ©️ TEAM CAPTAIN
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#999', marginTop: '2px' }}>
+                        Select your on-pitch leader from the Starting XI
+                      </div>
+                    </div>
+                    {currentCaptainInfo && (
+                      <div style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        background: 'rgba(255, 215, 0, 0.14)',
+                        border: '1px solid rgba(255, 215, 0, 0.45)',
+                        color: '#ffd700',
+                        fontFamily: 'Orbitron',
+                        fontSize: '10px',
+                        fontWeight: 'bold'
+                      }}>
+                        C: {currentCaptainInfo.player.name}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '4px' }}>
+                    {starters.length === 0 ? (
+                      <div style={{ textAlign: 'center', color: '#777', marginTop: '40px', fontSize: '12px' }}>
+                        Assign players to your Starting XI first to choose a Captain.
+                      </div>
+                    ) : (
+                      starters.map(({ idealPos, player }) => {
+                        const isCaptain = captainName === player.name;
+                        return (
+                          <button
+                            key={player.name}
+                            type="button"
+                            onClick={() => handleSelectCaptain(player.name)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              background: isCaptain ? 'rgba(255, 215, 0, 0.16)' : 'rgba(255,255,255,0.03)',
+                              border: isCaptain ? '1.5px solid #ffd700' : '1px solid rgba(255,255,255,0.08)',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              textAlign: 'left'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{
+                                fontFamily: 'Orbitron',
+                                fontSize: '10px',
+                                fontWeight: 'bold',
+                                color: getPositionColor(idealPos),
+                                minWidth: '34px'
+                              }}>
+                                {idealPos}
+                              </span>
+                              <span style={{ fontSize: '12.5px', fontWeight: 'bold', color: isCaptain ? '#ffd700' : '#eee' }}>
+                                {player.name}
+                              </span>
+                              {player.age ? (
+                                <span style={{ fontSize: '10px', color: '#888' }}>Age {player.age}</span>
+                              ) : null}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontFamily: 'Orbitron', fontSize: '11px', fontWeight: 'bold', color: '#00ff64' }}>
+                                ★{player.rating}
+                              </span>
+                              <span style={{
+                                fontFamily: 'Orbitron',
+                                fontSize: '9px',
+                                fontWeight: 'bold',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                background: isCaptain ? '#ffd700' : 'rgba(255,255,255,0.06)',
+                                color: isCaptain ? '#111' : '#aaa'
+                              }}>
+                                {isCaptain ? 'CAPTAIN ✓' : 'SET CAPTAIN'}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column: Penalty Takers Order */}
+                <div style={{
+                  flex: 1.15,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  background: 'rgba(0, 229, 255, 0.03)',
+                  border: '1.5px solid rgba(0, 229, 255, 0.25)',
+                  borderRadius: '12px',
+                  padding: '14px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0,229,255,0.18)', paddingBottom: '8px' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 'bold', fontFamily: 'Orbitron', color: '#00e5ff' }}>
+                        🎯 PENALTY TAKERS (PRIORITY ORDER)
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#999', marginTop: '2px' }}>
+                        #1 takes live match penalties; #1–#5 order for shootouts
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAutoPickPenaltyTakers}
+                      style={{
+                        background: 'rgba(0, 229, 255, 0.14)',
+                        border: '1px solid rgba(0, 229, 255, 0.45)',
+                        borderRadius: '6px',
+                        color: '#00e5ff',
+                        fontFamily: 'Orbitron',
+                        fontSize: '9.5px',
+                        fontWeight: 'bold',
+                        padding: '5px 10px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ⚡ AUTO-PICK
+                    </button>
+                  </div>
+
+                  {/* Priority 1..5 List */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    {orderedTakers.length === 0 ? (
+                      <div style={{ color: '#777', fontSize: '11px', padding: '12px', textAlign: 'center' }}>
+                        Assign players to your Starting XI to select penalty takers.
+                      </div>
+                    ) : (
+                      orderedTakers.map((takerName, idx) => {
+                        const info = starterByName.get(takerName);
+                        if (!info) return null;
+                        return (
+                          <div
+                            key={takerName}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '6px 10px',
+                              borderRadius: '7px',
+                              background: idx === 0 ? 'rgba(0, 255, 100, 0.12)' : 'rgba(255,255,255,0.04)',
+                              border: idx === 0 ? '1.5px solid #00ff64' : '1px solid rgba(255,255,255,0.09)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{
+                                fontFamily: 'Orbitron',
+                                fontSize: '10px',
+                                fontWeight: 'bold',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                background: idx === 0 ? '#00ff64' : 'rgba(0,229,255,0.18)',
+                                color: idx === 0 ? '#111' : '#00e5ff',
+                                minWidth: '28px',
+                                textAlign: 'center'
+                              }}>
+                                #{idx + 1}
+                              </span>
+                              <span style={{ fontFamily: 'Orbitron', fontSize: '9.5px', color: getPositionColor(info.idealPos), minWidth: '30px' }}>
+                                {info.idealPos}
+                              </span>
+                              <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#fff' }}>
+                                {takerName}
+                              </span>
+                              {idx === 0 && (
+                                <span style={{ fontSize: '8.5px', fontFamily: 'Orbitron', color: '#00ff64', fontWeight: 'bold' }}>
+                                  PRIMARY
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '10px', fontFamily: 'Orbitron', color: '#ffd700' }}>
+                                FIN:{info.skills.finishing}
+                              </span>
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => handleMovePenaltyTaker(idx, -1)}
+                                style={{
+                                  background: 'rgba(255,255,255,0.06)',
+                                  border: '1px solid rgba(255,255,255,0.15)',
+                                  borderRadius: '4px',
+                                  color: idx === 0 ? '#444' : '#fff',
+                                  padding: '2px 6px',
+                                  cursor: idx === 0 ? 'default' : 'pointer',
+                                  fontSize: '10px'
+                                }}
+                                title="Move up"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === orderedTakers.length - 1}
+                                onClick={() => handleMovePenaltyTaker(idx, 1)}
+                                style={{
+                                  background: 'rgba(255,255,255,0.06)',
+                                  border: '1px solid rgba(255,255,255,0.15)',
+                                  borderRadius: '4px',
+                                  color: idx === orderedTakers.length - 1 ? '#444' : '#fff',
+                                  padding: '2px 6px',
+                                  cursor: idx === orderedTakers.length - 1 ? 'default' : 'pointer',
+                                  fontSize: '10px'
+                                }}
+                                title="Move down"
+                              >
+                                ▼
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemovePenaltyTaker(takerName)}
+                                style={{
+                                  background: 'rgba(255,69,0,0.12)',
+                                  border: '1px solid rgba(255,69,0,0.35)',
+                                  borderRadius: '4px',
+                                  color: '#ff6b4a',
+                                  padding: '2px 6px',
+                                  cursor: 'pointer',
+                                  fontSize: '10px'
+                                }}
+                                title="Replace / Remove"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Quick Add / Make #1 from Starting XI */}
+                  <div style={{ fontSize: '10px', fontFamily: 'Orbitron', color: '#888', marginTop: '4px' }}>
+                    CLICK PLAYER TO SET AS #1 PENALTY TAKER:
+                  </div>
+                  <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: '5px', alignContent: 'start', paddingRight: '4px' }}>
+                    {starters.map(({ idealPos, player, skills }) => {
+                      const rankIdx = orderedTakers.indexOf(player.name);
+                      return (
+                        <button
+                          key={player.name}
+                          type="button"
+                          onClick={() => handleAddOrPromotePenaltyTaker(player.name)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '5px 8px',
+                            borderRadius: '6px',
+                            background: rankIdx === 0 ? 'rgba(0, 255, 100, 0.14)' : 'rgba(255,255,255,0.03)',
+                            border: rankIdx === 0 ? '1px solid #00ff64' : '1px solid rgba(255,255,255,0.08)',
+                            cursor: 'pointer',
+                            textAlign: 'left'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', overflow: 'hidden' }}>
+                            <span style={{ fontFamily: 'Orbitron', fontSize: '9px', color: getPositionColor(idealPos) }}>
+                              {idealPos}
+                            </span>
+                            <span style={{ fontSize: '11px', color: '#eee', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {getLastName(player.name)}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '9.5px', fontFamily: 'Orbitron', color: '#ffd700', flexShrink: 0 }}>
+                            FIN:{skills.finishing}{rankIdx >= 0 ? ` (#${rankIdx + 1})` : ''}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()
+        ) : activeTab === "squad" ? (
           /* SQUAD TAB: CM 01/02 TRADITIONAL SQUAD VIEW */
           (() => {
             const sortedSquad = sortedSquadForTraditionalView;
@@ -3307,36 +3709,33 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      {/* Captain Selector */}
-                      {Object.values(lineup).filter(Boolean).length > 0 && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontSize: '9px', color: '#ffd700', fontFamily: 'Orbitron', fontWeight: 'bold' }}>©️ CAPTAIN:</span>
-                          <select
-                            value={captainName}
-                            onChange={(e) => handleSelectCaptain(e.target.value)}
-                            style={{
-                              background: 'rgba(255, 215, 0, 0.1)',
-                              border: '1px solid rgba(255, 215, 0, 0.45)',
-                              borderRadius: '4px',
-                              color: '#ffd700',
-                              fontFamily: 'Orbitron',
-                              fontSize: '9px',
-                              fontWeight: 'bold',
-                              padding: '3px 6px',
-                              cursor: 'pointer',
-                              outline: 'none',
-                              maxWidth: '140px'
-                            }}
-                            title="Select Team Captain from Starting XI"
-                          >
-                            {slots.map(s => lineup[s.id]).filter(Boolean).map(p => (
-                              <option key={p.name} value={p.name} style={{ background: '#121217', color: '#fff' }}>
-                                {getLastName(p.name)} ({p.position})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
+                      {/* Team Instructions Popup Button */}
+                      <button
+                        type="button"
+                        onClick={() => setShowTeamMentalityModal(true)}
+                        style={{
+                          background: teamTactics.mentality === 'attack'
+                            ? 'rgba(255, 69, 0, 0.16)'
+                            : (teamTactics.mentality === 'defense' ? 'rgba(0, 229, 255, 0.16)' : 'rgba(255, 215, 0, 0.12)'),
+                          border: teamTactics.mentality === 'attack'
+                            ? '1px solid #ff4500'
+                            : (teamTactics.mentality === 'defense' ? '1px solid #00e5ff' : '1px solid rgba(255, 215, 0, 0.5)'),
+                          borderRadius: '4px',
+                          color: teamTactics.mentality === 'attack'
+                            ? '#ff7a45'
+                            : (teamTactics.mentality === 'defense' ? '#00e5ff' : '#ffd700'),
+                          fontSize: '9px',
+                          fontWeight: 'bold',
+                          fontFamily: 'Orbitron',
+                          padding: '4px 8px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          whiteSpace: 'nowrap'
+                        }}
+                        title="Configure Team Instructions: Mentality, Attacking Focus, Passing, Tackling, Pressing & Counter Attack"
+                      >
+                        ⚙️ TEAM INSTRUCTIONS ({teamTactics.mentality === 'attack' ? '⚔️ ATT' : (teamTactics.mentality === 'defense' ? '🛡️ DEF' : '⚖️ NORM')})
+                      </button>
                       <button
                         onClick={handleAutoFill}
                         style={{
@@ -3404,9 +3803,44 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                             ⚔️ ATT: {liveStats.attack} <span style={{ fontSize: '7.5px', opacity: 0.7 }}>({Number(liveStats.attSum.toFixed(1))}÷{aDiv})</span>
                           </span>
                         </div>
-                        <span style={{ fontSize: '7.5px', color: '#ffd700', opacity: 0.85 }}>
-                          CLICK ROLE BADGE FOR INSTRUCTIONS
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(0,0,0,0.45)', padding: '2px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          <button
+                            type="button"
+                            onClick={() => setPitchViewMode('formation')}
+                            style={{
+                              padding: '2px 7px',
+                              borderRadius: '4px',
+                              border: 'none',
+                              background: pitchViewMode === 'formation' ? 'rgba(0, 255, 100, 0.2)' : 'transparent',
+                              color: pitchViewMode === 'formation' ? '#00ff64' : '#888',
+                              fontSize: '8px',
+                              fontWeight: 'bold',
+                              fontFamily: 'Orbitron',
+                              cursor: 'pointer'
+                            }}
+                            title="Show base formation & drag/drop lineup slots"
+                          >
+                            📋 FORMATION
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPitchViewMode('match_roles')}
+                            style={{
+                              padding: '2px 7px',
+                              borderRadius: '4px',
+                              border: 'none',
+                              background: pitchViewMode === 'match_roles' ? 'rgba(0, 229, 255, 0.22)' : 'transparent',
+                              color: pitchViewMode === 'match_roles' ? '#00e5ff' : '#888',
+                              fontSize: '8px',
+                              fontWeight: 'bold',
+                              fontFamily: 'Orbitron',
+                              cursor: 'pointer'
+                            }}
+                            title="Preview where each player actually moves & plays on the 12-box pitch with their assigned role"
+                          >
+                            🎯 MATCH ROLES (12-BOX)
+                          </button>
+                        </div>
                       </div>
                     );
                   })()}
@@ -3420,7 +3854,7 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                     backgroundSize: '30px 30px',
                     backgroundPosition: '0 0, 15px 15px',
                     borderRadius: '12px',
-                    border: '1.5px solid rgba(255,255,255,0.1)',
+                    border: pitchViewMode === 'match_roles' ? '1.5px solid rgba(0, 229, 255, 0.35)' : '1.5px solid rgba(255,255,255,0.1)',
                     boxShadow: 'inset 0 0 20px rgba(0,0,0,0.6)',
                     overflow: 'hidden'
                   }}>
@@ -3433,9 +3867,61 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                     <div style={{ position: 'absolute', top: '4%', left: '25%', right: '25%', height: '12%', border: '1px solid rgba(255,255,255,0.08)', borderTop: 'none', pointerEvents: 'none' }} />
                     <div style={{ position: 'absolute', bottom: '4%', left: '25%', right: '25%', height: '12%', border: '1px solid rgba(255,255,255,0.08)', borderBottom: 'none', pointerEvents: 'none' }} />
 
+                    {/* 12-Box Tactical Grid Overlay (Match Roles View Only) */}
+                    {pitchViewMode === 'match_roles' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '4%',
+                        bottom: '4%',
+                        left: '4%',
+                        right: '4%',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gridTemplateRows: 'repeat(4, 1fr)',
+                        pointerEvents: 'none',
+                        zIndex: 2
+                      }}>
+                        {[
+                          { id: 'D1', sub: 'L-ATT' }, { id: 'D2', sub: 'BOX' }, { id: 'D3', sub: 'R-ATT' },
+                          { id: 'C1', sub: 'L-AM/W' }, { id: 'C2', sub: 'AMC' }, { id: 'C3', sub: 'R-AM/W' },
+                          { id: 'B1', sub: 'L-MID' }, { id: 'B2', sub: 'DM / MC' }, { id: 'B3', sub: 'R-MID' },
+                          { id: 'A1', sub: 'DL' }, { id: 'A2', sub: 'GK / DC' }, { id: 'A3', sub: 'DR' }
+                        ].map((z) => (
+                          <div
+                            key={z.id}
+                            style={{
+                              border: '1px dashed rgba(0, 229, 255, 0.22)',
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              justifyContent: 'flex-start',
+                              padding: '3px 5px'
+                            }}
+                          >
+                            <span style={{
+                              fontSize: '7.5px',
+                              fontFamily: 'Orbitron',
+                              fontWeight: 'bold',
+                              color: 'rgba(0, 229, 255, 0.45)',
+                              letterSpacing: '0.4px'
+                            }}>
+                              {z.id} · {z.sub}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Pitch Slots */}
-                    {slots.map(slot => {
+                    {(() => {
+                      const matchPlacements = pitchViewMode === 'match_roles'
+                        ? getZone12MatchPreviewPlacements(lineup, playerRoles, selectedFormation, playerInstructions)
+                        : {};
+                      return slots.map(slot => {
                       const assignedPlayer = lineup[slot.id];
+                      const previewPlacement = assignedPlayer ? matchPlacements[slot.id] : null;
+                      const isMatchRolesView = pitchViewMode === 'match_roles';
+                      const slotX = previewPlacement ? previewPlacement.x : slot.x;
+                      const slotY = previewPlacement ? previewPlacement.y : slot.y;
                       const idealPos = getIdealSlotPosition(slot.role, slot.x, slot.y);
                       const slotWithPos = { ...slot, idealPos, label: idealPos };
                       const roleMeta = assignedPlayer ? getRoleMetadata(slotWithPos, assignedPlayer, playerRoles[slot.id] || 'normal') : null;
@@ -3459,29 +3945,34 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                         }
                       }
 
+                      if (isMatchRolesView && !assignedPlayer) {
+                        return null;
+                      }
+
                       return (
                         <div
                           key={slot.id}
-                          onDragOver={(e) => handleDragOver(e, slot.id)}
-                          onDragLeave={handleDragLeave}
-                          onDrop={(e) => handleDrop(e, slot.id)}
+                          onDragOver={!isMatchRolesView ? (e) => handleDragOver(e, slot.id) : undefined}
+                          onDragLeave={!isMatchRolesView ? handleDragLeave : undefined}
+                          onDrop={!isMatchRolesView ? (e) => handleDrop(e, slot.id) : undefined}
                           style={{
                             position: 'absolute',
-                            left: `${slot.x}%`,
-                            top: `${slot.y}%`,
+                            left: `${slotX}%`,
+                            top: `${slotY}%`,
                             transform: 'translate(-50%, -50%)',
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
                             gap: '2px',
-                            zIndex: 10
+                            zIndex: 10,
+                            transition: 'left 0.35s ease, top 0.35s ease'
                           }}
                         >
                           {assignedPlayer ? (
                             <div
-                              draggable={true}
-                              onDragStart={(e) => handleDragStart(e, assignedPlayer, slot.id)}
-                              onClick={() => handlePitchSlotClick(slot.id)}
+                              draggable={!isMatchRolesView}
+                              onDragStart={!isMatchRolesView ? (e) => handleDragStart(e, assignedPlayer, slot.id) : undefined}
+                              onClick={!isMatchRolesView ? () => handlePitchSlotClick(slot.id) : (e) => handleToggleSlotRole(e, slotWithPos, assignedPlayer)}
                               className="pitch-slot-container"
                               style={{
                                 display: 'flex',
@@ -3492,13 +3983,41 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                                 borderRadius: '8px',
                                 padding: '3px 7px',
                                 minWidth: '80px',
-                                cursor: 'grab',
-                                boxShadow: `0 4px 12px rgba(0,0,0,0.6), 0 0 10px ${(roleMeta && roleMeta.id !== 'normal' ? roleMeta.color : getPositionColor(assignedPlayer.position))}33`,
+                                cursor: isMatchRolesView ? 'pointer' : 'grab',
+                                boxShadow: previewPlacement?.shifted
+                                  ? `0 4px 12px rgba(0,0,0,0.7), 0 0 12px ${roleMeta?.color || '#00e5ff'}55`
+                                  : `0 4px 12px rgba(0,0,0,0.6), 0 0 10px ${(roleMeta && roleMeta.id !== 'normal' ? roleMeta.color : getPositionColor(assignedPlayer.position))}33`,
                                 animation: 'scaleIn 0.2s ease',
                                 transition: 'transform 0.15s ease'
                               }}
-                              title="Click card to remove from lineup, or click role badge below to change tactical duty"
+                              title={isMatchRolesView
+                                ? `Match Zone ${previewPlacement?.boxLabel || ''}: plays as ${previewPlacement?.matchPos || idealPos} (click to edit Role & Instructions)`
+                                : 'Click card to remove from lineup, or click role badge below to change tactical duty'}
                             >
+                              {isMatchRolesView && previewPlacement && (
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px',
+                                  fontSize: '7.5px',
+                                  fontWeight: 'bold',
+                                  fontFamily: 'Orbitron',
+                                  color: previewPlacement.shifted ? '#ffd700' : '#00e5ff',
+                                  background: previewPlacement.shifted ? 'rgba(255, 215, 0, 0.12)' : 'rgba(0, 229, 255, 0.1)',
+                                  borderRadius: '3px',
+                                  padding: '0.5px 4px',
+                                  marginBottom: '1px',
+                                  width: '100%'
+                                }}>
+                                  <span>
+                                    {previewPlacement.shifted
+                                      ? `${previewPlacement.basePos}→${previewPlacement.matchPos}`
+                                      : previewPlacement.matchPos}
+                                  </span>
+                                  <span style={{ opacity: 0.75 }}>[{previewPlacement.boxLabel}]</span>
+                                </div>
+                              )}
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%' }}>
                                 <span style={{
                                   fontSize: '8px',
@@ -3617,7 +4136,8 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
                           )}
                         </div>
                       );
-                    })}
+                    });
+                    })()}
                   </div>
                 </div>
 
@@ -4806,6 +5326,14 @@ export const FormationTacticsModal = ({ isOpen, onClose, mode, inline = false })
           teamColor={teamInfo?.primaryColor || '#00ff64'}
         />
       )}
+
+      <TeamInstructionsModal
+        isOpen={showTeamMentalityModal}
+        onClose={() => setShowTeamMentalityModal(false)}
+        teamName={teamInfo?.name || ''}
+        teamTactics={teamTactics}
+        onUpdate={handleUpdateTeamTactics}
+      />
     </div>
   );
 };

@@ -1328,7 +1328,11 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
   const isWingerSlot = ['AMR', 'AML', 'ML', 'MR', 'LW', 'RW', 'DML', 'DMR'].includes(idealPos) ||
     ['AMR', 'AML', 'ML', 'MR', 'LW', 'RW'].includes(labelPos);
   if (isWingerSlot) {
-    return [
+    const isAttackingWideRole =
+      ['AMR', 'AML', 'LW', 'RW'].includes(idealPos) ||
+      ['AMR', 'AML', 'LW', 'RW'].includes(labelPos) ||
+      roleId === 'support_att';
+    const wingList = [
       {
         id: 'high_cross',
         label: 'High Cross (Aerial Target)',
@@ -1354,10 +1358,23 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
         desc: 'Dribbling vs FB Tackling (diff >= 2) → Winger goes straight into a 1-on-1 shooting chance against the Keeper!'
       }
     ];
+    if (isAttackingWideRole) {
+      wingList.push({
+        id: 'long_shot',
+        label: 'Shoot from Distance',
+        shortLabel: 'LONG SHOT',
+        icon: '🚀',
+        color: '#a855f7',
+        desc: 'Cuts inside from the flank and unleashes a long-range strike (d10 + Long Shots vs Defense, requires diff >= 5 to score).'
+      });
+    }
+    return wingList;
   }
 
-  // 5. Attacking Midfielder Central (AMC)
-  if (idealPos === 'AMC' || labelPos === 'AMC') {
+  // 5. Attacking Midfielder Central (AMC) — or Central Midfielder (MC) on Attacking role ('support_att')
+  const isAmcLikeSlot = idealPos === 'AMC' || labelPos === 'AMC' ||
+    ((idealPos === 'MC' || labelPos === 'MC') && roleId === 'support_att');
+  if (isAmcLikeSlot) {
     return [
       {
         id: 'pass',
@@ -1552,5 +1569,123 @@ export function savePlayerInstructions(teamName, season, instructionsMap) {
   } catch (e) {
     // ignore storage errors
   }
+}
+
+export const DEFAULT_TEAM_TACTICS = {
+  mentality: 'balanced',         // 'defense' | 'balanced' | 'attack'
+  attackingFocus: 'both_flanks', // 'left' | 'right' | 'center' | 'both_flanks'
+  passing: 'short',              // 'short' | 'long'
+  tackling: 'normal',            // 'easy' | 'normal' | 'hard'
+  pressing: false,               // false | true
+  counterAttack: false           // false | true
+};
+
+export function normalizeTeamTactics(raw = {}) {
+  const src = raw && typeof raw === 'object' ? raw : {};
+  const rawPassing = String(src.passing || 'short').toLowerCase();
+  const passing = rawPassing === 'long' ? 'long' : 'short';
+  const validFocus = ['left', 'right', 'center', 'both_flanks'];
+  const attackingFocus = validFocus.includes(src.attackingFocus) ? src.attackingFocus : 'both_flanks';
+  return {
+    mentality: normalizeMentality(src.mentality),
+    attackingFocus,
+    tackling: ['easy', 'normal', 'hard'].includes(src.tackling) ? src.tackling : 'normal',
+    passing,
+    pressing: Boolean(src.pressing),
+    counterAttack: Boolean(src.counterAttack)
+  };
+}
+
+export function getSavedTeamTactics(teamName, season) {
+  try {
+    if (teamName && season) {
+      const saved = localStorage.getItem(`retro_team_tactics_${teamName}_${season}`);
+      if (saved) return normalizeTeamTactics(JSON.parse(saved));
+    }
+    const fallback = localStorage.getItem('retro_team_tactics');
+    if (fallback) return normalizeTeamTactics(JSON.parse(fallback));
+  } catch (e) {
+    // ignore storage errors
+  }
+  return { ...DEFAULT_TEAM_TACTICS };
+}
+
+export function saveTeamTactics(teamName, season, tacticsObj) {
+  const normalized = normalizeTeamTactics(tacticsObj);
+  try {
+    const payload = JSON.stringify(normalized);
+    if (teamName && season) {
+      localStorage.setItem(`retro_team_tactics_${teamName}_${season}`, payload);
+    }
+    localStorage.setItem('retro_team_tactics', payload);
+  } catch (e) {
+    // ignore storage errors
+  }
+  return normalized;
+}
+
+export function getSavedPenaltyTakers(teamName, season) {
+  try {
+    if (teamName && season) {
+      const saved = localStorage.getItem(`retro_penalties_${teamName}_${season}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    }
+  } catch (e) {
+    // ignore storage errors
+  }
+  return [];
+}
+
+export function savePenaltyTakers(teamName, season, takersList) {
+  const cleanList = Array.isArray(takersList) ? takersList.filter(Boolean) : [];
+  try {
+    if (teamName && season) {
+      localStorage.setItem(`retro_penalties_${teamName}_${season}`, JSON.stringify(cleanList));
+    }
+  } catch (e) {
+    // ignore storage errors
+  }
+  return cleanList;
+}
+
+export function resolveValidPenaltyTakers(lineupObj, preferredNames = [], maxCount = 5) {
+  const onPitch = lineupObj ? Object.values(lineupObj).filter(Boolean) : [];
+  if (onPitch.length === 0) return [];
+  const pitchNames = new Set(onPitch.map(p => p.name));
+
+  const ordered = [];
+  const seen = new Set();
+  if (Array.isArray(preferredNames)) {
+    preferredNames.forEach((name) => {
+      if (name && pitchNames.has(name) && !seen.has(name)) {
+        ordered.push(name);
+        seen.add(name);
+      }
+    });
+  }
+
+  // Fill remaining slots automatically from best finishers/attackers on pitch (GK last)
+  const candidates = [...onPitch].sort((a, b) => {
+    const aGk = String(a.position || '').toUpperCase() === 'GK' ? 1 : 0;
+    const bGk = String(b.position || '').toUpperCase() === 'GK' ? 1 : 0;
+    if (aGk !== bGk) return aGk - bGk;
+    const aFin = a.skills?.finishing ?? Number(a.rating) ?? 5;
+    const bFin = b.skills?.finishing ?? Number(b.rating) ?? 5;
+    if (bFin !== aFin) return bFin - aFin;
+    return (Number(b.rating) || 0) - (Number(a.rating) || 0);
+  });
+
+  for (const p of candidates) {
+    if (ordered.length >= Math.min(maxCount, onPitch.length)) break;
+    if (!seen.has(p.name)) {
+      ordered.push(p.name);
+      seen.add(p.name);
+    }
+  }
+
+  return ordered.slice(0, maxCount);
 }
 

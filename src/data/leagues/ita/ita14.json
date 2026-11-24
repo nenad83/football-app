@@ -216,7 +216,7 @@
     "midfield": 2,
     "defense": 1,
     "kit": "ita14/19.png",
-    "primaryColor": "#FFFF00",
-    "secondaryColor": "#003DA5"
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
   }
 ]

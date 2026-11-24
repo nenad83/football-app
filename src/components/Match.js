@@ -10,6 +10,7 @@ import { concacafRules } from '../data/concacaf/concacafRules';
 import { getModifiedStat as computeModifiedStat, adjustCPUTactic as runCPUTacticAdjustment, TacticsPanel } from './MatchTactics';
 import PlayerInfoModal, { PlayerInfoButton } from './PlayerInfoModal';
 import PlayerRoleInstructionsModal from './PlayerRoleInstructionsModal';
+import TeamInstructionsModal from './TeamInstructionsModal';
 import { getSubstitutionLimit, getStoppageLimit } from '../utils/matchRules';
 import { getSavedFormation, getCPUFormation, updateTeamStatsInStorage, getFormationSlots, getIdealSlotPosition, getPositionPenalty, generateDefaultLineup, getSavedCaptain, resolveValidCaptain } from './FormationTactics';
 import { getPrebuiltRoster, getTeamDetails, getTeamDetailsSync, calculateMatchAttendance } from '../data/rosters/rosterRegistry';
@@ -21,6 +22,11 @@ import {
   getInstructionMetadata,
   getSavedPlayerInstructions,
   savePlayerInstructions,
+  DEFAULT_TEAM_TACTICS,
+  getSavedTeamTactics,
+  saveTeamTactics,
+  getSavedPenaltyTakers,
+  resolveValidPenaltyTakers,
   summarizeActiveRoles,
   normalizeMentality
 } from '../utils/tacticalRoleEngine';
@@ -604,6 +610,10 @@ export default function Match() {
     if (startingTactics.homeTactic !== undefined) {
       return normalizeMentality(startingTactics.homeTactic);
     }
+    if (teamonename === playerTeamId && teamid?.[teamonename]?.name) {
+      const s = leagueState?.season || '1995';
+      return getSavedTeamTactics(teamid[teamonename].name, s).mentality;
+    }
     if (teamid && teamonename && teamtwoname) {
       const team = teamid[teamonename];
       const opp = teamid[teamtwoname];
@@ -620,6 +630,10 @@ export default function Match() {
   const [awayTactic, setAwayTactic] = useState(() => {
     if (startingTactics.awayTactic !== undefined) {
       return normalizeMentality(startingTactics.awayTactic);
+    }
+    if (teamtwoname === playerTeamId && teamid?.[teamtwoname]?.name) {
+      const s = leagueState?.season || '1995';
+      return getSavedTeamTactics(teamid[teamtwoname].name, s).mentality;
     }
     if (teamid && teamonename && teamtwoname) {
       const team = teamid[teamtwoname];
@@ -674,6 +688,8 @@ export default function Match() {
   const [cpuBenches, setCpuBenches] = useState({});
   const [cpuRoles, setCpuRoles] = useState({});
   const [captainName, setCaptainName] = useState("");
+  const [teamInstructions, setTeamInstructions] = useState({ ...DEFAULT_TEAM_TACTICS });
+  const [showTeamInstructionsModal, setShowTeamInstructionsModal] = useState(false);
   const [showOpponentModal, setShowOpponentModal] = useState(null);
   const [infoPlayer, setInfoPlayer] = useState(null);
   const [matchCards, setMatchCards] = useState([]);
@@ -683,6 +699,7 @@ export default function Match() {
 
   const matchCardsRef = useRef([]);
   const lineupRef = useRef(lineup);
+  const teamInstructionsRef = useRef(teamInstructions);
   const cpuLineupsRef = useRef(cpuLineups);
   const cpuRolesRef = useRef(cpuRoles);
   const homeTacticRef = useRef(homeTactic);
@@ -697,6 +714,10 @@ export default function Match() {
   useEffect(() => {
     lineupRef.current = lineup;
   }, [lineup]);
+
+  useEffect(() => {
+    teamInstructionsRef.current = teamInstructions;
+  }, [teamInstructions]);
 
   useEffect(() => {
     cpuRolesRef.current = cpuRoles;
@@ -837,6 +858,11 @@ export default function Match() {
         setLineup(loadedLineup);
         setPlayerRoles(loadedRoles);
         setPlayerInstructions(getSavedPlayerInstructions(teamName, season));
+        const loadedTeamTactics = getSavedTeamTactics(teamName, season);
+        const liveStartMentality = (teamonename === playerTeamId ? homeTacticRef.current : awayTacticRef.current) || loadedTeamTactics.mentality;
+        const syncedTeamTactics = { ...loadedTeamTactics, mentality: liveStartMentality };
+        teamInstructionsRef.current = syncedTeamTactics;
+        setTeamInstructions(syncedTeamTactics);
         setSavedStartingLineup(JSON.parse(JSON.stringify(loadedLineup)));
         setSavedStartingRoles(JSON.parse(JSON.stringify(loadedRoles)));
         const initialCaptain = resolveValidCaptain(loadedLineup, getSavedCaptain(teamName, season));
@@ -1171,6 +1197,9 @@ export default function Match() {
   const handleHomeTacticChange = (newTactic) => {
     if (newTactic === homeTactic) return;
     setHomeTactic(newTactic);
+    if (!isHomeDisabled && teamonename === playerTeamId) {
+      setTeamInstructions(prev => ({ ...prev, mentality: newTactic }));
+    }
     if (time > 0) {
       logEvent(`${teamid[teamonename].name} shifts mentality to ${newTactic.replace('_', ' ').toUpperCase()}!`, "normal");
     }
@@ -1179,10 +1208,29 @@ export default function Match() {
   const handleAwayTacticChange = (newTactic) => {
     if (newTactic === awayTactic) return;
     setAwayTactic(newTactic);
+    if (!isAwayDisabled && teamtwoname === playerTeamId) {
+      setTeamInstructions(prev => ({ ...prev, mentality: newTactic }));
+    }
     if (time > 0) {
       logEvent(`${teamid[teamtwoname].name} shifts mentality to ${newTactic.replace('_', ' ').toUpperCase()}!`, "normal");
     }
   };
+
+  const handleUpdateMatchTeamInstructions = (patch) => {
+    const { teamName, season } = getPlayerTeamNameAndSeason();
+    const next = saveTeamTactics(teamName, season, { ...teamInstructionsRef.current, ...patch });
+    teamInstructionsRef.current = next;
+    setTeamInstructions(next);
+    if (patch && patch.mentality) {
+      if (!isHomeDisabled && teamonename === playerTeamId) {
+        handleHomeTacticChange(next.mentality);
+      } else if (!isAwayDisabled && teamtwoname === playerTeamId) {
+        handleAwayTacticChange(next.mentality);
+      }
+    }
+  };
+
+  const matchTeamInstructionsSummary = `${teamInstructions.attackingFocus === 'left' ? '⬅ LEFT' : (teamInstructions.attackingFocus === 'right' ? 'RIGHT ➡' : (teamInstructions.attackingFocus === 'center' ? '🎯 CTR' : '↔ FLANKS'))} • ${teamInstructions.passing === 'long' ? 'LONG' : 'SHORT'}`;
 
   const handleCPUTacticChangeHome = (newTactic) => {
     if (newTactic === homeTactic) return;
@@ -1992,6 +2040,9 @@ export default function Match() {
       const postGoalKickoffSide = isHalfStart ? null : zone12KickoffPendingRef.current;
       const isKickoffRestart = Boolean(isHalfStart || postGoalKickoffSide);
       zone12KickoffPendingRef.current = null;
+      const activeHumanTeamTactics = teamInstructionsRef.current;
+      const homeTeamTactics = (!isHomeDisabled && teamonename === playerTeamId) ? activeHumanTeamTactics : null;
+      const awayTeamTactics = (!isAwayDisabled && teamtwoname === playerTeamId) ? activeHumanTeamTactics : null;
 
       zoneRes = simulateZone12Possession({
         homeLineup: homeLineupData,
@@ -2000,6 +2051,8 @@ export default function Match() {
         awayRoles: awayRolesActive,
         homeInstructions: getActiveInstructionsForTeam(teamonename),
         awayInstructions: getActiveInstructionsForTeam(teamtwoname),
+        homeTeamTactics,
+        awayTeamTactics,
         homeFormation,
         awayFormation,
         homeTactic,
@@ -3034,14 +3087,14 @@ export default function Match() {
       forcedOffender: step2.defenderPlayer ? { player: step2.defenderPlayer, slotId: step2.defenderSlotId } : null
     });
 
-    const hasStep3 = zoneRes.steps.length >= 3;
+      const hasStep3 = zoneRes.steps.length >= 3;
     if (hasStep3 && step2.success) {
-      const boxPreviewZone = zoneRes.zonePath.find(z => z.startsWith('d') || z.startsWith('a')) || step2.zone;
-      const previewIdx = zoneRes.zonePath.indexOf(boxPreviewZone);
+      const boxPreviewZone = step2.zone || zoneRes.zonePath[zoneRes.zonePath.length - 1] || zoneRes.activeZone;
+      const step2Idx = zoneRes.zonePath.indexOf(boxPreviewZone);
       setLastZone12Result({
         ...zoneRes,
         steps: zoneRes.steps.slice(0, 2),
-        zonePath: previewIdx >= 0 ? zoneRes.zonePath.slice(0, previewIdx + 1) : zoneRes.zonePath,
+        zonePath: step2Idx >= 0 ? zoneRes.zonePath.slice(0, step2Idx + 1) : zoneRes.zonePath,
         activeZone: boxPreviewZone,
         isGoal: false
       });
@@ -3139,7 +3192,20 @@ export default function Match() {
         side
       );
 
-      const taker = isHomeAtt ? zoneRes.homePenaltyTaker : zoneRes.awayPenaltyTaker;
+      const attLiveLineup = resolveLiveLineup(attKey);
+      const isHumanAttSide = (isHomeAtt && !isHomeDisabled) || (!isHomeAtt && !isAwayDisabled);
+      let taker = isHomeAtt ? zoneRes.homePenaltyTaker : zoneRes.awayPenaltyTaker;
+      if (isHumanAttSide) {
+        const { teamName, season } = getPlayerTeamNameAndSeason();
+        if (teamName && season) {
+          const savedPenNames = getSavedPenaltyTakers(teamName, season);
+          const validOrder = resolveValidPenaltyTakers(attLiveLineup, savedPenNames, 5);
+          if (validOrder.length > 0) {
+            const picked = Object.values(attLiveLineup || {}).find(p => p && p.name === validOrder[0]);
+            if (picked) taker = picked;
+          }
+        }
+      }
       const gk = isHomeAtt ? zoneRes.awayGk : zoneRes.homeGk;
       const penRes = resolveZone12PenaltyKick({
         attackingSide: side,
@@ -5653,6 +5719,8 @@ export default function Match() {
             onChangeInstruction={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? handleChangePlayerInstruction : undefined}
             captainName={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? captainName : ''}
             onSelectCaptain={(teamonename === playerTeamId || (!isHomeDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamonename])) ? handleSelectMatchCaptain : undefined}
+            onOpenTeamInstructions={!isHomeDisabled && teamonename === playerTeamId ? () => setShowTeamInstructionsModal(true) : undefined}
+            teamInstructionsSummary={!isHomeDisabled && teamonename === playerTeamId ? matchTeamInstructionsSummary : ''}
           />
         </div>
 
@@ -6126,6 +6194,8 @@ export default function Match() {
             onChangeInstruction={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? handleChangePlayerInstruction : undefined}
             captainName={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? captainName : ''}
             onSelectCaptain={(teamtwoname === playerTeamId || (!isAwayDisabled && Object.keys(lineup).length > 0 && !cpuLineups[teamtwoname])) ? handleSelectMatchCaptain : undefined}
+            onOpenTeamInstructions={!isAwayDisabled && teamtwoname === playerTeamId ? () => setShowTeamInstructionsModal(true) : undefined}
+            teamInstructionsSummary={!isAwayDisabled && teamtwoname === playerTeamId ? matchTeamInstructionsSummary : ''}
           />
         </div>
 
@@ -6175,6 +6245,25 @@ export default function Match() {
                 <div className="sub-modal-pitch-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                   <span className="sub-modal-pitch-title">TACTICAL FORMATION: {getSavedFormation().toUpperCase()}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowTeamInstructionsModal(true)}
+                      style={{
+                        background: 'rgba(0, 229, 255, 0.14)',
+                        border: '1px solid #00e5ff',
+                        borderRadius: '5px',
+                        color: '#00e5ff',
+                        fontSize: '9px',
+                        fontWeight: 'bold',
+                        fontFamily: 'Orbitron',
+                        padding: '3px 9px',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title="View & edit live Team Instructions (Attacking Focus, Passing, Mentality, etc.)"
+                    >
+                      ⚙️ TEAM INSTRUCTIONS ({matchTeamInstructionsSummary})
+                    </button>
                     {(() => {
                       const modalPitchPlayers = getFormationSlots(getSavedFormation()).map(s => lineup[s.id]).filter(Boolean);
                       const resolvedModalCap = modalPitchPlayers.some(p => p.name === captainName) ? captainName : (modalPitchPlayers[0]?.name || '');
@@ -6552,7 +6641,7 @@ export default function Match() {
         </div>
       )}
 
-      {showOpponentModal && teamid && teamid[showOpponentModal] && (() => {
+      {showOpponentModal !== null && showOpponentModal !== undefined && teamid && teamid[showOpponentModal] && (() => {
         const oppTeam = teamid[showOpponentModal];
         const isOppHome = showOpponentModal === teamonename;
         const oppFormation = isOppHome ? homeFormation : awayFormation;
@@ -6936,6 +7025,15 @@ export default function Match() {
           onSelectInstruction={handleChangePlayerInstruction}
         />
       )}
+
+      <TeamInstructionsModal
+        isOpen={showTeamInstructionsModal}
+        onClose={() => setShowTeamInstructionsModal(false)}
+        teamName={getPlayerTeamNameAndSeason().teamName || ''}
+        teamTactics={teamInstructions}
+        onUpdate={handleUpdateMatchTeamInstructions}
+        subtitle={`Live tactical adjustments for ${getPlayerTeamNameAndSeason().teamName || 'your club'} (takes effect immediately)`}
+      />
     </div>
   );
 }

@@ -117,8 +117,8 @@
     "midfield": 5,
     "defense": 5,
     "kit": "ita96/1.png",
-    "primaryColor": "#FFD700",
-    "secondaryColor": "#0000FF"
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#000000"
   },
   {
     "idnum": 11,

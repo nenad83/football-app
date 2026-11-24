@@ -24,7 +24,8 @@ import {
   calculateTeamTacticalStats,
   getRoleMetadata,
   getSavedPlayerInstructions,
-  savePlayerInstructions
+  savePlayerInstructions,
+  getSavedTeamTactics
 } from '../utils/tacticalRoleEngine';
 import { getCPUMatchLineupAndStats } from '../utils/cpuSquadManager';
 import { getTeamDetails, getTeamDetailsSync, getPrebuiltRoster } from '../data/rosters/rosterRegistry';
@@ -314,6 +315,16 @@ export default function PreMatch() {
     }
     return { playerTeamName: "", playerSeason: "1995" };
   })();
+
+  // Sync human team's saved starting mentality from Lineup -> Match Preview (on load & after closing Pre-Match Lineups modal)
+  useEffect(() => {
+    if (!playerTeamName || playerTeamId === null) return;
+    const saved = getSavedTeamTactics(playerTeamName, playerSeason);
+    if (saved?.mentality) {
+      if (teamonename === playerTeamId) setHomeTactic(saved.mentality);
+      if (teamtwoname === playerTeamId) setAwayTactic(saved.mentality);
+    }
+  }, [playerTeamName, playerSeason, playerTeamId, teamonename, teamtwoname, showLineupsModal]);
 
   const [playerLineup, setPlayerLineup] = useState(() => {
     if (!playerTeamName) return {};
