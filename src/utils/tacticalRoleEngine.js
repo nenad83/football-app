@@ -1231,7 +1231,7 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
           shortLabel: 'THROUGH',
           icon: '🗡️',
           color: '#ffd700',
-          desc: 'Moves to c1/c3 and plays a killer ball into nearby box (needs diff >= 4). If successful, Striker gets +4 Finishing!'
+          desc: 'Moves to c1/c3 and plays a killer ball into nearby box (needs diff >= 4). If successful, Striker gets +3 Finishing!'
         }
       ];
     }
@@ -1360,12 +1360,20 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
   if (idealPos === 'AMC' || labelPos === 'AMC') {
     return [
       {
+        id: 'pass',
+        label: 'Standard Box Pass',
+        shortLabel: 'PASS',
+        icon: '⚽',
+        color: '#00ff88',
+        desc: 'Reliable short pass into the box (requires diff >= 2 vs DMC/DC Marking) to set up a Striker.'
+      },
+      {
         id: 'through_ball',
-        label: 'Killer Through Ball (+4 Striker)',
+        label: 'Killer Through Ball (+3 Striker)',
         shortLabel: 'THROUGH',
         icon: '🗡️',
         color: '#ffd700',
-        desc: 'Tries to split defense to find a Striker in space (requires diff >= 4 vs DMC/DC). If successful, Striker rolls Finishing with +4!'
+        desc: 'Tries to split defense to find a Striker in space (requires diff >= 4 vs DMC/DC). If successful, Striker rolls Finishing with +3!'
       },
       {
         id: 'dribble',
@@ -1374,14 +1382,6 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
         icon: '🔥',
         color: '#ff4500',
         desc: 'Takes on opponent DMC or DC (Dribbling vs Tackling, diff >= 2). If successful, AMC shoots 1-on-1 against the Keeper!'
-      },
-      {
-        id: 'pass',
-        label: 'Standard Box Pass',
-        shortLabel: 'PASS',
-        icon: '⚽',
-        color: '#00ff88',
-        desc: 'Reliable short pass into the box (requires diff >= 2 vs DMC/DC Marking) to set up a Striker.'
       },
       {
         id: 'long_shot',
@@ -1411,7 +1411,7 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
         shortLabel: 'THROUGH',
         icon: '🗡️',
         color: '#ffd700',
-        desc: 'Hits a defence-splitting pass from b2 to c1/c2/c3 (requires diff >= 4). If successful, receiver gets +4 skill on their next move!'
+        desc: 'Hits a defence-splitting pass from b2 to c1/c2/c3 (requires diff >= 4). If successful, receiver gets +3 skill on their next move!'
       },
       {
         id: 'man_mark',
@@ -1437,11 +1437,11 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
       },
       {
         id: 'through_ball',
-        label: 'Through Ball (+4 to Receiver)',
+        label: 'Through Ball (+3 to Receiver)',
         shortLabel: 'THROUGH',
         icon: '🗡️',
         color: '#ffd700',
-        desc: 'Passes from b2 to c1, c2 (if AMC), or c3 requiring diff >= 4 instead of 2! If successful, AMR/AMC/AML is free and rolls with Skill + 4 on their next move!'
+        desc: 'Passes from b2 to c1, c2 (if AMC), or c3 requiring diff >= 4 instead of 2! If successful, AMR/AMC/AML is free and rolls with Skill + 3 on their next move!'
       }
     ];
   }
@@ -1490,6 +1490,31 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
 
 export function getDefaultInstructionForSlot(slot, player, roleId = 'normal') {
   const list = getAvailableInstructionsForSlot(slot, player, roleId);
+  if (!slot) return list[0]?.id || 'pass';
+
+  const idealPos = (slot.idealPos || getIdealSlotPosition(slot.role, slot.x, slot.y) || '').toUpperCase();
+  const labelPos = (slot.label || idealPos || '').toUpperCase();
+  const isAmcSlot = idealPos === 'AMC' || labelPos === 'AMC';
+
+  if (isAmcSlot && player) {
+    const sk = player.skills || {};
+    const rating = Math.max(1, Math.min(10, Math.round(Number(player.rating) || 6)));
+    const pass = sk.passing ?? rating;
+    const drib = sk.dribbling ?? rating;
+    const lsh = sk.longShots ?? Math.max(1, rating - 1);
+
+    if (lsh >= 8 && lsh > pass && lsh >= drib) {
+      return 'long_shot';
+    }
+    if (drib >= 8 && drib > pass && drib > lsh) {
+      return 'dribble';
+    }
+    if (pass >= 9 && pass >= drib && pass >= lsh) {
+      return 'through_ball';
+    }
+    return 'pass';
+  }
+
   return list[0]?.id || 'pass';
 }
 
@@ -1499,7 +1524,8 @@ export function getInstructionMetadata(slot, player, roleId = 'normal', instruct
     const found = list.find(i => i.id === instructionId);
     if (found) return found;
   }
-  return list[0];
+  const defaultId = getDefaultInstructionForSlot(slot, player, roleId);
+  return list.find(i => i.id === defaultId) || list[0];
 }
 
 export function getSavedPlayerInstructions(teamName, season) {

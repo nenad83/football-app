@@ -677,6 +677,9 @@ export default function Match() {
   const [showOpponentModal, setShowOpponentModal] = useState(null);
   const [infoPlayer, setInfoPlayer] = useState(null);
   const [matchCards, setMatchCards] = useState([]);
+  const [matchGoals, setMatchGoals] = useState([]);
+  const [matchInjuries, setMatchInjuries] = useState([]);
+  const [centerTab, setCenterTab] = useState('match'); // 'match' | 'commentary' | 'stats'
 
   const matchCardsRef = useRef([]);
   const lineupRef = useRef(lineup);
@@ -686,6 +689,8 @@ export default function Match() {
   const awayTacticRef = useRef(awayTactic);
   const zone12PendingRef = useRef(null);
   const zone12NextAttackerRef = useRef(null);
+  const zone12KickoffPendingRef = useRef(null);
+  const d10KickoffSideRef = useRef(null);
   const captainRef = useRef(captainName);
   const matchGoalEventsRef = useRef([]);
 
@@ -1983,6 +1988,10 @@ export default function Match() {
       const awayRolesActive = getActiveRolesForTeam(teamtwoname);
       const homeTeamObj = teamid[teamonename] || {};
       const awayTeamObj = teamid[teamtwoname] || {};
+      const isHalfStart = time === 0 || time === 45 || time === 90;
+      const postGoalKickoffSide = isHalfStart ? null : zone12KickoffPendingRef.current;
+      const isKickoffRestart = Boolean(isHalfStart || postGoalKickoffSide);
+      zone12KickoffPendingRef.current = null;
 
       zoneRes = simulateZone12Possession({
         homeLineup: homeLineupData,
@@ -1999,7 +2008,8 @@ export default function Match() {
         awayTeam: awayTeamObj,
         minute: time,
         maxMinute: nextMilestone,
-        preferredAttacker: (time === 0 || time === 45 || time === 90) ? null : zone12NextAttackerRef.current
+        preferredAttacker: isHalfStart ? null : (postGoalKickoffSide || zone12NextAttackerRef.current),
+        isKickoffRestart
       });
     }
 
@@ -2060,6 +2070,21 @@ export default function Match() {
               newCond = Math.max(0, newCond - 30); // drop condition due to injury
 
               injuredPlayerName = sp.name;
+              const injuredSide = isPlayerHome ? 'home' : 'away';
+              const injuredTeamObj = isPlayerHome ? teamid?.[teamonename] : teamid?.[teamtwoname];
+              setMatchInjuries(prev => [
+                ...prev,
+                {
+                  id: `${nextTime}_${sp.name}_${Math.random().toString(36).slice(2, 6)}`,
+                  minute: Math.max(1, nextTime),
+                  side: injuredSide,
+                  teamName: injuredTeamObj?.name || 'Team',
+                  playerName: sp.name,
+                  position: sp.position || 'P',
+                  injury,
+                  duration: injuryMatches
+                }
+              ]);
               const isCaptainInjured = sp.name === captainRef.current;
               injuredPlayerMsg = `🤕 INJURY ALERT!\n\n${sp.name} (${sp.position}, Age ${sp.age}) has suffered a ${injury} and cannot continue! (Out for ${injuryMatches} matches)\n\nPlease open the substitution modal to replace or remove him.${isCaptainInjured ? '\n\n©️ Your captain is injured — the armband will pass automatically when he is replaced or removed (or choose a new captain manually in Tactics).' : ''}`;
             }
@@ -2441,7 +2466,8 @@ export default function Match() {
       isPressing,
       refereeStrictness: isStrictReferee ? 'strict' : 'normal',
       teamRedCards,
-      matchRedCards
+      matchRedCards,
+      foulFrequencyScale: engineMode === ENGINE_MODE_ZONES_12 ? 0.55 : 1
     });
     if (!check.foul) return null;
 
@@ -2467,9 +2493,8 @@ export default function Match() {
     const softenExtremeRed =
       check.outcome === 'yellow' &&
       priorYellows >= 1 &&
-      teamRedCards >= 1 &&
-      matchRedCards >= 2 &&
-      Math.random() < 0.7;
+      (teamRedCards >= 1 || matchRedCards >= 1) &&
+      Math.random() < (teamRedCards >= 1 ? 0.85 : 0.65);
 
     if (check.outcome === 'warning' || softenExtremeRed) {
       return {
@@ -2829,8 +2854,40 @@ export default function Match() {
       const awayName = teamid[teamtwoname].name;
 
       const midWinMargin = engineMode === ENGINE_MODE_D10 ? 2 : 1;
+      const kickoffSide = d10KickoffSideRef.current;
+      d10KickoffSideRef.current = null;
 
-      if (r1 - r2 >= midWinMargin) {
+      if (kickoffSide) {
+        // After a goal, the conceding team restarts from the center circle in midfield
+        if (kickoffSide === 'home' && r1 - r2 >= midWinMargin) {
+          logDuelWithFouls(
+            getMidfieldWinCommentary(homeName, awayName, homeLineupData, awayLineupData),
+            "chance",
+            "home",
+            [foul1, foul2]
+          );
+          setHasHomeChance(true);
+          setBallPosition("home-attack");
+        } else if (kickoffSide === 'away' && r2 - r1 >= midWinMargin) {
+          logDuelWithFouls(
+            getMidfieldWinCommentary(awayName, homeName, awayLineupData, homeLineupData),
+            "chance",
+            "away",
+            [foul1, foul2]
+          );
+          setHasAwayChance(true);
+          setBallPosition("away-attack");
+        } else {
+          const kickoffTeamName = kickoffSide === 'home' ? homeName : awayName;
+          logDuelWithFouls(
+            `${kickoffTeamName} restarts from the center circle and works possession across midfield.`,
+            "normal",
+            "neutral",
+            [foul1, foul2]
+          );
+          setBallPosition("center");
+        }
+      } else if (r1 - r2 >= midWinMargin) {
         logDuelWithFouls(
           getMidfieldWinCommentary(homeName, awayName, homeLineupData, awayLineupData),
           "chance",
@@ -2861,34 +2918,55 @@ export default function Match() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [time]);
 
+  const recordGoalEvent = (side, scoringTeamName, goalMinute, scorer, assister = null) => {
+    if (!scorer) return;
+    const entry = {
+      type: 'goal',
+      side,
+      team: scoringTeamName,
+      minute: goalMinute,
+      scorer: {
+        name: scorer.name,
+        position: scorer.position || 'ST',
+        team: scoringTeamName,
+        minute: goalMinute
+      },
+      assister: assister ? {
+        name: assister.name,
+        position: assister.position || 'MC',
+        team: scoringTeamName,
+        minute: goalMinute
+      } : null
+    };
+    matchGoalEventsRef.current.push(entry);
+    setMatchGoals([...matchGoalEventsRef.current]);
+  };
+
   // Helper to award a goal in 12-Box Skills Engine during Step 2 (Long Shot) or Step 3 (Box Shot/Header)
   const applyZone12Goal = (zoneRes) => {
     const isHomeGoal = zoneRes.attackingSide === 'home';
+    const concededSide = isHomeGoal ? 'away' : 'home';
+    // Force clean restart from midfield by the conceding team (opponent kicks off from center)
+    zone12PendingRef.current = null;
+    zone12NextAttackerRef.current = concededSide;
+    zone12KickoffPendingRef.current = concededSide;
+    setHasHomeChance(false);
+    setHasAwayChance(false);
+    setHasHomeScoreChance(false);
+    setHasAwayScoreChance(false);
+
     const homeTeamObj = teamid[teamonename] || {};
     const awayTeamObj = teamid[teamtwoname] || {};
     const scoringTeamName = isHomeGoal ? homeTeamObj.name : awayTeamObj.name;
     const goalMinute = Math.max(1, time);
 
-    if (zoneRes.scorer) {
-      matchGoalEventsRef.current.push({
-        type: 'goal',
-        side: isHomeGoal ? 'home' : 'away',
-        team: scoringTeamName,
-        minute: goalMinute,
-        scorer: {
-          name: zoneRes.scorer.name,
-          position: zoneRes.scorer.position || 'ST',
-          team: scoringTeamName,
-          minute: goalMinute
-        },
-        assister: zoneRes.assister ? {
-          name: zoneRes.assister.name,
-          position: zoneRes.assister.position || 'MC',
-          team: scoringTeamName,
-          minute: goalMinute
-        } : null
-      });
-    }
+    recordGoalEvent(
+      isHomeGoal ? 'home' : 'away',
+      scoringTeamName,
+      goalMinute,
+      zoneRes.scorer,
+      zoneRes.assister
+    );
 
     if (isHomeGoal) {
       const nextHomeScore = scorehome + 1;
@@ -3198,28 +3276,15 @@ export default function Match() {
       const goalRes = getGoalCommentary(homeName, awayName, homeLineupData, awayLineupData, homeFormation, homeRoles);
       logEvent(goalRes, "goal", "home");
       if (goalRes?.scorer) {
-        const goalMinute = Math.max(1, time);
-        matchGoalEventsRef.current.push({
-          type: 'goal',
-          side: 'home',
-          team: homeName,
-          minute: goalMinute,
-          scorer: {
-            name: goalRes.scorer.name,
-            position: goalRes.scorer.position || 'ST',
-            team: homeName,
-            minute: goalMinute
-          },
-          assister: goalRes.assister ? {
-            name: goalRes.assister.name,
-            position: goalRes.assister.position || 'MC',
-            team: homeName,
-            minute: goalMinute
-          } : null
-        });
+        recordGoalEvent('home', homeName, Math.max(1, time), goalRes.scorer, goalRes.assister);
       }
       const nextHomeScore = scorehome + 1;
       setScoreHome(nextHomeScore);
+      setHasHomeChance(false);
+      setHasAwayChance(false);
+      setHasHomeScoreChance(false);
+      setHasAwayScoreChance(false);
+      d10KickoffSideRef.current = 'away';
       setBallPosition("home-goal");
       triggerGoalFlash(teamid[teamonename]);
 
@@ -3325,28 +3390,15 @@ export default function Match() {
       const goalRes = getGoalCommentary(awayName, homeName, awayLineupData, homeLineupData, awayFormation, awayRoles);
       logEvent(goalRes, "goal", "away");
       if (goalRes?.scorer) {
-        const goalMinute = Math.max(1, time);
-        matchGoalEventsRef.current.push({
-          type: 'goal',
-          side: 'away',
-          team: awayName,
-          minute: goalMinute,
-          scorer: {
-            name: goalRes.scorer.name,
-            position: goalRes.scorer.position || 'ST',
-            team: awayName,
-            minute: goalMinute
-          },
-          assister: goalRes.assister ? {
-            name: goalRes.assister.name,
-            position: goalRes.assister.position || 'MC',
-            team: awayName,
-            minute: goalMinute
-          } : null
-        });
+        recordGoalEvent('away', awayName, Math.max(1, time), goalRes.scorer, goalRes.assister);
       }
       const nextAwayScore = scoreaway + 1;
       setScoreAway(nextAwayScore);
+      setHasHomeChance(false);
+      setHasAwayChance(false);
+      setHasHomeScoreChance(false);
+      setHasAwayScoreChance(false);
+      d10KickoffSideRef.current = 'home';
       setBallPosition("away-goal");
       triggerGoalFlash(teamid[teamtwoname]);
 
@@ -5142,57 +5194,270 @@ export default function Match() {
   const playerRedCountInMatch = activePlayerTeamKey === teamonename ? homeRedCount : awayRedCount;
   const maxAllowedOnPitch = Math.max(0, 11 - playerRedCountInMatch);
 
-  const renderTeamDisciplineStrip = (cards, yCount, rCount) => {
-    if (!cards || cards.length === 0) return null;
-    const remainingMen = Math.max(0, 11 - rCount);
+  const renderMatchStatList = (items, emptyLabel, renderRow) => {
+    if (!items || items.length === 0) {
+      return (
+        <div style={{ fontSize: '10.5px', color: 'rgba(255,255,255,0.38)', fontStyle: 'italic', padding: '4px 0' }}>
+          {emptyLabel}
+        </div>
+      );
+    }
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {items.map((item, idx) => renderRow(item, idx))}
+      </div>
+    );
+  };
+
+  const renderMatchStatsPanel = () => {
+    const homeName = teamid?.[teamonename]?.name || 'Home';
+    const awayName = teamid?.[teamtwoname]?.name || 'Away';
+    const homeGoalsList = matchGoals.filter(g => g.side === 'home');
+    const awayGoalsList = matchGoals.filter(g => g.side === 'away');
+    const homeYellows = homeCards.filter(c => c.type === 'yellow' || c.type === 'second_yellow');
+    const awayYellows = awayCards.filter(c => c.type === 'yellow' || c.type === 'second_yellow');
+    const homeReds = homeCards.filter(c => c.type === 'red' || c.type === 'second_yellow');
+    const awayReds = awayCards.filter(c => c.type === 'red' || c.type === 'second_yellow');
+    const homeInjs = matchInjuries.filter(inj => inj.side === 'home');
+    const awayInjs = matchInjuries.filter(inj => inj.side === 'away');
+
+    const statCategories = [
+      {
+        title: '⚽ GOALS',
+        accent: '#00ff88',
+        homeCount: scorehome,
+        awayCount: scoreaway,
+        homeItems: homeGoalsList,
+        awayItems: awayGoalsList,
+        empty: 'No goals yet',
+        renderItem: (g, idx) => (
+          <div key={`${g.minute}_${g.scorer?.name}_${idx}`} style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 8px',
+            borderRadius: '5px',
+            background: 'rgba(0, 255, 136, 0.08)',
+            border: '1px solid rgba(0, 255, 136, 0.25)',
+            fontSize: '11px'
+          }}>
+            <span style={{ color: '#fff', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              ⚽ {g.scorer?.name}
+              {g.assister && (
+                <span style={{ color: '#94a3b8', fontWeight: 500, fontSize: '9.5px' }}> ({g.assister.name})</span>
+              )}
+            </span>
+            <span style={{ color: '#00ff88', fontFamily: 'Orbitron', fontSize: '9.5px', fontWeight: 800, flexShrink: 0 }}>
+              {g.minute}'
+            </span>
+          </div>
+        )
+      },
+      {
+        title: '🟨 YELLOW CARDS',
+        accent: '#ffd700',
+        homeCount: homeYellowCount,
+        awayCount: awayYellowCount,
+        homeItems: homeYellows,
+        awayItems: awayYellows,
+        empty: 'No yellow cards',
+        renderItem: (c) => (
+          <div key={c.id} style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 8px',
+            borderRadius: '5px',
+            background: 'rgba(255, 215, 0, 0.08)',
+            border: '1px solid rgba(255, 215, 0, 0.25)',
+            fontSize: '11px'
+          }}>
+            <span style={{ color: '#ffe89e', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              🟨 {c.playerName} {c.position ? <span style={{ color: '#94a3b8', fontSize: '9.5px' }}>({c.position})</span> : null}
+            </span>
+            <span style={{ color: '#ffd700', fontFamily: 'Orbitron', fontSize: '9.5px', fontWeight: 800, flexShrink: 0 }}>
+              {c.time}'
+            </span>
+          </div>
+        )
+      },
+      {
+        title: '🟥 RED CARDS',
+        accent: '#ff4d6d',
+        homeCount: homeRedCount,
+        awayCount: awayRedCount,
+        homeItems: homeReds,
+        awayItems: awayReds,
+        empty: 'No red cards',
+        renderItem: (c) => (
+          <div key={c.id} style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 8px',
+            borderRadius: '5px',
+            background: 'rgba(255, 46, 76, 0.12)',
+            border: '1px solid rgba(255, 46, 76, 0.35)',
+            fontSize: '11px'
+          }}>
+            <span style={{ color: '#ffb3be', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              🟥 {c.playerName}{' '}
+              <span style={{ color: '#ff8fa3', fontSize: '9px' }}>
+                ({c.type === 'second_yellow' ? '2nd Y' : 'Direct Red'})
+              </span>
+            </span>
+            <span style={{ color: '#ff4d6d', fontFamily: 'Orbitron', fontSize: '9.5px', fontWeight: 800, flexShrink: 0 }}>
+              {c.time}'
+            </span>
+          </div>
+        )
+      },
+      {
+        title: '🤕 INJURIES',
+        accent: '#f97316',
+        homeCount: homeInjs.length,
+        awayCount: awayInjs.length,
+        homeItems: homeInjs,
+        awayItems: awayInjs,
+        empty: 'No injuries',
+        renderItem: (inj) => (
+          <div key={inj.id} style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 8px',
+            borderRadius: '5px',
+            background: 'rgba(249, 115, 22, 0.1)',
+            border: '1px solid rgba(249, 115, 22, 0.3)',
+            fontSize: '11px'
+          }}>
+            <span style={{ color: '#fed7aa', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              🤕 {inj.playerName}{' '}
+              <span style={{ color: '#fdba74', fontSize: '9.5px' }}>
+                ({inj.injury}, {inj.duration}m)
+              </span>
+            </span>
+            <span style={{ color: '#f97316', fontFamily: 'Orbitron', fontSize: '9.5px', fontWeight: 800, flexShrink: 0 }}>
+              {inj.minute}'
+            </span>
+          </div>
+        )
+      }
+    ];
+
     return (
       <div style={{
         width: '100%',
-        marginTop: '8px',
-        padding: '6px 8px',
-        background: rCount > 0 ? 'rgba(255, 46, 76, 0.08)' : 'rgba(255, 215, 0, 0.06)',
-        border: `1px solid ${rCount > 0 ? 'rgba(255, 46, 76, 0.35)' : 'rgba(255, 215, 0, 0.25)'}`,
-        borderRadius: '6px',
+        background: 'rgba(6, 12, 24, 0.86)',
+        border: '1px solid rgba(0, 229, 255, 0.25)',
+        borderRadius: '10px',
+        padding: '14px 16px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '4px'
+        gap: '12px',
+        boxSizing: 'border-box'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', fontFamily: 'Orbitron', fontWeight: 'bold' }}>
-            {yCount > 0 && <span style={{ color: '#ffd700' }}>🟨 {yCount}</span>}
-            {rCount > 0 && <span style={{ color: '#ff4d6d' }}>🟥 {rCount}</span>}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr auto 1fr',
+          alignItems: 'center',
+          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          paddingBottom: '8px',
+          gap: '10px'
+        }}>
+          <div style={{ fontFamily: 'Orbitron', fontSize: '12px', fontWeight: 900, color: '#00ff88' }}>
+            {homeName} {homeRedCount > 0 && <span style={{ color: '#ff4d6d', fontSize: '10px' }}>({11 - homeRedCount} MEN)</span>}
           </div>
-          {rCount > 0 && (
-            <span style={{
-              fontSize: '8px',
-              fontFamily: 'Orbitron',
-              fontWeight: 'bold',
-              color: '#fff',
-              background: '#c91834',
-              padding: '1px 5px',
-              borderRadius: '4px'
-            }}>
-              ⚠️ {remainingMen} MEN
-            </span>
-          )}
+          <div style={{ fontFamily: 'Orbitron', fontSize: '10px', color: '#94a3b8', letterSpacing: '1px' }}>
+            MATCH STATS
+          </div>
+          <div style={{ fontFamily: 'Orbitron', fontSize: '12px', fontWeight: 900, color: '#00e5ff', textAlign: 'right' }}>
+            {awayRedCount > 0 && <span style={{ color: '#ff4d6d', fontSize: '10px' }}>({11 - awayRedCount} MEN) </span>}{awayName}
+          </div>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-          {cards.map(c => (
-            <span
-              key={c.id}
-              style={{
-                fontSize: '8.5px',
-                color: c.type === 'yellow' ? '#ffe89e' : '#ffb3be',
-                background: 'rgba(0,0,0,0.35)',
-                padding: '1px 5px',
-                borderRadius: '3px',
-                border: `1px solid ${c.type === 'yellow' ? 'rgba(255,215,0,0.2)' : 'rgba(255,46,76,0.35)'}`,
-                whiteSpace: 'nowrap'
-              }}
-            >
-              {c.type === 'yellow' ? '🟨' : (c.type === 'second_yellow' ? '🟨🟥' : '🟥')} {getLastName(c.playerName)} {c.time}'
-            </span>
-          ))}
+
+        {statCategories.map(cat => (
+          <div key={cat.title} style={{
+            background: 'rgba(0,0,0,0.32)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: '8px',
+            padding: '10px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '48px 1fr 48px',
+              alignItems: 'center',
+              fontFamily: 'Orbitron',
+              fontSize: '10.5px',
+              fontWeight: 900
+            }}>
+              <span style={{ color: cat.accent, fontSize: '13px' }}>{cat.homeCount}</span>
+              <span style={{ color: cat.accent, textAlign: 'center', letterSpacing: '0.8px' }}>{cat.title}</span>
+              <span style={{ color: cat.accent, fontSize: '13px', textAlign: 'right' }}>{cat.awayCount}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>{renderMatchStatList(cat.homeItems, cat.empty, cat.renderItem)}</div>
+              <div>{renderMatchStatList(cat.awayItems, cat.empty, cat.renderItem)}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderTeamSubsTacticsBar = (isHomeSide) => {
+    const subsUsed = isHomeSide ? homeSubs : awaySubs;
+    const stoppagesUsed = isHomeSide ? homeStoppagesUsed : awayStoppagesUsed;
+    const isTacticsDisabled = isHomeSide ? isHomeTacticsDisabled : isAwayTacticsDisabled;
+    return (
+      <div className="team-card-bars">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <span style={{ fontSize: '9px', color: '#888', fontFamily: 'Orbitron' }}>
+            SUBS: <strong style={{ color: '#fff' }}>{maxSubs - subsUsed}</strong> LEFT
+            {maxStoppages < 99 && (
+              <div style={{ fontSize: '7.5px', marginTop: '2px', color: '#aaa' }}>
+                WINDOWS: <strong style={{ color: '#fff' }}>{maxStoppages - stoppagesUsed}</strong> LEFT
+              </div>
+            )}
+          </span>
+          <button
+            disabled={isTacticsDisabled}
+            onClick={() => {
+              if (squad && squad.length > 0) {
+                setIsPlaying(false);
+                setShowSubModal(true);
+              } else {
+                handleSubstitution(isHomeSide);
+              }
+            }}
+            style={{
+              background: isTacticsDisabled ? 'rgba(255,255,255,0.03)' : 'rgba(0, 229, 255, 0.1)',
+              border: isTacticsDisabled ? '1px solid rgba(255,255,255,0.05)' : '1px solid #00e5ff',
+              color: isTacticsDisabled ? '#888' : '#00e5ff',
+              padding: '3px 8px',
+              borderRadius: '12px',
+              fontSize: '8px',
+              cursor: isTacticsDisabled ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold',
+              transition: 'all 0.2s ease',
+              opacity: isTacticsDisabled ? 0.4 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              boxShadow: isTacticsDisabled ? 'none' : '0 0 10px rgba(0, 229, 255, 0.2)',
+              textShadow: isTacticsDisabled ? 'none' : '0 0 3px rgba(0, 229, 255, 0.5)'
+            }}
+            title="Open team tactics, positions, roles, instructions, and substitutions"
+          >
+            ⚙️ TACTICS
+          </button>
         </div>
       </div>
     );
@@ -5362,92 +5627,13 @@ export default function Match() {
             </button>
           )}
 
-          <div className="team-card-bars">
-            {(() => {
-              const baseAtt = getBaseStat(teamonename, "attack");
-              const modAtt = getModifiedStat(teamonename, "attack");
-              const diffAtt = modAtt - baseAtt;
-              const attSpan = diffAtt > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffAtt}</span> : (diffAtt < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffAtt}</span> : null);
-
-              const baseMid = getBaseStat(teamonename, "midfield");
-              const modMid = getModifiedStat(teamonename, "midfield");
-              const diffMid = modMid - baseMid;
-              const midSpan = diffMid > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffMid}</span> : (diffMid < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffMid}</span> : null);
-
-              const baseDef = getBaseStat(teamonename, "defense");
-              const modDef = getModifiedStat(teamonename, "defense");
-              const diffDef = modDef - baseDef;
-              const defSpan = diffDef > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffDef}</span> : (diffDef < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffDef}</span> : null);
-
-              const statScale = (baseAtt > 5 || baseMid > 5 || baseDef > 5 || engineMode === 'd10' || engineMode === ENGINE_MODE_ZONES_12) ? 10 : 20;
-
-              return (
-                <>
-                  <div className="rpg-bar">
-                    <span className="rpg-label">ATT: {baseAtt}{attSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, modAtt * statScale)}%`, transition: 'width 0.4s ease' }}></div></div>
-                  </div>
-                  <div className="rpg-bar">
-                    <span className="rpg-label">MID: {baseMid}{midSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, modMid * statScale)}%`, transition: 'width 0.4s ease' }}></div></div>
-                  </div>
-                  <div className="rpg-bar">
-                    <span className="rpg-label">DEF: {baseDef}{defSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, modDef * statScale)}%`, transition: 'width 0.4s ease' }}></div></div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', width: '100%' }}>
-                    <span style={{ fontSize: '9px', color: '#888', fontFamily: 'Orbitron' }}>
-                      SUBS: <strong style={{ color: '#fff' }}>{maxSubs - homeSubs}</strong> LEFT
-                      {maxStoppages < 99 && (
-                        <div style={{ fontSize: '7.5px', marginTop: '2px', color: '#aaa' }}>
-                          WINDOWS: <strong style={{ color: '#fff' }}>{maxStoppages - homeStoppagesUsed}</strong> LEFT
-                        </div>
-                      )}
-                    </span>
-                    <button
-                      disabled={isHomeTacticsDisabled}
-                      onClick={() => {
-                        if (squad && squad.length > 0) {
-                          setIsPlaying(false);
-                          setShowSubModal(true);
-                        } else {
-                          handleSubstitution(true);
-                        }
-                      }}
-                      style={{
-                        background: isHomeTacticsDisabled ? 'rgba(255,255,255,0.03)' : 'rgba(0, 229, 255, 0.1)',
-                        border: isHomeTacticsDisabled ? '1px solid rgba(255,255,255,0.05)' : '1px solid #00e5ff',
-                        color: isHomeTacticsDisabled ? '#888' : '#00e5ff',
-                        padding: '3px 8px',
-                        borderRadius: '12px',
-                        fontSize: '8px',
-                        cursor: isHomeTacticsDisabled ? 'not-allowed' : 'pointer',
-                        fontWeight: 'bold',
-                        transition: 'all 0.2s ease',
-                        opacity: isHomeTacticsDisabled ? 0.4 : 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        boxShadow: isHomeTacticsDisabled ? 'none' : '0 0 10px rgba(0, 229, 255, 0.2)',
-                        textShadow: isHomeTacticsDisabled ? 'none' : '0 0 3px rgba(0, 229, 255, 0.5)'
-                      }}
-                      title="Open team tactics, positions, roles, instructions, and substitutions"
-                    >
-                      ⚙️ TACTICS
-                    </button>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
+          {renderTeamSubsTacticsBar(true)}
 
           <div className="dice-roll-container">
             <span className="roll-label">{engineMode === ENGINE_MODE_ZONES_12 ? 'ZONE DUEL TOTAL (d10+SKILL)' : (engineMode === 'd10' ? 'MIDFIELD ROLL (d10)' : 'MIDFIELD ROLL (d6)')}</span>
             <div className="roll-number-glowing">{rollone}</div>
             {renderZone12BreakdownCard(zone12DuelBreakdown.home)}
           </div>
-
-          {renderTeamDisciplineStrip(homeCards, homeYellowCount, homeRedCount)}
 
           {/* Tactical Selector Panel */}
           <TacticsPanel
@@ -5470,39 +5656,146 @@ export default function Match() {
           />
         </div>
 
-        {/* Center Side: Active Pitch Controller & Chronicle Feed */}
+        {/* Center Side: Navigation Tabs + Active View */}
         <div className="pitch-controller-center">
+          {/* Tabs Above Field Terrain */}
+          <div style={{
+            display: 'flex',
+            gap: '6px',
+            width: '100%',
+            background: 'rgba(0, 0, 0, 0.45)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '8px',
+            padding: '4px'
+          }}>
+            {[
+              { id: 'match', label: '⚽ MATCH' },
+              { id: 'commentary', label: `📜 COMMENTARY LOG (${chronicle.length})` },
+              {
+                id: 'stats',
+                label: `📊 MATCH STATS (${scorehome + scoreaway + homeYellowCount + awayYellowCount + homeRedCount + awayRedCount + matchInjuries.length})`
+              }
+            ].map(tab => {
+              const isActive = centerTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setCenterTab(tab.id)}
+                  style={{
+                    flex: 1,
+                    padding: '7px 8px',
+                    borderRadius: '6px',
+                    border: isActive ? '1px solid #00ff88' : '1px solid transparent',
+                    background: isActive ? 'rgba(0, 255, 136, 0.15)' : 'transparent',
+                    color: isActive ? '#00ff88' : '#94a3b8',
+                    fontFamily: 'Orbitron',
+                    fontSize: '9.5px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    letterSpacing: '0.5px',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
 
-          {engineMode === ENGINE_MODE_ZONES_12 ? (
-            <Zone12MatchView
-              lastZoneResult={lastZone12Result}
-              homeTeamName={teamid[teamonename]?.name}
-              awayTeamName={teamid[teamtwoname]?.name}
-            />
-          ) : (
+          {centerTab === 'match' && (
             <>
-              {/* Animated SVG/CSS Football Pitch */}
-              <div className="retro-tactical-pitch">
-                <div className="pitch-goal-net net-left"></div>
-                <div className="pitch-goal-net net-right"></div>
+              {engineMode === ENGINE_MODE_ZONES_12 ? (
+                <Zone12MatchView
+                  lastZoneResult={lastZone12Result}
+                  homeTeamName={teamid[teamonename]?.name}
+                  awayTeamName={teamid[teamtwoname]?.name}
+                />
+              ) : (
+                <>
+                  {/* Animated SVG/CSS Football Pitch */}
+                  <div className="retro-tactical-pitch">
+                    <div className="pitch-goal-net net-left"></div>
+                    <div className="pitch-goal-net net-right"></div>
 
-                {/* Glowing Football animation */}
-                <div className={`glowing-football ball-pos-${ballPosition}`}>
-                  ⚽
-                </div>
-              </div>
+                    {/* Glowing Football animation */}
+                    <div className={`glowing-football ball-pos-${ballPosition}`}>
+                      ⚽
+                    </div>
+                  </div>
 
-              {/* Momentum Indicator Bar */}
-              <div className="momentum-bar-wrapper">
-                <span className="momentum-title">MIDFIELD MOMENTUM</span>
-                <div className="momentum-gauge">
-                  <div className="momentum-gauge-fill" style={{
-                    left: `${Math.max(5, Math.min(95, 50 + ((rollone - rolltwo) * (engineMode === 'd10' ? 3.5 : 6))))}%`,
-                    width: '12px'
-                  }}></div>
-                </div>
-              </div>
+                  {/* Momentum Indicator Bar */}
+                  <div className="momentum-bar-wrapper">
+                    <span className="momentum-title">MIDFIELD MOMENTUM</span>
+                    <div className="momentum-gauge">
+                      <div className="momentum-gauge-fill" style={{
+                        left: `${Math.max(5, Math.min(95, 50 + ((rollone - rolltwo) * (engineMode === 'd10' ? 3.5 : 6))))}%`,
+                        width: '12px'
+                      }}></div>
+                    </div>
+                  </div>
+                </>
+              )}
             </>
+          )}
+
+          {centerTab === 'stats' && renderMatchStatsPanel()}
+
+          {centerTab === 'commentary' && (
+            <div className="cm-live-commentary-section" style={{ marginTop: 0, width: '100%' }}>
+              {/* CM 01/02 Incident & Chronicle Stream */}
+              <div className="cm-commentary-console" style={{ marginTop: 0 }}>
+                <div className="cm-console-header">
+                  <span className="cm-header-title">
+                    <span className="cm-retro-icon">⚽</span> CM 01/02 MATCH INCIDENT &amp; COMMENTARY LOG
+                  </span>
+                  <span className="cm-header-ref">
+                    REF: {referee.toUpperCase()}{isStrictReferee ? ' (STRICT)' : ''}
+                  </span>
+                </div>
+                <div className="cm-commentary-stream" style={{ maxHeight: '360px' }}>
+                  {chronicle.map((item, index) => {
+                    let rowClass = `cm-comm-item cm-type-${item.type}`;
+                    if (item.type === 'goal') rowClass += ' goal';
+                    else if (item.type === 'save') rowClass += ' save';
+                    else if (item.type === 'miss') rowClass += ' miss';
+                    else if (item.type === 'chance') rowClass += ' chance';
+                    else if (item.type === 'yellow-card') rowClass += ' yellow-card';
+                    else if (item.type === 'red-card') rowClass += ' red-card';
+                    else if (item.type === 'foul') rowClass += ' foul';
+                    if (index === 0) rowClass += ' latest-item';
+
+                    const sideColor = item.side === 'away'
+                      ? (teamid[teamtwoname]?.primaryColor || '#40e0d0')
+                      : item.side === 'home'
+                        ? (teamid[teamonename]?.primaryColor || '#ffdd44')
+                        : '#00a2a2';
+
+                    const borderLeftColor = item.type === 'goal'
+                      ? '#ffd700'
+                      : (item.type === 'yellow-card'
+                        ? '#ffd700'
+                        : (item.type === 'red-card'
+                          ? '#ff2e4c'
+                          : (item.type === 'foul'
+                            ? '#ff9800'
+                            : (item.side === 'neutral' ? '#00a2a2' : sideColor))));
+
+                    return (
+                      <div
+                        key={index}
+                        className={rowClass}
+                        style={{ borderLeftColor }}
+                      >
+                        <span className="cm-comm-min">{item.time}'</span>
+                        <span className="cm-comm-text">{item.text}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Interactive Arena Actions */}
@@ -5748,66 +6041,13 @@ export default function Match() {
 
           </div>
 
-          {/* CM 01/02 Retro Live Commentary Console (Positioned directly below Pitch & Controls) */}
+          {/* Iconic CM 01/02 Flashing Single-Line Live Commentary Bar (always visible below controls) */}
           <div className="cm-live-commentary-section">
-            {/* Iconic CM 01/02 Flashing Single-Line Live Commentary Bar */}
             <div
               className={`cm-live-commentary-bar ${liveBanner?.type === 'goal' ? 'cm-goal-flash' : (liveBanner?.type === 'red-card' ? 'cm-red-flash' : '')}`}
               style={getCommentaryBarStyle()}
             >
               {liveBanner?.text || "⚽ Match awaiting kickoff..."}
-            </div>
-
-            {/* CM 01/02 Incident & Chronicle Stream */}
-            <div className="cm-commentary-console">
-              <div className="cm-console-header">
-                <span className="cm-header-title">
-                  <span className="cm-retro-icon">⚽</span> CM 01/02 MATCH INCIDENT &amp; COMMENTARY LOG
-                </span>
-                <span className="cm-header-ref">
-                  REF: {referee.toUpperCase()}{isStrictReferee ? ' (STRICT)' : ''}
-                </span>
-              </div>
-              <div className="cm-commentary-stream">
-                {chronicle.map((item, index) => {
-                  let rowClass = `cm-comm-item cm-type-${item.type}`;
-                  if (item.type === 'goal') rowClass += ' goal';
-                  else if (item.type === 'save') rowClass += ' save';
-                  else if (item.type === 'miss') rowClass += ' miss';
-                  else if (item.type === 'chance') rowClass += ' chance';
-                  else if (item.type === 'yellow-card') rowClass += ' yellow-card';
-                  else if (item.type === 'red-card') rowClass += ' red-card';
-                  else if (item.type === 'foul') rowClass += ' foul';
-                  if (index === 0) rowClass += ' latest-item';
-
-                  const sideColor = item.side === 'away'
-                    ? (teamid[teamtwoname]?.primaryColor || '#40e0d0')
-                    : item.side === 'home'
-                      ? (teamid[teamonename]?.primaryColor || '#ffdd44')
-                      : '#00a2a2';
-
-                  const borderLeftColor = item.type === 'goal'
-                    ? '#ffd700'
-                    : (item.type === 'yellow-card'
-                      ? '#ffd700'
-                      : (item.type === 'red-card'
-                        ? '#ff2e4c'
-                        : (item.type === 'foul'
-                          ? '#ff9800'
-                          : (item.side === 'neutral' ? '#00a2a2' : sideColor))));
-
-                  return (
-                    <div
-                      key={index}
-                      className={rowClass}
-                      style={{ borderLeftColor }}
-                    >
-                      <span className="cm-comm-min">{item.time}'</span>
-                      <span className="cm-comm-text">{item.text}</span>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           </div>
 
@@ -5860,92 +6100,13 @@ export default function Match() {
             </button>
           )}
 
-          <div className="team-card-bars">
-            {(() => {
-              const baseAtt = getBaseStat(teamtwoname, "attack");
-              const modAtt = getModifiedStat(teamtwoname, "attack");
-              const diffAtt = modAtt - baseAtt;
-              const attSpan = diffAtt > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffAtt}</span> : (diffAtt < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffAtt}</span> : null);
-
-              const baseMid = getBaseStat(teamtwoname, "midfield");
-              const modMid = getModifiedStat(teamtwoname, "midfield");
-              const diffMid = modMid - baseMid;
-              const midSpan = diffMid > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffMid}</span> : (diffMid < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffMid}</span> : null);
-
-              const baseDef = getBaseStat(teamtwoname, "defense");
-              const modDef = getModifiedStat(teamtwoname, "defense");
-              const diffDef = modDef - baseDef;
-              const defSpan = diffDef > 0 ? <span style={{ color: '#00ff64', fontWeight: 'bold' }}> +{diffDef}</span> : (diffDef < 0 ? <span style={{ color: '#ff4500', fontWeight: 'bold' }}> {diffDef}</span> : null);
-
-              const statScale = (baseAtt > 5 || baseMid > 5 || baseDef > 5 || engineMode === 'd10' || engineMode === ENGINE_MODE_ZONES_12) ? 10 : 20;
-
-              return (
-                <>
-                  <div className="rpg-bar">
-                    <span className="rpg-label">ATT: {baseAtt}{attSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill attack-fill" style={{ width: `${Math.min(100, modAtt * statScale)}%`, transition: 'width 0.4s ease' }}></div></div>
-                  </div>
-                  <div className="rpg-bar">
-                    <span className="rpg-label">MID: {baseMid}{midSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill midfield-fill" style={{ width: `${Math.min(100, modMid * statScale)}%`, transition: 'width 0.4s ease' }}></div></div>
-                  </div>
-                  <div className="rpg-bar">
-                    <span className="rpg-label">DEF: {baseDef}{defSpan}</span>
-                    <div className="progress-bar-bg"><div className="progress-bar-fill defense-fill" style={{ width: `${Math.min(100, modDef * statScale)}%`, transition: 'width 0.4s ease' }}></div></div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', width: '100%' }}>
-                    <span style={{ fontSize: '9px', color: '#888', fontFamily: 'Orbitron' }}>
-                      SUBS: <strong style={{ color: '#fff' }}>{maxSubs - awaySubs}</strong> LEFT
-                      {maxStoppages < 99 && (
-                        <div style={{ fontSize: '7.5px', marginTop: '2px', color: '#aaa' }}>
-                          WINDOWS: <strong style={{ color: '#fff' }}>{maxStoppages - awayStoppagesUsed}</strong> LEFT
-                        </div>
-                      )}
-                    </span>
-                    <button
-                      disabled={isAwayTacticsDisabled}
-                      onClick={() => {
-                        if (squad && squad.length > 0) {
-                          setIsPlaying(false);
-                          setShowSubModal(true);
-                        } else {
-                          handleSubstitution(false);
-                        }
-                      }}
-                      style={{
-                        background: isAwayTacticsDisabled ? 'rgba(255,255,255,0.03)' : 'rgba(0, 229, 255, 0.1)',
-                        border: isAwayTacticsDisabled ? '1px solid rgba(255,255,255,0.05)' : '1px solid #00e5ff',
-                        color: isAwayTacticsDisabled ? '#888' : '#00e5ff',
-                        padding: '3px 8px',
-                        borderRadius: '12px',
-                        fontSize: '8px',
-                        cursor: isAwayTacticsDisabled ? 'not-allowed' : 'pointer',
-                        fontWeight: 'bold',
-                        transition: 'all 0.2s ease',
-                        opacity: isAwayTacticsDisabled ? 0.4 : 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        boxShadow: isAwayTacticsDisabled ? 'none' : '0 0 10px rgba(0, 229, 255, 0.2)',
-                        textShadow: isAwayTacticsDisabled ? 'none' : '0 0 3px rgba(0, 229, 255, 0.5)'
-                      }}
-                      title="Open team tactics, positions, roles, instructions, and substitutions"
-                    >
-                      ⚙️ TACTICS
-                    </button>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
+          {renderTeamSubsTacticsBar(false)}
 
           <div className="dice-roll-container">
             <span className="roll-label">{engineMode === ENGINE_MODE_ZONES_12 ? 'ZONE DUEL TOTAL (d10+SKILL)' : (engineMode === 'd10' ? 'MIDFIELD ROLL (d10)' : 'MIDFIELD ROLL (d6)')}</span>
             <div className="roll-number-glowing">{rolltwo}</div>
             {renderZone12BreakdownCard(zone12DuelBreakdown.away)}
           </div>
-
-          {renderTeamDisciplineStrip(awayCards, awayYellowCount, awayRedCount)}
 
           {/* Tactical Selector Panel */}
           <TacticsPanel

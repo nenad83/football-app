@@ -236,18 +236,23 @@ export function resolveFoulCheck({
   isPressing = false,
   refereeStrictness = 'normal',
   teamRedCards = 0,
-  matchRedCards = 0
+  matchRedCards = 0,
+  foulFrequencyScale = 1
 } = {}) {
   if (rawRoll !== 1) {
     return { foul: false, outcome: 'none', refRoll: null, confirmRoll: null };
   }
 
-  // Normalize classic d6 (16.7%) to match d10 (10%) duel foul trigger rate
+  // Normalize classic d6 (16.7%) and high-volume engines (e.g., zones12) to realistic foul rates
   if (sides < 10 && Math.random() > 6 / 10) {
     return { foul: false, outcome: 'none', refRoll: null, confirmRoll: null };
   }
+  if (foulFrequencyScale < 1 && Math.random() > foulFrequencyScale) {
+    return { foul: false, outcome: 'none', refRoll: null, confirmRoll: null };
+  }
 
-  const refRoll = rollDie(10);
+  // d14 referee check softens yellow/red frequency compared to d10 while keeping foul warnings active
+  const refRoll = rollDie(14);
   const isStrict = refereeStrictness === 'strict';
   let yellowMax = 2;
   if (isPressing && isStrict) {
@@ -256,9 +261,9 @@ export function resolveFoulCheck({
     yellowMax = 3;
   }
 
-  const allowDirectRed = teamRedCards === 0 && matchRedCards < 2;
+  const allowDirectRed = teamRedCards === 0 && matchRedCards < 1;
   if (refRoll === 1) {
-    const confirmSides = (isPressing && isStrict) ? 14 : 18;
+    const confirmSides = (isPressing && isStrict) ? 20 : 28;
     const confirmRoll = rollDie(confirmSides);
     if (allowDirectRed && confirmRoll === 1) {
       return { foul: true, outcome: 'red', refRoll, confirmRoll, sides };

@@ -400,7 +400,8 @@ export function simulateZone12Possession({
   awayTeam = {},
   minute = 3,
   maxMinute = null,
-  preferredAttacker = null
+  preferredAttacker = null,
+  isKickoffRestart = false
 }) {
   const resolveEventMinute = (elapsed) => {
     const raw = (Number(minute) || 0) + elapsed;
@@ -484,16 +485,17 @@ export function simulateZone12Possession({
 
   // ---------------------------------------------------------------------------
   // STEP 1: Check GK Distribution Instruction ('long' vs 'short') or Midfield Build-up
+  //         Note: Kickoff restarts always begin in center midfield (never GK long kick).
   // ---------------------------------------------------------------------------
   const initGk = initAttRoster.gk;
-  const isGkLongDistribution = initGk?.instruction === 'long';
+  const isGkLongDistribution = !isKickoffRestart && initGk?.instruction === 'long';
 
   let startZone = initIsHome ? 'b2' : 'c2';
   let midPasser = null;
   let midMarker = null;
   let midSuccess = false;
   let counterTriggered = false;
-  let step2SkillBonus = 0; // +4 if MC/DMC succeeds a through_ball (diff >= 4)
+  let step2SkillBonus = 0; // +3 if MC/DMC succeeds a through_ball (diff >= 4)
   let preChosenChannel = null;
 
   if (isGkLongDistribution) {
@@ -620,7 +622,7 @@ export function simulateZone12Possession({
     midPasser = pickRandom(attMids);
     midMarker = pickRandom(defMids);
 
-    // Check MC / DMC Individual Instruction: 'pass' (default, diff >= 2) vs 'through_ball' (diff >= 4, grants +4 skill to receiver!)
+    // Check MC / DMC Individual Instruction: 'pass' (default, diff >= 2) vs 'through_ball' (diff >= 4, grants +3 skill to receiver!)
     const isMidThroughBall = midPasser.instruction === 'through_ball';
     const requiredMidDiff = isMidThroughBall ? 4 : 2;
     const ballPlayDcBonus = (['DC', 'CB', 'SW'].includes(midPasser.effectivePos) && midPasser.instruction === 'direct_pass') ? 1 : 0;
@@ -628,7 +630,7 @@ export function simulateZone12Possession({
     const attNumBonus = initAttRoster.centralMids.length > initDefRoster.centralMids.length ? 1 : 0;
     const defNumBonus = initDefRoster.centralMids.length > initAttRoster.centralMids.length ? 1 : 0;
     const doublePivotPassBonus = initAttRoster.dmcCount >= 2 ? 1 : 0;
-    const mentalityPassBonus = initAttTactic === 'attack' ? 1 : 0;
+    const mentalityPassBonus = initAttTactic === 'attack' ? 1 : (initAttTactic === 'defense' ? -2 : 0);
 
     const attStep1Bonus = attNumBonus + doublePivotPassBonus + mentalityPassBonus + ballPlayDcBonus;
     const defStep1Bonus = defNumBonus;
@@ -642,14 +644,19 @@ export function simulateZone12Possession({
     const midDiff = passTotal - markTotal;
 
     midSuccess = midDiff >= requiredMidDiff;
-    counterTriggered = midDiff <= -2;
+    // Center-circle kickoff restarts cannot be counter-ambushed in Step 1;
+    // Defensive low-blocks only leave counters open on heavy turnovers (diff <= -4).
+    const counterThreshold = initAttTactic === 'defense' ? -4 : -2;
+    counterTriggered = !isKickoffRestart && midDiff <= counterThreshold;
 
     if (midSuccess && isMidThroughBall) {
-      step2SkillBonus = 4;
+      step2SkillBonus = 3;
     }
 
     steps.push({
-      phase: isMidThroughBall ? 'MIDFIELD THROUGH-BALL (+4)' : 'MIDFIELD BUILD-UP',
+      phase: isKickoffRestart
+        ? (isMidThroughBall ? 'KICKOFF THROUGH-BALL (+3)' : 'KICKOFF RESTART (MIDFIELD)')
+        : (isMidThroughBall ? 'MIDFIELD THROUGH-BALL (+3)' : 'MIDFIELD BUILD-UP'),
       zone: startZone,
       attacker: midPasser.name,
       attackerPlayer: midPasser,
@@ -675,7 +682,7 @@ export function simulateZone12Possession({
       counterTriggered,
       summary: midSuccess
         ? (isMidThroughBall
-          ? `🗡️ ${midPasser.name} splits the defence from [${startZone.toUpperCase()}]! (d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal} vs ${midMarker.name} d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal}, diff +${midDiff} >= 4 → Receiver gets +4 Skill!)`
+          ? `🗡️ ${midPasser.name} splits the defence from [${startZone.toUpperCase()}]! (d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal} vs ${midMarker.name} d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal}, diff +${midDiff} >= 4 → Receiver gets +3 Skill!)`
           : `${midPasser.name} wins midfield in [${startZone.toUpperCase()}] (d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal} vs ${midMarker.name} d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal}, diff +${midDiff} >= 2)`)
         : (counterTriggered
           ? `⚡ ${midMarker.name} intercepts ${midPasser.name} in [${startZone.toUpperCase()}] and launches an instant counter! (d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal} vs d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal})`
@@ -685,7 +692,9 @@ export function simulateZone12Possession({
     if (!midSuccess && !counterTriggered) {
       const oppSide = initIsHome ? 'away' : 'home';
       const failLog = {
-        text: `${midEventMin}' ${midPasser.name} (${initAttTeamName}) attempts a ${isMidThroughBall ? 'defence-splitting through-ball' : 'forward pass'}, but ${midMarker.name} (${initDefTeamName}) closes down and intercepts cleanly. ${initDefTeamName} wins possession!`,
+        text: isKickoffRestart
+          ? `${midEventMin}' ${initAttTeamName} restarts from the center circle — ${midPasser.name} probes forward, before ${midMarker.name} (${initDefTeamName}) closes down and wins possession!`
+          : `${midEventMin}' ${midPasser.name} (${initAttTeamName}) attempts a ${isMidThroughBall ? 'defence-splitting through-ball' : 'forward pass'}, but ${midMarker.name} (${initDefTeamName}) closes down and intercepts cleanly. ${initDefTeamName} wins possession!`,
         type: 'normal'
       };
       steps[0].stepLog = failLog;
@@ -728,7 +737,10 @@ export function simulateZone12Possession({
   const defTactic = isHomeAtt ? awayTactic : homeTactic;
 
   // Team Mentality modifiers for Steps 2 & 3:
-  const attMentalityMod = attTactic === 'attack' ? 1 : (attTactic === 'defense' ? -1 : 0);
+  // Defensive mentality penalizes attacking skills (passing, crossing, finishing, heading, dribbling, through balls) by -2,
+  // while Long Shots keeps -1.
+  const attMentalityMod = attTactic === 'attack' ? 1 : (attTactic === 'defense' ? -2 : 0);
+  const longShotMentalityMod = attTactic === 'attack' ? 1 : (attTactic === 'defense' ? -1 : 0);
   const defMentalityMod = defTactic === 'defense' ? 1 : (defTactic === 'attack' ? -1 : 0);
 
   // ---------------------------------------------------------------------------
@@ -746,7 +758,7 @@ export function simulateZone12Possession({
   const channelDestDesc = chosenChannel.channel === 'center'
     ? 'into the central attacking pocket'
     : `out wide to the ${chosenChannel.channel} flank`;
-  const step1WinLog = counterTriggered
+      const step1WinLog = counterTriggered
     ? {
       text: `${midEventMin}' ⚡ COUNTER! ${midMarker.name} (${attTeamName}) dispossesses ${midPasser.name} cleanly in midfield and surges forward ${channelDestDesc}!`,
       type: 'chance'
@@ -757,7 +769,9 @@ export function simulateZone12Possession({
         type: 'chance'
       }
       : {
-        text: `${midEventMin}' ${midPasser.name} (${attTeamName}) ${step2SkillBonus === 4 ? 'threads a defence-splitting through-ball past' : 'beats the press of'} ${midMarker.name} and plays the ball ${channelDestDesc}!`,
+        text: isKickoffRestart
+          ? `${midEventMin}' ${initAttTeamName} kicks off from midfield — ${midPasser.name} ${step2SkillBonus === 3 ? 'threads a defence-splitting through-ball past' : 'shakes off'} ${midMarker.name} and moves the ball ${channelDestDesc}!`
+          : `${midEventMin}' ${midPasser.name} (${attTeamName}) ${step2SkillBonus === 3 ? 'threads a defence-splitting through-ball past' : 'beats the press of'} ${midMarker.name} and plays the ball ${channelDestDesc}!`,
         type: 'chance'
       });
   steps[0].stepLog = step1WinLog;
@@ -827,7 +841,7 @@ export function simulateZone12Possession({
       ? pickRandom(defRoster.defensiveMids)
       : (defRoster.dcs.length > 0 ? pickRandom(defRoster.dcs) : midMarker);
 
-    const amcInstr = amcPlayer.instruction || 'through_ball';
+    const amcInstr = amcPlayer.instruction || 'pass';
     const dmcManMarkBonus = oppCentralDef?.instruction === 'man_mark' ? 1 : 0;
     const boxZone = isHomeAtt ? 'd2' : 'a2';
 
@@ -837,7 +851,7 @@ export function simulateZone12Possession({
       const shotDie = rollD10();
       const saveDie = rollD10();
       const longShotSkill = amcPlayer.skills.longShots;
-      const longShotAttBonus = ((attRoster.amcCount >= 2 && defRoster.dmcCount === 0) ? 1 : 0) + attMentalityMod + step2SkillBonus;
+      const longShotAttBonus = ((attRoster.amcCount >= 2 && defRoster.dmcCount === 0) ? 1 : 0) + longShotMentalityMod + step2SkillBonus;
       const longShotDefBonus = (defRoster.dmcCount >= 2 ? 1 : 0) + defMentalityMod;
       const shotTotal = shotDie + longShotSkill + longShotAttBonus;
       const saveTotal = saveDie + boxDef.combinedSkill + longShotDefBonus;
@@ -1004,7 +1018,7 @@ export function simulateZone12Possession({
       const finTotal = finDie + finSkill + attMentalityMod;
       const gkTotal = gkDie + gkHand + defMentalityMod;
       const finDiff = finTotal - gkTotal;
-      const isGoal = finDiff >= 2;
+      const isGoal = finDiff >= 3;
 
       const finLog = isGoal
         ? {
@@ -1038,12 +1052,12 @@ export function simulateZone12Possession({
         defenderDie: gkDie,
         defenderTotal: gkTotal,
         diff: finDiff,
-        requiredDiff: 2,
+        requiredDiff: 3,
         success: isGoal,
         stepLog: finLog,
         summary: isGoal
-          ? `⚽ 1v1 GOAL! ${amcPlayer.name} beats ${gk?.name || 'GK'} in [${boxZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(attMentalityMod)}=${finTotal} vs d10:${gkDie}+Hand:${gkHand}${fmtBonus(defMentalityMod)}=${gkTotal}, diff +${finDiff} >= 2)`
-          : `${gk?.name || 'GK'} wins the 1-on-1 against ${amcPlayer.name} in [${boxZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(attMentalityMod)}=${finTotal} vs d10:${gkDie}+Hand:${gkHand}${fmtBonus(defMentalityMod)}=${gkTotal}, diff ${finDiff >= 0 ? `+${finDiff}` : finDiff} < 2)`
+          ? `⚽ 1v1 GOAL! ${amcPlayer.name} beats ${gk?.name || 'GK'} in [${boxZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(attMentalityMod)}=${finTotal} vs d10:${gkDie}+Hand:${gkHand}${fmtBonus(defMentalityMod)}=${gkTotal}, diff +${finDiff} >= 3)`
+          : `${gk?.name || 'GK'} wins the 1-on-1 against ${amcPlayer.name} in [${boxZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(attMentalityMod)}=${finTotal} vs d10:${gkDie}+Hand:${gkHand}${fmtBonus(defMentalityMod)}=${gkTotal}, diff ${finDiff >= 0 ? `+${finDiff}` : finDiff} < 3)`
       });
 
       logs.push(finLog);
@@ -1073,10 +1087,10 @@ export function simulateZone12Possession({
       };
     }
 
-    // 3. AMC Instruction: THROUGH BALL ('through_ball', diff >= 4 -> Striker gets +4 Finishing) or PASS ('pass', diff >= 2)
+    // 3. AMC Instruction: THROUGH BALL ('through_ball', diff >= 4 -> Striker gets +3 Finishing) or PASS ('pass', diff >= 2)
     const isAmcThroughBall = amcInstr === 'through_ball';
     const requiredAmcDiff = isAmcThroughBall ? 4 : 2;
-    const strikerThroughBallBonus = isAmcThroughBall ? 4 : 0;
+    const strikerThroughBallBonus = isAmcThroughBall ? 3 : 0;
 
     const tbPassDie = rollD10();
     const tbMarkDie = rollD10();
@@ -1100,7 +1114,7 @@ export function simulateZone12Possession({
       };
 
     steps.push({
-      phase: isAmcThroughBall ? 'AMC KILLER THROUGH-BALL (+4)' : 'CENTRAL BOX PASS',
+      phase: isAmcThroughBall ? 'AMC KILLER THROUGH-BALL (+3)' : 'CENTRAL BOX PASS',
       zone: secondZone,
       attacker: amcPlayer.name,
       attackerPlayer: amcPlayer,
@@ -1125,7 +1139,7 @@ export function simulateZone12Possession({
       success: tbSuccess,
       stepLog: tbLog,
       summary: tbSuccess
-        ? `${amcPlayer.name} ${isAmcThroughBall ? 'splits the defense (+4 Finishing to Striker!)' : 'passes'} through [${secondZone.toUpperCase()}] past ${oppCentralDef.name}! (d10:${tbPassDie}+Pass:${tbPassSkill}${fmtBonus(tbAttBonus)}=${tbPassTotal} vs d10:${tbMarkDie}+Mark:${tbMarkSkill}${fmtBonus(tbDefBonus)}=${tbMarkTotal}, diff +${tbDiff} >= ${requiredAmcDiff})`
+        ? `${amcPlayer.name} ${isAmcThroughBall ? 'splits the defense (+3 Finishing to Striker!)' : 'passes'} through [${secondZone.toUpperCase()}] past ${oppCentralDef.name}! (d10:${tbPassDie}+Pass:${tbPassSkill}${fmtBonus(tbAttBonus)}=${tbPassTotal} vs d10:${tbMarkDie}+Mark:${tbMarkSkill}${fmtBonus(tbDefBonus)}=${tbMarkTotal}, diff +${tbDiff} >= ${requiredAmcDiff})`
         : `${oppCentralDef.name} intercepts ${amcPlayer.name} in [${secondZone.toUpperCase()}] (d10:${tbPassDie}+Pass:${tbPassSkill}${fmtBonus(tbAttBonus)}=${tbPassTotal} vs d10:${tbMarkDie}+Mark:${tbMarkSkill}${fmtBonus(tbDefBonus)}=${tbMarkTotal}, diff ${tbDiff >= 0 ? `+${tbDiff}` : tbDiff} < ${requiredAmcDiff})`
     });
 
@@ -1170,7 +1184,7 @@ export function simulateZone12Possession({
     const finTotal = finDie + finSkill + totalFinBonus;
     const gkTotal = gkDie + boxDef.combinedSkill + totalDefBonus;
     const finDiff = finTotal - gkTotal;
-    const isGoal = finDiff >= 2;
+    const isGoal = finDiff >= 3;
 
     const finLog = isGoal
       ? {
@@ -1183,7 +1197,7 @@ export function simulateZone12Possession({
       };
 
     steps.push({
-      phase: isAmcThroughBall ? 'THROUGH-BALL FINISH (+4)' : 'BOX FINISH (1v1)',
+      phase: isAmcThroughBall ? 'THROUGH-BALL FINISH (+3)' : 'BOX FINISH (1v1)',
       zone: boxZone,
       attacker: striker.name,
       attackerPlayer: striker,
@@ -1204,12 +1218,12 @@ export function simulateZone12Possession({
       defenderDie: gkDie,
       defenderTotal: gkTotal,
       diff: finDiff,
-      requiredDiff: 2,
+      requiredDiff: 3,
       success: isGoal,
       stepLog: finLog,
       summary: isGoal
-        ? `⚽ GOAL! ${striker.name} finishes in [${boxZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+Def/GK:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff +${finDiff} >= 2)`
-        : `${boxDef.gk?.name || 'GK'} denies ${striker.name} in [${boxZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+Def/GK:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff ${finDiff >= 0 ? `+${finDiff}` : finDiff} < 2)`
+        ? `⚽ GOAL! ${striker.name} finishes in [${boxZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+Def/GK:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff +${finDiff} >= 3)`
+        : `${boxDef.gk?.name || 'GK'} denies ${striker.name} in [${boxZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+Def/GK:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff ${finDiff >= 0 ? `+${finDiff}` : finDiff} < 3)`
     });
 
     logs.push(finLog);
@@ -1299,7 +1313,7 @@ export function simulateZone12Possession({
       };
 
     steps.push({
-      phase: 'FLANK THROUGH-BALL (+4)',
+      phase: 'FLANK THROUGH-BALL (+3)',
       zone: actionZone,
       attacker: winger.name,
       attackerPlayer: winger,
@@ -1324,7 +1338,7 @@ export function simulateZone12Possession({
       success: tbSuccess,
       stepLog: tbLog,
       summary: tbSuccess
-        ? `🗡️ ${winger.name} threads a flank through-ball from [${actionZone.toUpperCase()}] (+4 Finishing to Striker)! (d10:${tbDie}+Pass:${tbSkill}${fmtBonus(tbAttBonus)}=${tbTotal} vs d10:${fbDie}+Mark:${fbSkill}${fmtBonus(tbDefBonus)}=${fbTotal}, diff +${tbDiff} >= 4)`
+        ? `🗡️ ${winger.name} threads a flank through-ball from [${actionZone.toUpperCase()}] (+3 Finishing to Striker)! (d10:${tbDie}+Pass:${tbSkill}${fmtBonus(tbAttBonus)}=${tbTotal} vs d10:${fbDie}+Mark:${fbSkill}${fmtBonus(tbDefBonus)}=${fbTotal}, diff +${tbDiff} >= 4)`
         : `${oppFullback.name} intercepts ${winger.name}'s flank through-ball in [${actionZone.toUpperCase()}] (diff ${tbDiff >= 0 ? `+${tbDiff}` : tbDiff} < 4)`
     });
 
@@ -1362,12 +1376,12 @@ export function simulateZone12Possession({
     const gkDie = rollD10();
     const finSkill = striker.skills.finishing;
     const poacherBonus = striker.instruction === 'poacher' ? 1 : 0;
-    const totalFinBonus = attMentalityMod + 4 + poacherBonus;
+    const totalFinBonus = attMentalityMod + 3 + poacherBonus;
     const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus;
     const finTotal = finDie + finSkill + totalFinBonus;
     const gkTotal = gkDie + boxDef.combinedSkill + totalDefBonus;
     const finDiff = finTotal - gkTotal;
-    const isGoal = finDiff >= 2;
+    const isGoal = finDiff >= 3;
 
     const finLog = isGoal
       ? {
@@ -1380,7 +1394,7 @@ export function simulateZone12Possession({
       };
 
     steps.push({
-      phase: 'THROUGH-BALL FINISH (+4)',
+      phase: 'THROUGH-BALL FINISH (+3)',
       zone: boxZone,
       attacker: striker.name,
       attackerPlayer: striker,
@@ -1401,7 +1415,7 @@ export function simulateZone12Possession({
       defenderDie: gkDie,
       defenderTotal: gkTotal,
       diff: finDiff,
-      requiredDiff: 2,
+      requiredDiff: 3,
       success: isGoal,
       stepLog: finLog,
       summary: isGoal
@@ -1530,7 +1544,7 @@ export function simulateZone12Possession({
     const finTotal = finDie + finSkill + totalFinBonus;
     const gkTotal = gkDie + boxDef.combinedSkill + totalDefBonus;
     const finDiff = finTotal - gkTotal;
-    const isGoal = finDiff >= 2;
+    const isGoal = finDiff >= 3;
 
     const dribFinishLog = isGoal
       ? {
@@ -1564,12 +1578,12 @@ export function simulateZone12Possession({
       defenderDie: gkDie,
       defenderTotal: gkTotal,
       diff: finDiff,
-      requiredDiff: 2,
+      requiredDiff: 3,
       success: isGoal,
       stepLog: dribFinishLog,
       summary: isGoal
-        ? `⚽ GOAL! ${winger.name} scores 1v1 in [${wingDeepZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+Def/GK:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff +${finDiff} >= 2)`
-        : `${boxDef.gk?.name || 'GK'} saves ${winger.name}'s 1v1 shot in [${wingDeepZone.toUpperCase()}] (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+Def/GK:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff ${finDiff >= 0 ? `+${finDiff}` : finDiff} < 2)`
+        ? `⚽ GOAL! ${winger.name} scores 1v1 in [${wingDeepZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+Def/GK:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff +${finDiff} >= 3)`
+        : `${boxDef.gk?.name || 'GK'} saves ${winger.name}'s 1v1 shot in [${wingDeepZone.toUpperCase()}] (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+Def/GK:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff ${finDiff >= 0 ? `+${finDiff}` : finDiff} < 3)`
     });
 
     logs.push(dribFinishLog);
@@ -1709,7 +1723,7 @@ export function simulateZone12Possession({
   const finishTotal = finishDie + strikerSkill + totalAttBonus;
   const gkTotal = gkDie + boxDef.combinedSkill + totalDefBonus;
   const finishDiff = finishTotal - gkTotal;
-  const isGoal = finishDiff >= 2;
+  const isGoal = finishDiff >= 3;
 
   const finishLog = isGoal
     ? {
@@ -1747,12 +1761,12 @@ export function simulateZone12Possession({
     defenderDie: gkDie,
     defenderTotal: gkTotal,
     diff: finishDiff,
-    requiredDiff: 2,
+    requiredDiff: 3,
     success: isGoal,
     stepLog: finishLog,
     summary: isGoal
-      ? `⚽ ${isLowCross ? 'LOW CROSS' : 'HEADER'} GOAL! ${striker.name} converts ${winger.name}'s cross in [${boxZone.toUpperCase()}]! (d10:${finishDie}+${strikerSkillName}:${strikerSkill}${fmtBonus(totalAttBonus)}=${finishTotal} vs d10:${gkDie}+${boxDef.formulaName}:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff +${finishDiff} >= 2)`
-      : `${boxDef.dc?.name || 'DC'} & ${boxDef.gk?.name || 'GK'} stop ${striker.name} in [${boxZone.toUpperCase()}] (d10:${finishDie}+${strikerSkillName}:${strikerSkill}${fmtBonus(totalAttBonus)}=${finishTotal} vs d10:${gkDie}+${boxDef.formulaName}:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff ${finishDiff >= 0 ? `+${finishDiff}` : finishDiff} < 2)`
+      ? `⚽ ${isLowCross ? 'LOW CROSS' : 'HEADER'} GOAL! ${striker.name} converts ${winger.name}'s cross in [${boxZone.toUpperCase()}]! (d10:${finishDie}+${strikerSkillName}:${strikerSkill}${fmtBonus(totalAttBonus)}=${finishTotal} vs d10:${gkDie}+${boxDef.formulaName}:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff +${finishDiff} >= 3)`
+      : `${boxDef.dc?.name || 'DC'} & ${boxDef.gk?.name || 'GK'} stop ${striker.name} in [${boxZone.toUpperCase()}] (d10:${finishDie}+${strikerSkillName}:${strikerSkill}${fmtBonus(totalAttBonus)}=${finishTotal} vs d10:${gkDie}+${boxDef.formulaName}:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff ${finishDiff >= 0 ? `+${finishDiff}` : finishDiff} < 3)`
   });
 
   logs.push(finishLog);

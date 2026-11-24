@@ -1,7 +1,8 @@
 import React from 'react';
 import {
   getAvailableRolesForSlot,
-  getAvailableInstructionsForSlot
+  getAvailableInstructionsForSlot,
+  getDefaultInstructionForSlot
 } from '../utils/tacticalRoleEngine';
 
 export function PlayerRoleInstructionsModal({
@@ -20,9 +21,10 @@ export function PlayerRoleInstructionsModal({
   const availableRoles = getAvailableRolesForSlot(slot, player);
   const activeRole = availableRoles.find(r => r.id === currentRoleId) || availableRoles[0];
   const availableInstructions = getAvailableInstructionsForSlot(slot, player, activeRole?.id || 'normal');
+  const defaultInstrId = getDefaultInstructionForSlot(slot, player, activeRole?.id || 'normal');
   const activeInstrId = currentInstructionId && availableInstructions.some(i => i.id === currentInstructionId)
     ? currentInstructionId
-    : availableInstructions[0]?.id;
+    : defaultInstrId;
 
   const sk = player.skills || {};
   const posLabel = slot.label || player.position || 'P';
