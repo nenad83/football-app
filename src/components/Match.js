@@ -61,6 +61,8 @@ import {
   getGoalkeeperSaveModifier,
   rollPenalty,
   resolveFoulCheck,
+  advanceMatchClock,
+  formatMatchClock,
   simulateFixture as simulateFixtureEngine,
   ENGINE_MODE_D10,
   ENGINE_MODE_CLASSIC_D6,
@@ -589,6 +591,25 @@ export default function Match() {
   const isAwayDisabled = playerTeamId !== null && teamtwoname !== playerTeamId;
 
   const [time, setTime] = useState(0);
+  const [stoppageMinutes, setStoppageMinutes] = useState(0);
+  const [stoppageAddedTotal, setStoppageAddedTotal] = useState(0);
+  const [halfPhase, setHalfPhase] = useState('FIRST_HALF');
+  const clockStateRef = useRef({ time: 0, stoppageMinutes: 0, stoppageAddedTotal: 0, halfPhase: 'FIRST_HALF' });
+  const prevHalfPhaseRef = useRef('FIRST_HALF');
+  const syncMatchClock = useCallback((nextClock) => {
+    const clean = {
+      time: nextClock.time,
+      stoppageMinutes: nextClock.stoppageMinutes || 0,
+      stoppageAddedTotal: nextClock.stoppageAddedTotal || 0,
+      halfPhase: nextClock.halfPhase || 'FIRST_HALF'
+    };
+    clockStateRef.current = clean;
+    setTime(clean.time);
+    setStoppageMinutes(clean.stoppageMinutes);
+    setStoppageAddedTotal(clean.stoppageAddedTotal);
+    setHalfPhase(clean.halfPhase);
+    return clean;
+  }, []);
   const [isGameOver, setIsGameOver] = useState(false);
 
   const [playMode] = useState(startingTactics.playMode || "manual");
@@ -1037,7 +1058,7 @@ export default function Match() {
 
       const maxStoppages = getStoppageLimit(null, season);
       const currentStoppages = isPlayerHome ? homeStoppagesUsed : awayStoppagesUsed;
-      if (time !== 45 && time !== 0 && currentStoppages >= maxStoppages) {
+      if (halfPhase !== 'HALFTIME' && time !== 0 && currentStoppages >= maxStoppages) {
         alert(`You cannot make any more substitutions during active play as you have used all ${maxStoppages} stoppage windows!`);
         return;
       }
@@ -1184,7 +1205,7 @@ export default function Match() {
     // Check if any substitutions were made and update stoppages count
     const subsAfter = isPlayerHome ? homeSubs : awaySubs;
     const subsUsed = subsAfter - subsBeforeModalOpen;
-    if (subsUsed > 0 && time !== 45 && time !== 0) {
+    if (subsUsed > 0 && halfPhase !== 'HALFTIME' && time !== 0) {
       if (isPlayerHome) {
         setHomeStoppagesUsed(prev => prev + 1);
       } else {
@@ -1231,7 +1252,7 @@ export default function Match() {
     }
   };
 
-  const matchTeamInstructionsSummary = `${teamInstructions.attackingFocus === 'left' ? '⬅ LEFT' : (teamInstructions.attackingFocus === 'right' ? 'RIGHT ➡' : (teamInstructions.attackingFocus === 'center' ? '🎯 CTR' : '↔ FLANKS'))} • ${teamInstructions.passing === 'long' ? 'LONG' : 'SHORT'}`;
+  const matchTeamInstructionsSummary = `${teamInstructions.attackingFocus === 'left' ? '⬅ LEFT' : (teamInstructions.attackingFocus === 'right' ? 'RIGHT ➡' : (teamInstructions.attackingFocus === 'center' ? '🎯 CTR' : (teamInstructions.attackingFocus === 'both_flanks' ? '↔ FLANKS' : '🎲 MIXED')))} • ${teamInstructions.passing === 'long' ? 'LONG' : 'SHORT'}`;
 
   const handleCPUTacticChangeHome = (newTactic) => {
     if (newTactic === homeTactic) return;
@@ -1468,12 +1489,13 @@ export default function Match() {
       playCMSound(sound);
     }
 
-    const newEvent = { time, text: String(text), type, side: eventSide };
+    const activeClockLbl = options?.clockLabel || formatMatchClock(clockStateRef.current.time, clockStateRef.current.stoppageMinutes);
+    const newEvent = { time: activeClockLbl, text: String(text), type, side: eventSide };
     setChronicle(prev => [newEvent, ...prev]);
     if (!options?.skipBanner) {
       setLiveBanner(newEvent);
     }
-  }, [time, playCMSound]);
+  }, [playCMSound]);
 
   const getTeamLineup = useCallback((teamKey) => {
     if (teamKey === null || teamKey === undefined) return null;
@@ -1634,31 +1656,27 @@ export default function Match() {
 
   // Manage referee whistle sounds on key match transitions
   useEffect(() => {
-    // 1. Kickoffs (whistle.mp3)
-    if (prevTimeRef.current === 90 && time > 90) {
-      // Extra Time kickoff
+    if (prevHalfPhaseRef.current === 'SECOND_HALF' && halfPhase === 'EXTRA_TIME') {
       playSoundFile(whistleAudioRef);
     }
 
-    // 2. End of halves (final_whistle.mp3)
-    if (prevTimeRef.current < 45 && time === 45) {
+    if (prevHalfPhaseRef.current === 'FIRST_HALF' && halfPhase === 'HALFTIME') {
       playSoundFile(finalWhistleAudioRef);
-    } else if (prevTimeRef.current < 90 && time === 90) {
+    } else if (prevHalfPhaseRef.current === 'SECOND_HALF' && halfPhase === 'FULLTIME') {
       playSoundFile(finalWhistleAudioRef);
     } else if (prevTimeRef.current < 120 && time === 120) {
       playSoundFile(finalWhistleAudioRef);
     }
 
-    // 3. Penalty shootout end (final_whistle.mp3)
     if (!prevIsGameOverRef.current && isGameOver && isPenaltyShootout) {
       playSoundFile(finalWhistleAudioRef);
     }
 
-    // Update refs for tracking next transitions
     prevTimeRef.current = time;
+    prevHalfPhaseRef.current = halfPhase;
     prevIsGameOverRef.current = isGameOver;
     prevIsPenaltyShootoutRef.current = isPenaltyShootout;
-  }, [time, isGameOver, isPenaltyShootout]);
+  }, [time, halfPhase, isGameOver, isPenaltyShootout]);
 
   const renderKit = (team) => {
     if (!team) return <div className="empty-kit-slot">?</div>;
@@ -2020,14 +2038,46 @@ export default function Match() {
     }
   };
 
+  const finalizePendingWhistleIfStoppageDone = () => {
+    const cur = clockStateRef.current;
+    if (cur.halfPhase === 'FIRST_HALF' && cur.time === 45 && cur.stoppageAddedTotal > 0 && cur.stoppageMinutes >= cur.stoppageAddedTotal) {
+      syncMatchClock({ time: 45, stoppageMinutes: 0, stoppageAddedTotal: 0, halfPhase: 'HALFTIME' });
+      return true;
+    }
+    if (cur.halfPhase === 'SECOND_HALF' && cur.time === 90 && cur.stoppageAddedTotal > 0 && cur.stoppageMinutes >= cur.stoppageAddedTotal) {
+      syncMatchClock({ time: 90, stoppageMinutes: 0, stoppageAddedTotal: 0, halfPhase: 'END_OF_REGULATION' });
+      return true;
+    }
+    return false;
+  };
+
+  const stepMatchClockAndAnnounce = (stepMins = 1) => {
+    const nextClock = advanceMatchClock(clockStateRef.current, stepMins);
+    syncMatchClock(nextClock);
+    if (nextClock.announcedAdded > 0) {
+      logEvent(
+        `⏱️ Fourth official signals +${nextClock.announcedAdded} minute${nextClock.announcedAdded > 1 ? 's' : ''} of ${nextClock.time === 45 ? '1st-half' : '2nd-half'} stoppage time!`,
+        "normal",
+        "neutral",
+        { clockLabel: nextClock.label }
+      );
+    }
+    return nextClock;
+  };
+
   function increaseTime() {
     if (isGameOver) return;
 
-    const nextMilestone = time < 45 ? 45 : (time < 90 ? 90 : 120);
-    // In 12-Box Skills Engine, clock increases by +2 mins in the midfield only
-    const timeDelta = engineMode === ENGINE_MODE_ZONES_12
-      ? Math.min(2, Math.max(1, nextMilestone - time))
-      : 3;
+    const prevClock = clockStateRef.current;
+    const isHalfStart = (prevClock.time === 0 && prevClock.halfPhase === 'FIRST_HALF') ||
+      prevClock.halfPhase === 'HALFTIME' ||
+      (prevClock.time === 90 && prevClock.halfPhase === 'EXTRA_TIME' && prevClock.stoppageMinutes === 0);
+
+    // 12-Box Engine advances strictly +1' per step (Step 1, Step 2, Step 3)
+    const timeDelta = engineMode === ENGINE_MODE_ZONES_12 ? 1 : 3;
+    const nextClock = stepMatchClockAndAnnounce(timeDelta);
+    const nextTime = nextClock.time;
+    const nextMilestone = nextClock.halfPhase === 'FIRST_HALF' ? 45 : (nextClock.halfPhase === 'SECOND_HALF' ? 90 : 120);
     let zoneRes = null;
 
     if (engineMode === ENGINE_MODE_ZONES_12) {
@@ -2037,7 +2087,6 @@ export default function Match() {
       const awayRolesActive = getActiveRolesForTeam(teamtwoname);
       const homeTeamObj = teamid[teamonename] || {};
       const awayTeamObj = teamid[teamtwoname] || {};
-      const isHalfStart = time === 0 || time === 45 || time === 90;
       const postGoalKickoffSide = isHalfStart ? null : zone12KickoffPendingRef.current;
       const isKickoffRestart = Boolean(isHalfStart || postGoalKickoffSide);
       const activeRecycleState = (isHalfStart || postGoalKickoffSide) ? null : zone12RecycleRef.current;
@@ -2046,10 +2095,13 @@ export default function Match() {
       const activeHumanTeamTactics = teamInstructionsRef.current;
       const homeTeamTactics = (!isHomeDisabled && teamonename === playerTeamId)
         ? activeHumanTeamTactics
-        : { mentality: homeTactic, counterAttack: homeCounter, pressing: homePressing, attackingFocus: 'both_flanks', passing: 'short', tackling: 'normal' };
+        : { mentality: homeTactic, counterAttack: homeCounter, pressing: homePressing, attackingFocus: 'mixed', passing: 'short', tackling: 'normal' };
       const awayTeamTactics = (!isAwayDisabled && teamtwoname === playerTeamId)
         ? activeHumanTeamTactics
-        : { mentality: awayTactic, counterAttack: awayCounter, pressing: awayPressing, attackingFocus: 'both_flanks', passing: 'short', tackling: 'normal' };
+        : { mentality: awayTactic, counterAttack: awayCounter, pressing: awayPressing, attackingFocus: 'mixed', passing: 'short', tackling: 'normal' };
+
+      const peekStep2Clock = advanceMatchClock(nextClock, 1, { fixedAddedMinutes: nextClock.stoppageAddedTotal || 2 });
+      const peekStep3Clock = advanceMatchClock(peekStep2Clock, 1, { fixedAddedMinutes: peekStep2Clock.stoppageAddedTotal || 2 });
 
       zoneRes = simulateZone12Possession({
         homeLineup: homeLineupData,
@@ -2066,8 +2118,13 @@ export default function Match() {
         awayTactic,
         homeTeam: homeTeamObj,
         awayTeam: awayTeamObj,
-        minute: time,
+        minute: nextTime,
         maxMinute: nextMilestone,
+        stepMinuteLabels: {
+          step1: nextClock.label,
+          step2: peekStep2Clock.label,
+          step3: peekStep3Clock.label
+        },
         preferredAttacker: isHalfStart ? null : (postGoalKickoffSide || zone12NextAttackerRef.current),
         isKickoffRestart,
         recycleState: activeRecycleState
@@ -2211,11 +2268,8 @@ export default function Match() {
     setHasAwayScoreChance(false);
     setBallPosition("center");
 
-    const nextTime = Math.min(nextMilestone, time + timeDelta);
-    setTime(nextTime);
-
     if (engineMode === ENGINE_MODE_ZONES_12 && zoneRes) {
-      const isMilestoneStop = nextTime === 45 || nextTime === 90 || nextTime === 120;
+      const isMilestoneStop = nextTime === 120 && nextClock.halfPhase === 'EXTRA_TIME';
       const step1 = zoneRes.steps[0];
       const s1Side = zoneRes.step1Side || zoneRes.attackingSide;
       const s1DefSide = s1Side === 'home' ? 'away' : 'home';
@@ -2271,6 +2325,7 @@ export default function Match() {
           );
         }
         setBallPosition("center");
+        finalizePendingWhistleIfStoppageDone();
       } else {
         // Either initiator broke through (diff >= +2) OR defender stole it for instant counter (diff <= -2)
         zone12PendingRef.current = zoneRes;
@@ -2298,13 +2353,13 @@ export default function Match() {
     }
 
     // AI CPU substitutions
-    if (nextTime >= 45) {
+    if (nextClock.halfPhase === 'SECOND_HALF' || nextTime > 45) {
       const maxSubs = getSubstitutionLimit(null, season);
       const maxStoppages = getStoppageLimit(null, season);
 
       // Home CPU sub
       if (isHomeDisabled && homeSubs < maxSubs && nextTime >= 60 && Math.random() < 0.20) {
-        const isStoppage = nextTime !== 45;
+        const isStoppage = nextClock.halfPhase !== 'HALFTIME';
         if (!isStoppage || maxStoppages >= 99 || homeStoppagesUsed < maxStoppages) {
           setHomeSubs(prev => prev + 1);
           if (isStoppage && maxStoppages < 99) {
@@ -2315,7 +2370,7 @@ export default function Match() {
       }
       // Away CPU sub
       if (isAwayDisabled && awaySubs < maxSubs && nextTime >= 60 && Math.random() < 0.20) {
-        const isStoppage = nextTime !== 45;
+        const isStoppage = nextClock.halfPhase !== 'HALFTIME';
         if (!isStoppage || maxStoppages >= 99 || awayStoppagesUsed < maxStoppages) {
           setAwaySubs(prev => prev + 1);
           if (isStoppage && maxStoppages < 99) {
@@ -2433,6 +2488,8 @@ export default function Match() {
     isPenaltyShootout,
     showGoalFlash,
     time,
+    stoppageMinutes,
+    halfPhase,
     hasHomeChance,
     hasAwayChance,
     hasHomeScoreChance,
@@ -2591,6 +2648,7 @@ export default function Match() {
     const cardEntry = {
       id: `${time}_${teamKey}_${offender.player.name}_${Math.random().toString(36).slice(2, 6)}`,
       time,
+      displayTime: formatMatchClock(clockStateRef.current.time, clockStateRef.current.stoppageMinutes),
       teamKey,
       side,
       playerName: offender.player.name,
@@ -2728,7 +2786,7 @@ export default function Match() {
   };
 
   useEffect(() => {
-    if (time === 0) {
+    if (time === 0 && halfPhase === 'FIRST_HALF') {
       logEvent({
         text: `Referee ${referee} calls the captains. KICK OFF! The match is underway!`,
         sound: "kickoff.wav"
@@ -2736,7 +2794,7 @@ export default function Match() {
       return;
     }
 
-    if (time === 45) {
+    if (halfPhase === 'HALFTIME') {
       logEvent({
         text: `Halftime whistle blows! ${teamid[teamonename].name} ${scorehome} - ${scoreaway} ${teamid[teamtwoname].name}. The players head to the lockers.`,
         sound: "halfwhis.wav"
@@ -2747,7 +2805,7 @@ export default function Match() {
       return;
     }
 
-    if (time === 90) {
+    if (halfPhase === 'END_OF_REGULATION') {
       let needsExtraTime = false;
       let playerAgg = 0;
       let oppAgg = 0;
@@ -2842,8 +2900,10 @@ export default function Match() {
       }
 
       if (needsExtraTime) {
+        syncMatchClock({ time: 90, stoppageMinutes: 0, stoppageAddedTotal: 0, halfPhase: 'EXTRA_TIME' });
         logEvent("Full time whistle! Tied on aggregate. We head to Extra Time!", "kickoff");
       } else {
+        syncMatchClock({ time: 90, stoppageMinutes: 0, stoppageAddedTotal: 0, halfPhase: 'FULLTIME' });
         setIsGameOver(true);
         if ((isEurope || isEuropeanQualifierMatch) && isKnockoutLeg2) {
           logEvent(`FULL TIME! Final Score: ${teamid[teamonename].name} ${scorehome} - ${scoreaway} ${teamid[teamtwoname].name} (Aggregate: ${playerAgg} - ${oppAgg})`, "kickoff");
@@ -2854,7 +2914,7 @@ export default function Match() {
       return;
     }
 
-    if (time === 120) {
+    if (time === 120 && halfPhase === 'EXTRA_TIME') {
       const currentCalEvent = leagueState?.calendar ? leagueState.calendar[leagueState.calendarIndex] : null;
       const isEuropeanQualifierLeg2 = isLeague && currentCalEvent && currentCalEvent.type === "europe_qualifier" && currentCalEvent.leg === 2 && Boolean(leagueState?.europeanQualifierState);
 
@@ -2893,7 +2953,15 @@ export default function Match() {
     }
 
     // Midfield calculations
-    if (time > 0 && !isGameOver && !isPenaltyShootout) {
+    if (
+      time > 0 &&
+      !isGameOver &&
+      !isPenaltyShootout &&
+      halfPhase !== 'HALFTIME' &&
+      halfPhase !== 'END_OF_REGULATION' &&
+      halfPhase !== 'FULLTIME' &&
+      !(time === 90 && halfPhase === 'EXTRA_TIME')
+    ) {
       if (engineMode === ENGINE_MODE_ZONES_12) {
         // 12-Box Skills Engine executes possession & dynamic +1/+2/+3 minute clock directly inside increaseTime()
         return;
@@ -2965,6 +3033,7 @@ export default function Match() {
             [foul1, foul2]
           );
           setBallPosition("center");
+          finalizePendingWhistleIfStoppageDone();
         }
       } else if (r1 - r2 >= midWinMargin) {
         logDuelWithFouls(
@@ -2992,29 +3061,34 @@ export default function Match() {
           [foul1, foul2]
         );
         setBallPosition("center");
+        finalizePendingWhistleIfStoppageDone();
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [time]);
+  }, [time, stoppageMinutes, halfPhase]);
 
-  const recordGoalEvent = (side, scoringTeamName, goalMinute, scorer, assister = null) => {
+  const recordGoalEvent = (side, scoringTeamName, goalMinute, scorer, assister = null, displayMinute = null) => {
     if (!scorer) return;
+    const shownMinute = displayMinute || String(goalMinute);
     const entry = {
       type: 'goal',
       side,
       team: scoringTeamName,
       minute: goalMinute,
+      displayMinute: shownMinute,
       scorer: {
         name: scorer.name,
         position: scorer.position || 'ST',
         team: scoringTeamName,
-        minute: goalMinute
+        minute: goalMinute,
+        displayMinute: shownMinute
       },
       assister: assister ? {
         name: assister.name,
         position: assister.position || 'MC',
         team: scoringTeamName,
-        minute: goalMinute
+        minute: goalMinute,
+        displayMinute: shownMinute
       } : null
     };
     matchGoalEventsRef.current.push(entry);
@@ -3038,14 +3112,17 @@ export default function Match() {
     const homeTeamObj = teamid[teamonename] || {};
     const awayTeamObj = teamid[teamtwoname] || {};
     const scoringTeamName = isHomeGoal ? homeTeamObj.name : awayTeamObj.name;
-    const goalMinute = Math.max(1, time);
+    const curClock = clockStateRef.current;
+    const goalMinute = Math.max(1, curClock.time);
+    const goalClockLabel = formatMatchClock(curClock.time, curClock.stoppageMinutes);
 
     recordGoalEvent(
       isHomeGoal ? 'home' : 'away',
       scoringTeamName,
       goalMinute,
       zoneRes.scorer,
-      zoneRes.assister
+      zoneRes.assister,
+      goalClockLabel
     );
 
     if (isHomeGoal) {
@@ -3082,6 +3159,8 @@ export default function Match() {
       setBallPosition("center");
       return;
     }
+
+    stepMatchClockAndAnnounce(1);
 
     const isHomeAtt = side === 'home';
     const defSide = isHomeAtt ? 'away' : 'home';
@@ -3148,6 +3227,7 @@ export default function Match() {
       } else {
         setBallPosition("center");
       }
+      finalizePendingWhistleIfStoppageDone();
     }
   };
 
@@ -3159,6 +3239,8 @@ export default function Match() {
       setBallPosition("center");
       return;
     }
+
+    stepMatchClockAndAnnounce(1);
 
     const isHomeAtt = side === 'home';
     const defSide = isHomeAtt ? 'away' : 'home';
@@ -3207,6 +3289,7 @@ export default function Match() {
       zone12RecycleRef.current = null;
       setLastZone12Result(zoneRes);
       applyZone12Goal(zoneRes);
+      finalizePendingWhistleIfStoppageDone();
       return;
     }
 
@@ -3245,7 +3328,7 @@ export default function Match() {
         gk,
         attTeamName,
         defTeamName,
-        minute: Math.max(1, time)
+        minute: Math.max(1, clockStateRef.current.time)
       });
 
       updateZone12RollDisplay(penRes.step, side);
@@ -3263,11 +3346,13 @@ export default function Match() {
       } else {
         setBallPosition("center");
       }
+      finalizePendingWhistleIfStoppageDone();
       return;
     }
 
     setLastZone12Result(zoneRes);
     setBallPosition("center");
+    finalizePendingWhistleIfStoppageDone();
   };
 
   // Home Attacks
@@ -3329,6 +3414,7 @@ export default function Match() {
         [homeFoul, awayFoul]
       );
       setBallPosition("center");
+      finalizePendingWhistleIfStoppageDone();
     }
   }
 
@@ -3373,7 +3459,14 @@ export default function Match() {
       const goalRes = getGoalCommentary(homeName, awayName, homeLineupData, awayLineupData, homeFormation, homeRoles);
       logEvent(goalRes, "goal", "home");
       if (goalRes?.scorer) {
-        recordGoalEvent('home', homeName, Math.max(1, time), goalRes.scorer, goalRes.assister);
+        recordGoalEvent(
+          'home',
+          homeName,
+          Math.max(1, clockStateRef.current.time),
+          goalRes.scorer,
+          goalRes.assister,
+          formatMatchClock(clockStateRef.current.time, clockStateRef.current.stoppageMinutes)
+        );
       }
       const nextHomeScore = scorehome + 1;
       setScoreHome(nextHomeScore);
@@ -3397,6 +3490,7 @@ export default function Match() {
       logEvent(getSaveCommentary(awayName, homeName, awayLineupData, homeLineupData, homeFormation, homeRoles), "save", "away");
       setBallPosition("center");
     }
+    finalizePendingWhistleIfStoppageDone();
   }
 
   // Away Attacks
@@ -3458,6 +3552,7 @@ export default function Match() {
         [awayFoul, homeFoul]
       );
       setBallPosition("center");
+      finalizePendingWhistleIfStoppageDone();
     }
   }
 
@@ -3487,7 +3582,14 @@ export default function Match() {
       const goalRes = getGoalCommentary(awayName, homeName, awayLineupData, homeLineupData, awayFormation, awayRoles);
       logEvent(goalRes, "goal", "away");
       if (goalRes?.scorer) {
-        recordGoalEvent('away', awayName, Math.max(1, time), goalRes.scorer, goalRes.assister);
+        recordGoalEvent(
+          'away',
+          awayName,
+          Math.max(1, clockStateRef.current.time),
+          goalRes.scorer,
+          goalRes.assister,
+          formatMatchClock(clockStateRef.current.time, clockStateRef.current.stoppageMinutes)
+        );
       }
       const nextAwayScore = scoreaway + 1;
       setScoreAway(nextAwayScore);
@@ -3511,6 +3613,7 @@ export default function Match() {
       logEvent(getSaveCommentary(homeName, awayName, homeLineupData, awayLineupData, awayFormation, awayRoles), "save", "home");
       setBallPosition("center");
     }
+    finalizePendingWhistleIfStoppageDone();
   }
 
   // Helper to check shootout winner
@@ -5346,7 +5449,7 @@ export default function Match() {
               )}
             </span>
             <span style={{ color: '#00ff88', fontFamily: 'Orbitron', fontSize: '9.5px', fontWeight: 800, flexShrink: 0 }}>
-              {g.minute}'
+              {g.displayMinute || g.minute}'
             </span>
           </div>
         )
@@ -5375,7 +5478,7 @@ export default function Match() {
               🟨 {c.playerName} {c.position ? <span style={{ color: '#94a3b8', fontSize: '9.5px' }}>({c.position})</span> : null}
             </span>
             <span style={{ color: '#ffd700', fontFamily: 'Orbitron', fontSize: '9.5px', fontWeight: 800, flexShrink: 0 }}>
-              {c.time}'
+              {c.displayTime || c.time}'
             </span>
           </div>
         )
@@ -5407,7 +5510,7 @@ export default function Match() {
               </span>
             </span>
             <span style={{ color: '#ff4d6d', fontFamily: 'Orbitron', fontSize: '9.5px', fontWeight: 800, flexShrink: 0 }}>
-              {c.time}'
+              {c.displayTime || c.time}'
             </span>
           </div>
         )
@@ -5605,7 +5708,12 @@ export default function Match() {
 
         <div className="board-panel match-clock">
           <span className="clock-label">TIME</span>
-          <span className="clock-val">{time}'</span>
+          <span className="clock-val">{formatMatchClock(time, stoppageMinutes)}'</span>
+          {stoppageAddedTotal > 0 && (halfPhase === 'FIRST_HALF' || halfPhase === 'SECOND_HALF') && (
+            <span style={{ fontSize: '9px', color: '#ffd700', fontFamily: 'Orbitron', marginTop: '2px', letterSpacing: '0.5px' }}>
+              +{stoppageAddedTotal} ADDED
+            </span>
+          )}
         </div>
       </div>
 
@@ -5905,14 +6013,18 @@ export default function Match() {
               <button
                 className="match-control-btn kickoff-theme-btn glowing-btn"
                 onClick={() => {
-                  if (time === 0 || time === 45) {
+                  if ((time === 0 && halfPhase === 'FIRST_HALF') || halfPhase === 'HALFTIME') {
                     playSoundFile(whistleAudioRef);
                   }
                   increaseTime();
                 }}
                 style={theme.buttonStyle}
               >
-                {time === 0 ? "KICK OFF MATCH" : (time === 45 ? "START 2ND HALF" : "ADVANCE TIME (Next Event)")}
+                {time === 0 && halfPhase === 'FIRST_HALF'
+                  ? "KICK OFF MATCH"
+                  : (halfPhase === 'HALFTIME'
+                    ? "START 2ND HALF"
+                    : (stoppageMinutes > 0 ? "ADVANCE TIME (Stoppage Time)" : "ADVANCE TIME (Next Event)"))}
               </button>
             )}
 
@@ -5960,7 +6072,7 @@ export default function Match() {
                     onClick={() => {
                       const nextPlaying = !isPlaying;
                       setIsPlaying(nextPlaying);
-                      if (nextPlaying && (time === 0 || time === 45)) {
+                      if (nextPlaying && ((time === 0 && halfPhase === 'FIRST_HALF') || halfPhase === 'HALFTIME')) {
                         playSoundFile(whistleAudioRef);
                       }
                     }}
@@ -6033,8 +6145,11 @@ export default function Match() {
                     if (hasAwayScoreChance) return `🎯 ${teamid[teamtwoname].name} is shooting!`;
                     if (hasHomeChance) return `🔥 ${teamid[teamonename].name} is in attack!`;
                     if (hasAwayChance) return `🔥 ${teamid[teamtwoname].name} is in attack!`;
-                    if (time === 0) return "⚽ Awaiting kickoff. Press Play to start.";
-                    if (time === 45) return "☕ Halftime interval. Press Play to start 2nd half.";
+                    if (time === 0 && halfPhase === 'FIRST_HALF') return "⚽ Awaiting kickoff. Press Play to start.";
+                    if (halfPhase === 'HALFTIME') return "☕ Halftime interval. Press Play to start 2nd half.";
+                    if (stoppageAddedTotal > 0 && (halfPhase === 'FIRST_HALF' || halfPhase === 'SECOND_HALF')) {
+                      return `⏱️ Stoppage time (+${stoppageAddedTotal}m added)...`;
+                    }
                     return "🔄 Standard midfield contest in progress...";
                   })()}
                 </div>

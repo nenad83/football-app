@@ -32,6 +32,12 @@ export const getCupNameByCountry = (country = "") => {
       return "Turkish Cup";
     case "scotland":
       return "Scottish Cup";
+    case "belgium":
+      return "Belgian Cup";
+    case "sweden":
+      return "Svenska Cupen";
+    case "denmark":
+      return "Danish Cup";
     case "mexico":
       return "Copa MX";
     case "usa":

@@ -97,6 +97,13 @@ export const RIVALRIES = [
   { teams: ["spartak moscow", "zenit"], name: "Two Capitals Derby", desc: "Moscow and St. Petersburg clash for Russian football supremacy." },
   { teams: ["dynamo moscow", "spartak moscow"], name: "Oldest Moscow Derby", desc: "Decades of history divide Moscow's oldest rivals." },
 
+  // Belgium, Sweden, Denmark
+  { teams: ["anderlecht", "club brugge"], name: "De Topper", desc: "Belgium's two most decorated clubs battle for supremacy." },
+  { teams: ["anderlecht", "standard liege"], name: "Belgian Clásico", desc: "Brussels vs Liège in Belgium's fiercest historical rivalry." },
+  { teams: ["aik", "djurgarden"], name: "Tvillingderbyt", desc: "Stockholm's twin giants collide in Sweden's fierce capital derby." },
+  { teams: ["malmo ff", "ifk goteborg"], name: "Swedish Classic", desc: "Sweden's two all-time most successful clubs lock horns." },
+  { teams: ["fc copenhagen", "brondby"], name: "The New Firm", desc: "Denmark's fiercely contested Copenhagen derby stops the capital." },
+
   // South America
   { teams: ["boca", "river"], name: "Superclásico", desc: "A visceral, unforgettable football carnival of pure Argentine devotion." },
   { teams: ["independiente", "racing"], name: "Clásico de Avellaneda", desc: "Two stadiums separated by only a few hundred meters, locked in fierce rivalry." },

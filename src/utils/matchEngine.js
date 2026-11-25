@@ -316,3 +316,97 @@ export function getEngineMetadata(modeOverride = null) {
     description: '1-5 Ratings | d6 Duels | d6 Finishing'
   };
 }
+
+/**
+ * Rolls random added/injury time:
+ * - 1st Half ('FIRST_HALF'): random 1–3 minutes
+ * - 2nd Half ('SECOND_HALF'): random 2–5 minutes
+ */
+export function rollInjuryTimeMinutes(halfPhase = 'FIRST_HALF') {
+  if (halfPhase === 'FIRST_HALF') {
+    return Math.floor(Math.random() * 3) + 1;
+  }
+  if (halfPhase === 'SECOND_HALF') {
+    return Math.floor(Math.random() * 4) + 2;
+  }
+  return 0;
+}
+
+/**
+ * Formats match clock label without trailing quote (e.g. "45+2", "90+4", "37").
+ */
+export function formatMatchClock(baseMinute = 0, stoppageMinutes = 0) {
+  return stoppageMinutes > 0 ? `${baseMinute}+${stoppageMinutes}` : `${baseMinute}`;
+}
+
+/**
+ * Advances the match clock cleanly with random 1st/2nd half stoppage time and
+ * resets the 1st-half stoppage counter cleanly back to 45' when 2nd half starts.
+ */
+export function advanceMatchClock({
+  time = 0,
+  stoppageMinutes = 0,
+  stoppageAddedTotal = 0,
+  halfPhase = 'FIRST_HALF'
+} = {}, stepMinutes = 1, options = {}) {
+  const safeStep = Math.max(1, Number(stepMinutes) || 1);
+  const fixedAdded = options.fixedAddedMinutes ?? null;
+  let nextTime = time;
+  let nextStoppage = stoppageMinutes;
+  let nextAdded = stoppageAddedTotal;
+  let nextHalfPhase = halfPhase;
+  let announcedAdded = 0;
+
+  // Starting 2nd half from halftime resets stoppage cleanly at 45 before stepping forward
+  if (nextHalfPhase === 'HALFTIME') {
+    nextHalfPhase = 'SECOND_HALF';
+    nextTime = 45;
+    nextStoppage = 0;
+    nextAdded = 0;
+  }
+
+  if (nextHalfPhase === 'FIRST_HALF') {
+    if (nextTime < 45) {
+      nextTime = Math.min(45, nextTime + safeStep);
+      if (nextTime === 45 && nextAdded === 0) {
+        nextAdded = fixedAdded ?? rollInjuryTimeMinutes('FIRST_HALF');
+        announcedAdded = nextAdded;
+      }
+    } else {
+      if (nextAdded === 0) {
+        nextAdded = fixedAdded ?? rollInjuryTimeMinutes('FIRST_HALF');
+        announcedAdded = nextAdded;
+      }
+      nextStoppage += safeStep;
+    }
+  } else if (nextHalfPhase === 'SECOND_HALF') {
+    if (nextTime < 90) {
+      nextTime = Math.min(90, nextTime + safeStep);
+      if (nextTime === 90 && nextAdded === 0) {
+        nextAdded = fixedAdded ?? rollInjuryTimeMinutes('SECOND_HALF');
+        announcedAdded = nextAdded;
+      }
+    } else {
+      if (nextAdded === 0) {
+        nextAdded = fixedAdded ?? rollInjuryTimeMinutes('SECOND_HALF');
+        announcedAdded = nextAdded;
+      }
+      nextStoppage += safeStep;
+    }
+  } else if (nextHalfPhase === 'EXTRA_TIME') {
+    nextTime = Math.min(120, nextTime + safeStep);
+  }
+
+  return {
+    time: nextTime,
+    stoppageMinutes: nextStoppage,
+    stoppageAddedTotal: nextAdded,
+    halfPhase: nextHalfPhase,
+    announcedAdded,
+    label: formatMatchClock(nextTime, nextStoppage),
+    isStoppageExhausted: (
+      (nextHalfPhase === 'FIRST_HALF' && nextTime === 45 && nextAdded > 0 && nextStoppage >= nextAdded) ||
+      (nextHalfPhase === 'SECOND_HALF' && nextTime === 90 && nextAdded > 0 && nextStoppage >= nextAdded)
+    )
+  };
+}

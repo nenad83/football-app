@@ -1,0 +1,134 @@
+[
+  {
+    "idnum": 0,
+    "id": "swe90",
+    "name": "IFK Goteborg",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0055A4",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "swe90",
+    "name": "IFK Norrkoping",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0047AB"
+  },
+  {
+    "idnum": 2,
+    "id": "swe90",
+    "name": "Orebro SK",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/3.png",
+    "primaryColor": "#111111",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "swe90",
+    "name": "Osters IF",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#0047AB"
+  },
+  {
+    "idnum": 4,
+    "id": "swe90",
+    "name": "Djurgarden",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0038A8",
+    "secondaryColor": "#5BC2E7"
+  },
+  {
+    "idnum": 5,
+    "id": "swe90",
+    "name": "Malmo FF",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#5BC2E7",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "swe90",
+    "name": "GAIS",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#007A3D",
+    "secondaryColor": "#111111"
+  },
+  {
+    "idnum": 7,
+    "id": "swe90",
+    "name": "AIK",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/3.png",
+    "primaryColor": "#111111",
+    "secondaryColor": "#FFD700"
+  },
+  {
+    "idnum": 8,
+    "id": "swe90",
+    "name": "Halmstads BK",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0047AB",
+    "secondaryColor": "#111111"
+  },
+  {
+    "idnum": 9,
+    "id": "swe90",
+    "name": "IK Brage",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "swe90",
+    "name": "Orgryte IS",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#0047AB"
+  },
+  {
+    "idnum": 11,
+    "id": "swe90",
+    "name": "Hammarby",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  }
+]

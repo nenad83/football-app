@@ -1573,7 +1573,7 @@ export function savePlayerInstructions(teamName, season, instructionsMap) {
 
 export const DEFAULT_TEAM_TACTICS = {
   mentality: 'balanced',         // 'defense' | 'balanced' | 'attack'
-  attackingFocus: 'both_flanks', // 'left' | 'right' | 'center' | 'both_flanks'
+  attackingFocus: 'mixed',       // 'mixed' | 'left' | 'right' | 'center' | 'both_flanks'
   passing: 'short',              // 'short' | 'long'
   tackling: 'normal',            // 'easy' | 'normal' | 'hard'
   pressing: false,               // false | true
@@ -1584,8 +1584,8 @@ export function normalizeTeamTactics(raw = {}) {
   const src = raw && typeof raw === 'object' ? raw : {};
   const rawPassing = String(src.passing || 'short').toLowerCase();
   const passing = rawPassing === 'long' ? 'long' : 'short';
-  const validFocus = ['left', 'right', 'center', 'both_flanks'];
-  const attackingFocus = validFocus.includes(src.attackingFocus) ? src.attackingFocus : 'both_flanks';
+  const validFocus = ['mixed', 'left', 'right', 'center', 'both_flanks'];
+  const attackingFocus = validFocus.includes(src.attackingFocus) ? src.attackingFocus : 'mixed';
   return {
     mentality: normalizeMentality(src.mentality),
     attackingFocus,

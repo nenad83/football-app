@@ -42,11 +42,18 @@ import {
 const SA_COUNTRIES = new Set(["argentina", "brazil", "colombia"]);
 const NA_COUNTRIES = new Set(["usa", "mexico"]);
 
+const getLeagueRoundCycles = (countryKey, teamsCount) => {
+  if (countryKey === "usa") return 1;
+  if ((countryKey === "scotland" || countryKey === "denmark") && teamsCount === 12) return 3;
+  if (countryKey === "scotland" && teamsCount === 10) return 4;
+  return 2;
+};
+
 const getTotalLeagueRounds = (teamsList, countryKey, fixturesList) => {
   if (fixturesList && fixturesList.length > 0) return fixturesList.length;
   if (!teamsList || teamsList.length === 0) return 38;
   const base = teamsList.length % 2 === 0 ? teamsList.length - 1 : teamsList.length;
-  return countryKey === "usa" ? base : base * 2;
+  return base * getLeagueRoundCycles(countryKey, teamsList.length);
 };
 
 // Unified Match Simulation Helper
@@ -219,16 +226,49 @@ const countryBackupTeams = {
     { name: "Mariupol", primaryColor: "#FF8C00", secondaryColor: "#005BAA", kit: "ecu93/1.png" },
     { name: "Volyn Lutsk", primaryColor: "#CC0000", secondaryColor: "#FFFFFF", kit: "ger88/1.png" },
     { name: "Bukovyna Chernivtsi", primaryColor: "#FFFF00", secondaryColor: "#000000", kit: "mex86/3.png" }
+  ],
+  belgium: [
+    { name: "Westerlo", primaryColor: "#FFCC00", secondaryColor: "#0033A0", kit: "mex86/3.png" },
+    { name: "Sint-Truiden", primaryColor: "#FFDD00", secondaryColor: "#003399", kit: "mex86/3.png" },
+    { name: "Kortrijk", primaryColor: "#CC0000", secondaryColor: "#FFFFFF", kit: "ger88/1.png" },
+    { name: "OH Leuven", primaryColor: "#FFFFFF", secondaryColor: "#111111", kit: "swe92/0.png" },
+    { name: "Zulte Waregem", primaryColor: "#800020", secondaryColor: "#008000", kit: "swe92/4.png" },
+    { name: "Beveren", primaryColor: "#FFD700", secondaryColor: "#0047AB", kit: "mex86/3.png" },
+    { name: "Lokeren", primaryColor: "#FFFFFF", secondaryColor: "#111111", kit: "swe92/0.png" },
+    { name: "Dender", primaryColor: "#003399", secondaryColor: "#111111", kit: "swe92/0.png" },
+    { name: "Eupen", primaryColor: "#111111", secondaryColor: "#FFFFFF", kit: "swe92/3.png" }
+  ],
+  sweden: [
+    { name: "GAIS", primaryColor: "#007A3D", secondaryColor: "#111111", kit: "swe92/1.png" },
+    { name: "Degerfors IF", primaryColor: "#CC0000", secondaryColor: "#FFFFFF", kit: "ger88/1.png" },
+    { name: "Osters IF", primaryColor: "#CC0000", secondaryColor: "#0047AB", kit: "ger88/1.png" },
+    { name: "GIF Sundsvall", primaryColor: "#0047AB", secondaryColor: "#FFD700", kit: "swe92/0.png" },
+    { name: "Halmstads BK", primaryColor: "#0047AB", secondaryColor: "#111111", kit: "swe92/0.png" },
+    { name: "Trelleborgs FF", primaryColor: "#0047AB", secondaryColor: "#FFFFFF", kit: "swe92/0.png" },
+    { name: "Orgryte IS", primaryColor: "#CC0000", secondaryColor: "#0047AB", kit: "ger88/1.png" },
+    { name: "Gefle IF", primaryColor: "#5BC2E7", secondaryColor: "#FFFFFF", kit: "swe92/0.png" },
+    { name: "Vasteras SK", primaryColor: "#008000", secondaryColor: "#FFFFFF", kit: "swe92/1.png" }
+  ],
+  denmark: [
+    { name: "Vejle", primaryColor: "#D90429", secondaryColor: "#FFFFFF", kit: "ger88/1.png" },
+    { name: "Lyngby", primaryColor: "#0047AB", secondaryColor: "#FFFFFF", kit: "swe92/0.png" },
+    { name: "SonderjyskE", primaryColor: "#5BC2E7", secondaryColor: "#111111", kit: "swe92/0.png" },
+    { name: "AC Horsens", primaryColor: "#FFD700", secondaryColor: "#111111", kit: "mex86/3.png" },
+    { name: "Esbjerg", primaryColor: "#0047AB", secondaryColor: "#FFFFFF", kit: "swe92/0.png" },
+    { name: "Viborg", primaryColor: "#008000", secondaryColor: "#FFFFFF", kit: "swe92/1.png" },
+    { name: "Hobro", primaryColor: "#FFD700", secondaryColor: "#0038A8", kit: "mex86/3.png" },
+    { name: "Hvidovre", primaryColor: "#D90429", secondaryColor: "#FFFFFF", kit: "ger88/1.png" },
+    { name: "Fredericia", primaryColor: "#D90429", secondaryColor: "#111111", kit: "ger88/1.png" }
   ]
 };
 
 // Berger tables generator for fixture creation (inserts a bye slot when teamsList.length is odd)
-const generateRoundRobinFixtures = (teamsList, singleRound = false) => {
+const generateRoundRobinFixtures = (teamsList, cyclesInput = 2) => {
+  const cycles = typeof cyclesInput === 'boolean' ? (cyclesInput ? 1 : 2) : Math.max(1, cyclesInput || 2);
   const list = teamsList.length % 2 === 0 ? [...teamsList] : [...teamsList, null];
   const n = list.length;
-  const fixtures = [];
+  const firstLeg = [];
 
-  // First Leg
   for (let round = 0; round < n - 1; round++) {
     const roundFixtures = [];
     for (let i = 0; i < n / 2; i++) {
@@ -241,24 +281,23 @@ const generateRoundRobinFixtures = (teamsList, singleRound = false) => {
         roundFixtures.push({ homeId: away.idnum, awayId: home.idnum, played: false, homeScore: 0, awayScore: 0 });
       }
     }
-    fixtures.push(roundFixtures);
+    firstLeg.push(roundFixtures);
     list.splice(1, 0, list.pop());
   }
 
-  if (singleRound) {
-    return fixtures;
-  }
-
-  // Second Leg (swapped home/away)
-  for (let round = 0; round < n - 1; round++) {
-    const roundFixtures = fixtures[round].map(f => ({
-      homeId: f.awayId,
-      awayId: f.homeId,
-      played: false,
-      homeScore: 0,
-      awayScore: 0
-    }));
-    fixtures.push(roundFixtures);
+  const fixtures = [];
+  for (let cycle = 0; cycle < cycles; cycle++) {
+    const swapHomeAway = cycle % 2 === 1;
+    for (let round = 0; round < firstLeg.length; round++) {
+      const roundFixtures = firstLeg[round].map(f => ({
+        homeId: swapHomeAway ? f.awayId : f.homeId,
+        awayId: swapHomeAway ? f.homeId : f.awayId,
+        played: false,
+        homeScore: 0,
+        awayScore: 0
+      }));
+      fixtures.push(roundFixtures);
+    }
   }
 
   return fixtures;
@@ -2062,7 +2101,7 @@ export default function LeagueDashboard() {
 
       // Initialize calendar
       const baseNextRounds = finalNextSeasonTeams.length % 2 === 0 ? finalNextSeasonTeams.length - 1 : finalNextSeasonTeams.length;
-      const nextTotalRounds = finalCountry === "usa" ? baseNextRounds : baseNextRounds * 2;
+      const nextTotalRounds = baseNextRounds * getLeagueRoundCycles(finalCountry, finalNextSeasonTeams.length);
       const dynamicSchedules = generateDynamicSchedules(nextTotalRounds, rules);
       nextCalendar = [];
       for (let r = 1; r <= nextTotalRounds; r++) {
@@ -2230,7 +2269,7 @@ export default function LeagueDashboard() {
     }
 
     // 6. Generate fresh Round-Robin Fixtures for domestic league
-    const nextFixtures = generateRoundRobinFixtures(finalNextSeasonTeams, finalCountry === "usa");
+    const nextFixtures = generateRoundRobinFixtures(finalNextSeasonTeams, getLeagueRoundCycles(finalCountry, finalNextSeasonTeams.length));
     const newBoardExpectation = getExpectation(selectedTeamObj, finalNextSeasonTeams, nextDivision, finalCountry, nextSeasonStr.split("/")[0]);
 
     // Compute budget for next season

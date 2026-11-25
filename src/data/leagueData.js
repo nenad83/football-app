@@ -628,49 +628,168 @@ import ukr24Data from './leagues/ukr/ukr24.json';
 import ukr25Data from './leagues/ukr/ukr25.json';
 import ukr26Data from './leagues/ukr/ukr26.json';
 
+
+// belgium
+import bel89Data from './leagues/bel/bel89.json';
+import bel90Data from './leagues/bel/bel90.json';
+import bel91Data from './leagues/bel/bel91.json';
+import bel92Data from './leagues/bel/bel92.json';
+import bel93Data from './leagues/bel/bel93.json';
+import bel94Data from './leagues/bel/bel94.json';
+import bel95Data from './leagues/bel/bel95.json';
+import bel96Data from './leagues/bel/bel96.json';
+import bel97Data from './leagues/bel/bel97.json';
+import bel98Data from './leagues/bel/bel98.json';
+import bel99Data from './leagues/bel/bel99.json';
+import bel00Data from './leagues/bel/bel00.json';
+import bel01Data from './leagues/bel/bel01.json';
+import bel02Data from './leagues/bel/bel02.json';
+import bel03Data from './leagues/bel/bel03.json';
+import bel04Data from './leagues/bel/bel04.json';
+import bel05Data from './leagues/bel/bel05.json';
+import bel06Data from './leagues/bel/bel06.json';
+import bel07Data from './leagues/bel/bel07.json';
+import bel08Data from './leagues/bel/bel08.json';
+import bel09Data from './leagues/bel/bel09.json';
+import bel10Data from './leagues/bel/bel10.json';
+import bel11Data from './leagues/bel/bel11.json';
+import bel12Data from './leagues/bel/bel12.json';
+import bel13Data from './leagues/bel/bel13.json';
+import bel14Data from './leagues/bel/bel14.json';
+import bel15Data from './leagues/bel/bel15.json';
+import bel16Data from './leagues/bel/bel16.json';
+import bel17Data from './leagues/bel/bel17.json';
+import bel18Data from './leagues/bel/bel18.json';
+import bel19Data from './leagues/bel/bel19.json';
+import bel20Data from './leagues/bel/bel20.json';
+import bel21Data from './leagues/bel/bel21.json';
+import bel22Data from './leagues/bel/bel22.json';
+import bel23Data from './leagues/bel/bel23.json';
+import bel24Data from './leagues/bel/bel24.json';
+import bel25Data from './leagues/bel/bel25.json';
+import bel26Data from './leagues/bel/bel26.json';
+// sweden
+import swe89Data from './leagues/swe/swe89.json';
+import swe90Data from './leagues/swe/swe90.json';
+import swe91Data from './leagues/swe/swe91.json';
+import swe92Data from './leagues/swe/swe92.json';
+import swe93Data from './leagues/swe/swe93.json';
+import swe94Data from './leagues/swe/swe94.json';
+import swe95Data from './leagues/swe/swe95.json';
+import swe96Data from './leagues/swe/swe96.json';
+import swe97Data from './leagues/swe/swe97.json';
+import swe98Data from './leagues/swe/swe98.json';
+import swe99Data from './leagues/swe/swe99.json';
+import swe00Data from './leagues/swe/swe00.json';
+import swe01Data from './leagues/swe/swe01.json';
+import swe02Data from './leagues/swe/swe02.json';
+import swe03Data from './leagues/swe/swe03.json';
+import swe04Data from './leagues/swe/swe04.json';
+import swe05Data from './leagues/swe/swe05.json';
+import swe06Data from './leagues/swe/swe06.json';
+import swe07Data from './leagues/swe/swe07.json';
+import swe08Data from './leagues/swe/swe08.json';
+import swe09Data from './leagues/swe/swe09.json';
+import swe10Data from './leagues/swe/swe10.json';
+import swe11Data from './leagues/swe/swe11.json';
+import swe12Data from './leagues/swe/swe12.json';
+import swe13Data from './leagues/swe/swe13.json';
+import swe14Data from './leagues/swe/swe14.json';
+import swe15Data from './leagues/swe/swe15.json';
+import swe16Data from './leagues/swe/swe16.json';
+import swe17Data from './leagues/swe/swe17.json';
+import swe18Data from './leagues/swe/swe18.json';
+import swe19Data from './leagues/swe/swe19.json';
+import swe20Data from './leagues/swe/swe20.json';
+import swe21Data from './leagues/swe/swe21.json';
+import swe22Data from './leagues/swe/swe22.json';
+import swe23Data from './leagues/swe/swe23.json';
+import swe24Data from './leagues/swe/swe24.json';
+import swe25Data from './leagues/swe/swe25.json';
+import swe26Data from './leagues/swe/swe26.json';
+// denmark
+import den89Data from './leagues/den/den89.json';
+import den90Data from './leagues/den/den90.json';
+import den91Data from './leagues/den/den91.json';
+import den92Data from './leagues/den/den92.json';
+import den93Data from './leagues/den/den93.json';
+import den94Data from './leagues/den/den94.json';
+import den95Data from './leagues/den/den95.json';
+import den96Data from './leagues/den/den96.json';
+import den97Data from './leagues/den/den97.json';
+import den98Data from './leagues/den/den98.json';
+import den99Data from './leagues/den/den99.json';
+import den00Data from './leagues/den/den00.json';
+import den01Data from './leagues/den/den01.json';
+import den02Data from './leagues/den/den02.json';
+import den03Data from './leagues/den/den03.json';
+import den04Data from './leagues/den/den04.json';
+import den05Data from './leagues/den/den05.json';
+import den06Data from './leagues/den/den06.json';
+import den07Data from './leagues/den/den07.json';
+import den08Data from './leagues/den/den08.json';
+import den09Data from './leagues/den/den09.json';
+import den10Data from './leagues/den/den10.json';
+import den11Data from './leagues/den/den11.json';
+import den12Data from './leagues/den/den12.json';
+import den13Data from './leagues/den/den13.json';
+import den14Data from './leagues/den/den14.json';
+import den15Data from './leagues/den/den15.json';
+import den16Data from './leagues/den/den16.json';
+import den17Data from './leagues/den/den17.json';
+import den18Data from './leagues/den/den18.json';
+import den19Data from './leagues/den/den19.json';
+import den20Data from './leagues/den/den20.json';
+import den21Data from './leagues/den/den21.json';
+import den22Data from './leagues/den/den22.json';
+import den23Data from './leagues/den/den23.json';
+import den24Data from './leagues/den/den24.json';
+import den25Data from './leagues/den/den25.json';
+import den26Data from './leagues/den/den26.json';
+
 // Lookup map: leagueDataMap[season][country] => data array
 export const leagueDataMap = {
   "1985": { england: eng85Data, germany: ger85Data, spain: esp85Data, italy: ita85Data, france: fra85Data },
   "1987": { england: eng87Data, germany: ger87Data, spain: esp87Data, italy: ita87Data, france: fra87Data, portugal: por87Data, netherlands: ned87Data },
   "1988": { england: eng88Data, germany: ger88Data, spain: esp88Data, italy: ita88Data, france: fra88Data, portugal: por88Data, netherlands: ned88Data },
-  "1989": { england: eng89Data, germany: ger89Data, spain: esp89Data, italy: ita89Data, france: fra89Data, portugal: por89Data, netherlands: ned89Data, scotland: sco89Data },
-  "1990": { england: eng90Data, germany: ger90Data, spain: esp90Data, italy: ita90Data, france: fra90Data, portugal: por90Data, netherlands: ned90Data, scotland: sco90Data },
-  "1991": { england: eng91Data, germany: ger91Data, spain: esp91Data, italy: ita91Data, france: fra91Data, portugal: por91Data, netherlands: ned91Data, scotland: sco91Data, ukraine: ukr91Data },
-  "1992": { england: eng92Data, germany: ger92Data, spain: esp92Data, italy: ita92Data, france: fra92Data, russia: rus92Data, portugal: por92Data, netherlands: ned92Data, scotland: sco92Data, ukraine: ukr92Data },
-  "1993": { england: eng93Data, germany: ger93Data, spain: esp93Data, italy: ita93Data, france: fra93Data, russia: rus93Data, portugal: por93Data, netherlands: ned93Data, scotland: sco93Data, ukraine: ukr93Data },
-  "1994": { england: eng94Data, germany: ger94Data, spain: esp94Data, italy: ita94Data, france: fra94Data, russia: rus94Data, portugal: por94Data, netherlands: ned94Data, scotland: sco94Data, ukraine: ukr94Data },
-  "1995": { england: eng95Data, germany: ger95Data, spain: esp95Data, italy: ita95Data, france: fra95Data, russia: rus95Data, portugal: por95Data, netherlands: ned95Data, scotland: sco95Data, ukraine: ukr95Data },
-  "1996": { england: eng96Data, germany: ger96Data, spain: esp96Data, italy: ita96Data, france: fra96Data, russia: rus96Data, portugal: por96Data, netherlands: ned96Data, scotland: sco96Data, ukraine: ukr96Data },
-  "1997": { england: eng97Data, germany: ger97Data, spain: esp97Data, italy: ita97Data, france: fra97Data, russia: rus97Data, portugal: por97Data, netherlands: ned97Data, scotland: sco97Data, ukraine: ukr97Data },
-  "1998": { england: eng98Data, germany: ger98Data, spain: esp98Data, italy: ita98Data, france: fra98Data, russia: rus98Data, portugal: por98Data, netherlands: ned98Data, scotland: sco98Data, ukraine: ukr98Data },
-  "1999": { england: eng99Data, germany: ger99Data, spain: esp99Data, italy: ita99Data, france: fra99Data, russia: rus99Data, portugal: por99Data, netherlands: ned99Data, scotland: sco99Data, ukraine: ukr99Data },
-  "2000": { england: eng00Data, germany: ger00Data, spain: esp00Data, italy: ita00Data, france: fra00Data, russia: rus00Data, portugal: por00Data, netherlands: ned00Data, scotland: sco00Data, ukraine: ukr00Data },
-  "2001": { england: eng01Data, germany: ger01Data, spain: esp01Data, italy: ita01Data, france: fra01Data, russia: rus01Data, portugal: por01Data, netherlands: ned01Data, scotland: sco01Data, ukraine: ukr01Data },
-  "2002": { england: eng02Data, germany: ger02Data, spain: esp02Data, italy: ita02Data, france: fra02Data, russia: rus02Data, portugal: por02Data, netherlands: ned02Data, scotland: sco02Data, ukraine: ukr02Data },
-  "2003": { england: eng03Data, germany: ger03Data, spain: esp03Data, italy: ita03Data, france: fra03Data, russia: rus03Data, portugal: por03Data, netherlands: ned03Data, scotland: sco03Data, ukraine: ukr03Data },
-  "2004": { england: eng04Data, germany: ger04Data, spain: esp04Data, italy: ita04Data, france: fra04Data, russia: rus04Data, portugal: por04Data, netherlands: ned04Data, scotland: sco04Data, ukraine: ukr04Data },
-  "2005": { england: eng05Data, germany: ger05Data, spain: esp05Data, italy: ita05Data, france: fra05Data, russia: rus05Data, portugal: por05Data, netherlands: ned05Data, scotland: sco05Data, ukraine: ukr05Data },
-  "2006": { england: eng06Data, germany: ger06Data, spain: esp06Data, italy: ita06Data, france: fra06Data, russia: rus06Data, portugal: por06Data, netherlands: ned06Data, scotland: sco06Data, ukraine: ukr06Data },
-  "2007": { england: eng07Data, germany: ger07Data, spain: esp07Data, italy: ita07Data, france: fra07Data, russia: rus07Data, portugal: por07Data, netherlands: ned07Data, scotland: sco07Data, ukraine: ukr07Data },
-  "2008": { england: eng08Data, germany: ger08Data, spain: esp08Data, italy: ita08Data, france: fra08Data, russia: rus08Data, portugal: por08Data, netherlands: ned08Data, scotland: sco08Data, ukraine: ukr08Data },
-  "2009": { england: eng09Data, germany: ger09Data, spain: esp09Data, italy: ita09Data, france: fra09Data, russia: rus09Data, portugal: por09Data, netherlands: ned09Data, scotland: sco09Data, ukraine: ukr09Data },
-  "2010": { england: eng10Data, germany: ger10Data, spain: esp10Data, italy: ita10Data, france: fra10Data, russia: rus10Data, portugal: por10Data, netherlands: ned10Data, scotland: sco10Data, ukraine: ukr10Data },
-  "2011": { england: eng11Data, germany: ger11Data, spain: esp11Data, italy: ita11Data, france: fra11Data, russia: rus11Data, portugal: por11Data, netherlands: ned11Data, scotland: sco11Data, ukraine: ukr11Data },
-  "2012": { england: eng12Data, germany: ger12Data, spain: esp12Data, italy: ita12Data, france: fra12Data, russia: rus12Data, portugal: por12Data, netherlands: ned12Data, scotland: sco12Data, ukraine: ukr12Data },
-  "2013": { england: eng13Data, germany: ger13Data, spain: esp13Data, italy: ita13Data, france: fra13Data, russia: rus13Data, portugal: por13Data, netherlands: ned13Data, scotland: sco13Data, ukraine: ukr13Data },
-  "2014": { england: eng14Data, germany: ger14Data, spain: esp14Data, italy: ita14Data, france: fra14Data, russia: rus14Data, portugal: por14Data, netherlands: ned14Data, scotland: sco14Data, ukraine: ukr14Data },
-  "2015": { england: eng15Data, germany: ger15Data, spain: esp15Data, italy: ita15Data, france: fra15Data, russia: rus15Data, portugal: por15Data, netherlands: ned15Data, scotland: sco15Data, ukraine: ukr15Data },
-  "2016": { england: eng16Data, germany: ger16Data, spain: esp16Data, italy: ita16Data, france: fra16Data, russia: rus16Data, portugal: por16Data, netherlands: ned16Data, scotland: sco16Data, ukraine: ukr16Data },
-  "2017": { england: eng17Data, germany: ger17Data, spain: esp17Data, italy: ita17Data, france: fra17Data, russia: rus17Data, portugal: por17Data, netherlands: ned17Data, scotland: sco17Data, ukraine: ukr17Data },
-  "2018": { england: eng18Data, germany: ger18Data, spain: esp18Data, italy: ita18Data, france: fra18Data, russia: rus18Data, portugal: por18Data, netherlands: ned18Data, scotland: sco18Data, ukraine: ukr18Data },
-  "2019": { england: eng19Data, germany: ger19Data, spain: esp19Data, italy: ita19Data, france: fra19Data, russia: rus19Data, portugal: por19Data, netherlands: ned19Data, scotland: sco19Data, ukraine: ukr19Data },
-  "2020": { england: eng20Data, germany: ger20Data, spain: esp20Data, italy: ita20Data, france: fra20Data, russia: rus20Data, portugal: por20Data, netherlands: ned20Data, scotland: sco20Data, ukraine: ukr20Data },
-  "2021": { england: eng21Data, germany: ger21Data, spain: esp21Data, italy: ita21Data, france: fra21Data, russia: rus21Data, portugal: por21Data, netherlands: ned21Data, scotland: sco21Data, ukraine: ukr21Data },
-  "2022": { england: eng22Data, germany: ger22Data, spain: esp22Data, italy: ita22Data, france: fra22Data, russia: rus22Data, portugal: por22Data, netherlands: ned22Data, scotland: sco22Data, ukraine: ukr22Data },
-  "2023": { england: eng23Data, germany: ger23Data, spain: esp23Data, italy: ita23Data, france: fra23Data, russia: rus23Data, portugal: por23Data, netherlands: ned23Data, scotland: sco23Data, ukraine: ukr23Data },
-  "2024": { england: eng24Data, germany: ger24Data, spain: esp24Data, italy: ita24Data, france: fra24Data, russia: rus24Data, portugal: por24Data, netherlands: ned24Data, scotland: sco24Data, ukraine: ukr24Data },
-  "2025": { england: eng25Data, germany: ger25Data, spain: esp25Data, italy: ita25Data, france: fra25Data, russia: rus25Data, portugal: por25Data, netherlands: ned25Data, scotland: sco25Data, ukraine: ukr25Data },
-  "2026": { england: eng26Data, germany: ger26Data, spain: esp26Data, italy: ita26Data, france: fra26Data, russia: rus26Data, portugal: por26Data, netherlands: ned26Data, scotland: sco26Data, ukraine: ukr26Data },
+  "1989": { england: eng89Data, germany: ger89Data, spain: esp89Data, italy: ita89Data, france: fra89Data, portugal: por89Data, netherlands: ned89Data, scotland: sco89Data, belgium: bel89Data, sweden: swe89Data, denmark: den89Data },
+  "1990": { england: eng90Data, germany: ger90Data, spain: esp90Data, italy: ita90Data, france: fra90Data, portugal: por90Data, netherlands: ned90Data, scotland: sco90Data, belgium: bel90Data, sweden: swe90Data, denmark: den90Data },
+  "1991": { england: eng91Data, germany: ger91Data, spain: esp91Data, italy: ita91Data, france: fra91Data, portugal: por91Data, netherlands: ned91Data, scotland: sco91Data, ukraine: ukr91Data, belgium: bel91Data, sweden: swe91Data, denmark: den91Data },
+  "1992": { england: eng92Data, germany: ger92Data, spain: esp92Data, italy: ita92Data, france: fra92Data, russia: rus92Data, portugal: por92Data, netherlands: ned92Data, scotland: sco92Data, ukraine: ukr92Data, belgium: bel92Data, sweden: swe92Data, denmark: den92Data },
+  "1993": { england: eng93Data, germany: ger93Data, spain: esp93Data, italy: ita93Data, france: fra93Data, russia: rus93Data, portugal: por93Data, netherlands: ned93Data, scotland: sco93Data, ukraine: ukr93Data, belgium: bel93Data, sweden: swe93Data, denmark: den93Data },
+  "1994": { england: eng94Data, germany: ger94Data, spain: esp94Data, italy: ita94Data, france: fra94Data, russia: rus94Data, portugal: por94Data, netherlands: ned94Data, scotland: sco94Data, ukraine: ukr94Data, belgium: bel94Data, sweden: swe94Data, denmark: den94Data },
+  "1995": { england: eng95Data, germany: ger95Data, spain: esp95Data, italy: ita95Data, france: fra95Data, russia: rus95Data, portugal: por95Data, netherlands: ned95Data, scotland: sco95Data, ukraine: ukr95Data, belgium: bel95Data, sweden: swe95Data, denmark: den95Data },
+  "1996": { england: eng96Data, germany: ger96Data, spain: esp96Data, italy: ita96Data, france: fra96Data, russia: rus96Data, portugal: por96Data, netherlands: ned96Data, scotland: sco96Data, ukraine: ukr96Data, belgium: bel96Data, sweden: swe96Data, denmark: den96Data },
+  "1997": { england: eng97Data, germany: ger97Data, spain: esp97Data, italy: ita97Data, france: fra97Data, russia: rus97Data, portugal: por97Data, netherlands: ned97Data, scotland: sco97Data, ukraine: ukr97Data, belgium: bel97Data, sweden: swe97Data, denmark: den97Data },
+  "1998": { england: eng98Data, germany: ger98Data, spain: esp98Data, italy: ita98Data, france: fra98Data, russia: rus98Data, portugal: por98Data, netherlands: ned98Data, scotland: sco98Data, ukraine: ukr98Data, belgium: bel98Data, sweden: swe98Data, denmark: den98Data },
+  "1999": { england: eng99Data, germany: ger99Data, spain: esp99Data, italy: ita99Data, france: fra99Data, russia: rus99Data, portugal: por99Data, netherlands: ned99Data, scotland: sco99Data, ukraine: ukr99Data, belgium: bel99Data, sweden: swe99Data, denmark: den99Data },
+  "2000": { england: eng00Data, germany: ger00Data, spain: esp00Data, italy: ita00Data, france: fra00Data, russia: rus00Data, portugal: por00Data, netherlands: ned00Data, scotland: sco00Data, ukraine: ukr00Data, belgium: bel00Data, sweden: swe00Data, denmark: den00Data },
+  "2001": { england: eng01Data, germany: ger01Data, spain: esp01Data, italy: ita01Data, france: fra01Data, russia: rus01Data, portugal: por01Data, netherlands: ned01Data, scotland: sco01Data, ukraine: ukr01Data, belgium: bel01Data, sweden: swe01Data, denmark: den01Data },
+  "2002": { england: eng02Data, germany: ger02Data, spain: esp02Data, italy: ita02Data, france: fra02Data, russia: rus02Data, portugal: por02Data, netherlands: ned02Data, scotland: sco02Data, ukraine: ukr02Data, belgium: bel02Data, sweden: swe02Data, denmark: den02Data },
+  "2003": { england: eng03Data, germany: ger03Data, spain: esp03Data, italy: ita03Data, france: fra03Data, russia: rus03Data, portugal: por03Data, netherlands: ned03Data, scotland: sco03Data, ukraine: ukr03Data, belgium: bel03Data, sweden: swe03Data, denmark: den03Data },
+  "2004": { england: eng04Data, germany: ger04Data, spain: esp04Data, italy: ita04Data, france: fra04Data, russia: rus04Data, portugal: por04Data, netherlands: ned04Data, scotland: sco04Data, ukraine: ukr04Data, belgium: bel04Data, sweden: swe04Data, denmark: den04Data },
+  "2005": { england: eng05Data, germany: ger05Data, spain: esp05Data, italy: ita05Data, france: fra05Data, russia: rus05Data, portugal: por05Data, netherlands: ned05Data, scotland: sco05Data, ukraine: ukr05Data, belgium: bel05Data, sweden: swe05Data, denmark: den05Data },
+  "2006": { england: eng06Data, germany: ger06Data, spain: esp06Data, italy: ita06Data, france: fra06Data, russia: rus06Data, portugal: por06Data, netherlands: ned06Data, scotland: sco06Data, ukraine: ukr06Data, belgium: bel06Data, sweden: swe06Data, denmark: den06Data },
+  "2007": { england: eng07Data, germany: ger07Data, spain: esp07Data, italy: ita07Data, france: fra07Data, russia: rus07Data, portugal: por07Data, netherlands: ned07Data, scotland: sco07Data, ukraine: ukr07Data, belgium: bel07Data, sweden: swe07Data, denmark: den07Data },
+  "2008": { england: eng08Data, germany: ger08Data, spain: esp08Data, italy: ita08Data, france: fra08Data, russia: rus08Data, portugal: por08Data, netherlands: ned08Data, scotland: sco08Data, ukraine: ukr08Data, belgium: bel08Data, sweden: swe08Data, denmark: den08Data },
+  "2009": { england: eng09Data, germany: ger09Data, spain: esp09Data, italy: ita09Data, france: fra09Data, russia: rus09Data, portugal: por09Data, netherlands: ned09Data, scotland: sco09Data, ukraine: ukr09Data, belgium: bel09Data, sweden: swe09Data, denmark: den09Data },
+  "2010": { england: eng10Data, germany: ger10Data, spain: esp10Data, italy: ita10Data, france: fra10Data, russia: rus10Data, portugal: por10Data, netherlands: ned10Data, scotland: sco10Data, ukraine: ukr10Data, belgium: bel10Data, sweden: swe10Data, denmark: den10Data },
+  "2011": { england: eng11Data, germany: ger11Data, spain: esp11Data, italy: ita11Data, france: fra11Data, russia: rus11Data, portugal: por11Data, netherlands: ned11Data, scotland: sco11Data, ukraine: ukr11Data, belgium: bel11Data, sweden: swe11Data, denmark: den11Data },
+  "2012": { england: eng12Data, germany: ger12Data, spain: esp12Data, italy: ita12Data, france: fra12Data, russia: rus12Data, portugal: por12Data, netherlands: ned12Data, scotland: sco12Data, ukraine: ukr12Data, belgium: bel12Data, sweden: swe12Data, denmark: den12Data },
+  "2013": { england: eng13Data, germany: ger13Data, spain: esp13Data, italy: ita13Data, france: fra13Data, russia: rus13Data, portugal: por13Data, netherlands: ned13Data, scotland: sco13Data, ukraine: ukr13Data, belgium: bel13Data, sweden: swe13Data, denmark: den13Data },
+  "2014": { england: eng14Data, germany: ger14Data, spain: esp14Data, italy: ita14Data, france: fra14Data, russia: rus14Data, portugal: por14Data, netherlands: ned14Data, scotland: sco14Data, ukraine: ukr14Data, belgium: bel14Data, sweden: swe14Data, denmark: den14Data },
+  "2015": { england: eng15Data, germany: ger15Data, spain: esp15Data, italy: ita15Data, france: fra15Data, russia: rus15Data, portugal: por15Data, netherlands: ned15Data, scotland: sco15Data, ukraine: ukr15Data, belgium: bel15Data, sweden: swe15Data, denmark: den15Data },
+  "2016": { england: eng16Data, germany: ger16Data, spain: esp16Data, italy: ita16Data, france: fra16Data, russia: rus16Data, portugal: por16Data, netherlands: ned16Data, scotland: sco16Data, ukraine: ukr16Data, belgium: bel16Data, sweden: swe16Data, denmark: den16Data },
+  "2017": { england: eng17Data, germany: ger17Data, spain: esp17Data, italy: ita17Data, france: fra17Data, russia: rus17Data, portugal: por17Data, netherlands: ned17Data, scotland: sco17Data, ukraine: ukr17Data, belgium: bel17Data, sweden: swe17Data, denmark: den17Data },
+  "2018": { england: eng18Data, germany: ger18Data, spain: esp18Data, italy: ita18Data, france: fra18Data, russia: rus18Data, portugal: por18Data, netherlands: ned18Data, scotland: sco18Data, ukraine: ukr18Data, belgium: bel18Data, sweden: swe18Data, denmark: den18Data },
+  "2019": { england: eng19Data, germany: ger19Data, spain: esp19Data, italy: ita19Data, france: fra19Data, russia: rus19Data, portugal: por19Data, netherlands: ned19Data, scotland: sco19Data, ukraine: ukr19Data, belgium: bel19Data, sweden: swe19Data, denmark: den19Data },
+  "2020": { england: eng20Data, germany: ger20Data, spain: esp20Data, italy: ita20Data, france: fra20Data, russia: rus20Data, portugal: por20Data, netherlands: ned20Data, scotland: sco20Data, ukraine: ukr20Data, belgium: bel20Data, sweden: swe20Data, denmark: den20Data },
+  "2021": { england: eng21Data, germany: ger21Data, spain: esp21Data, italy: ita21Data, france: fra21Data, russia: rus21Data, portugal: por21Data, netherlands: ned21Data, scotland: sco21Data, ukraine: ukr21Data, belgium: bel21Data, sweden: swe21Data, denmark: den21Data },
+  "2022": { england: eng22Data, germany: ger22Data, spain: esp22Data, italy: ita22Data, france: fra22Data, russia: rus22Data, portugal: por22Data, netherlands: ned22Data, scotland: sco22Data, ukraine: ukr22Data, belgium: bel22Data, sweden: swe22Data, denmark: den22Data },
+  "2023": { england: eng23Data, germany: ger23Data, spain: esp23Data, italy: ita23Data, france: fra23Data, russia: rus23Data, portugal: por23Data, netherlands: ned23Data, scotland: sco23Data, ukraine: ukr23Data, belgium: bel23Data, sweden: swe23Data, denmark: den23Data },
+  "2024": { england: eng24Data, germany: ger24Data, spain: esp24Data, italy: ita24Data, france: fra24Data, russia: rus24Data, portugal: por24Data, netherlands: ned24Data, scotland: sco24Data, ukraine: ukr24Data, belgium: bel24Data, sweden: swe24Data, denmark: den24Data },
+  "2025": { england: eng25Data, germany: ger25Data, spain: esp25Data, italy: ita25Data, france: fra25Data, russia: rus25Data, portugal: por25Data, netherlands: ned25Data, scotland: sco25Data, ukraine: ukr25Data, belgium: bel25Data, sweden: swe25Data, denmark: den25Data },
+  "2026": { england: eng26Data, germany: ger26Data, spain: esp26Data, italy: ita26Data, france: fra26Data, russia: rus26Data, portugal: por26Data, netherlands: ned26Data, scotland: sco26Data, ukraine: ukr26Data, belgium: bel26Data, sweden: swe26Data, denmark: den26Data },
 };
 
 // Lookup map: leagueDataMapD2[season][country] => data array for Division 2

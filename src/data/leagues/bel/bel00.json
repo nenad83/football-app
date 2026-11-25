@@ -1,0 +1,200 @@
+[
+  {
+    "idnum": 0,
+    "id": "bel00",
+    "name": "Anderlecht",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/4.png",
+    "primaryColor": "#5F259F",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "bel00",
+    "name": "Club Brugge",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0055A4",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 2,
+    "id": "bel00",
+    "name": "Standard Liege",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "bel00",
+    "name": "Lokeren",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#111111"
+  },
+  {
+    "idnum": 4,
+    "id": "bel00",
+    "name": "Gent",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0047AB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "bel00",
+    "name": "Germinal Beerschot",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/4.png",
+    "primaryColor": "#5F259F",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "bel00",
+    "name": "Mouscron",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "bel00",
+    "name": "Westerlo",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFCC00",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 8,
+    "id": "bel00",
+    "name": "Charleroi",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/3.png",
+    "primaryColor": "#111111",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "bel00",
+    "name": "Lierse",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#111111"
+  },
+  {
+    "idnum": 10,
+    "id": "bel00",
+    "name": "Genk",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0052A5",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "bel00",
+    "name": "Antwerp",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D2122E",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "bel00",
+    "name": "Sint-Truiden",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFDD00",
+    "secondaryColor": "#003399"
+  },
+  {
+    "idnum": 13,
+    "id": "bel00",
+    "name": "Beveren",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#0047AB"
+  },
+  {
+    "idnum": 14,
+    "id": "bel00",
+    "name": "Harelbeke",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/4.png",
+    "primaryColor": "#5F259F",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "bel00",
+    "name": "Aalst",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/3.png",
+    "primaryColor": "#111111",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 16,
+    "id": "bel00",
+    "name": "La Louviere",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 17,
+    "id": "bel00",
+    "name": "KV Mechelen",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/4.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#CC0000"
+  }
+]

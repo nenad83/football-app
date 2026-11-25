@@ -50,7 +50,10 @@ export const qualifiersBySeason = {
       france: ["Olympique Marseille"],
       portugal: ["Benfica"],
       netherlands: ["PSV"],
-      scotland: ["Rangers"]
+      scotland: ["Rangers"],
+      belgium: ["KV Mechelen"],
+      sweden: ["Malmo FF"],
+      denmark: ["Brondby"]
     },
     uefa: {
       england: [],
@@ -60,7 +63,10 @@ export const qualifiersBySeason = {
       france: ["Paris Saint-Germain", "AJ Auxerre", "Sochaux"],
       portugal: ["Porto"],
       netherlands: [],
-      scotland: ["Dundee United", "Hibernian"]
+      scotland: ["Dundee United", "Hibernian"],
+      belgium: ["Club Brugge","Antwerp","RFC Liege"],
+      sweden: ["IFK Goteborg","Orgryte IS"],
+      denmark: ["Naestved","Ikast FS"]
     }
   },
   "1990": {
@@ -73,7 +79,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto"],
       netherlands: ["PSV"],
       scotland: ["Rangers"],
-      ukraine: []
+      ukraine: [],
+      belgium: ["Club Brugge"],
+      sweden: ["Malmo FF"],
+      denmark: ["Odense BK"]
     },
     uefa: {
       england: ["Aston Villa"],
@@ -84,7 +93,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Sporting CP", "Vitória de Guimarães"],
       netherlands: ["Roda JC", "FC Twente", "Vitesse"],
       scotland: ["Aberdeen","Hearts","Dundee United"],
-      ukraine: []
+      ukraine: [],
+      belgium: ["Anderlecht","Antwerp","KV Mechelen"],
+      sweden: ["IFK Norrkoping","GAIS"],
+      denmark: ["Brondby","Vejle"]
     }
   },
   "1991": {
@@ -97,7 +109,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica"],
       netherlands: ["PSV"],
       scotland: ["Rangers"],
-      ukraine: ["Dynamo Kyiv"]
+      ukraine: ["Dynamo Kyiv"],
+      belgium: ["Anderlecht"],
+      sweden: ["IFK Goteborg"],
+      denmark: ["Brondby"]
     },
     uefa: {
       england: ["Liverpool"],
@@ -108,7 +123,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Sporting CP", "Boavista", "Salgueiros"],
       netherlands: ["Ajax", "FC Groningen", "FC Utrecht"],
       scotland: ["Aberdeen","Celtic"],
-      ukraine: []
+      ukraine: [],
+      belgium: ["Gent","KV Mechelen","Germinal Ekeren"],
+      sweden: ["Orebro SK","Osters IF"],
+      denmark: ["B 1903","Ikast FS"]
     }
   },
   "1992": {
@@ -122,7 +140,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto"],
       netherlands: ["PSV"],
       scotland: ["Rangers"],
-      ukraine: ["Tavriya Simferopol"]
+      ukraine: ["Tavriya Simferopol"],
+      belgium: ["Club Brugge"],
+      sweden: ["IFK Goteborg"],
+      denmark: ["Lyngby"]
     },
     uefa: {
       england: ["Arsenal", "Sheffield Wednesday", "Chelsea"],
@@ -134,7 +155,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Sporting CP", "Vitória de Guimarães", "Boavista"],
       netherlands: ["Ajax", "Vitesse", "FC Groningen"],
       scotland: ["Hearts","Celtic","Hibernian"],
-      ukraine: ["Dynamo Kyiv","Chornomorets Odesa"]
+      ukraine: ["Dynamo Kyiv","Chornomorets Odesa"],
+      belgium: ["Anderlecht","KV Mechelen","Standard Liege"],
+      sweden: ["IFK Norrkoping","Orebro SK"],
+      denmark: ["FC Copenhagen","BK Frem","AGF Aarhus"]
     }
   },
   "1993": {
@@ -148,7 +172,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto"],
       netherlands: ["Feyenoord"],
       scotland: ["Rangers"],
-      ukraine: ["Dynamo Kyiv"]
+      ukraine: ["Dynamo Kyiv"],
+      belgium: ["Anderlecht"],
+      sweden: ["AIK"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["Blackburn Rovers", "Newcastle United", "Aston Villa"],
@@ -160,7 +187,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Sporting CP", "Boavista"],
       netherlands: ["Ajax", "PSV", "FC Twente", "Vitesse"],
       scotland: ["Aberdeen","Hearts","Celtic"],
-      ukraine: ["Dnipro"]
+      ukraine: ["Dnipro"],
+      belgium: ["KV Mechelen","Antwerp","Waregem"],
+      sweden: ["IFK Norrkoping","Osters IF"],
+      denmark: ["Brondby","AaB"]
     }
   },
   "1994": {
@@ -174,7 +204,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica"],
       netherlands: ["Ajax"],
       scotland: ["Rangers"],
-      ukraine: ["Dynamo Kyiv"]
+      ukraine: ["Dynamo Kyiv"],
+      belgium: ["Anderlecht"],
+      sweden: ["IFK Goteborg"],
+      denmark: ["Silkeborg"]
     },
     uefa: {
       england: ["Blackburn Rovers", "Newcastle United", "Aston Villa"],
@@ -186,7 +219,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Sporting CP", "Boavista"],
       netherlands: ["Feyenoord", "PSV", "FC Twente", "Vitesse"],
       scotland: ["Aberdeen","Motherwell"],
-      ukraine: ["Shakhtar Donetsk","Chornomorets Odesa"]
+      ukraine: ["Shakhtar Donetsk","Chornomorets Odesa"],
+      belgium: ["Club Brugge","Seraing","Charleroi"],
+      sweden: ["AIK","Trelleborgs FF"],
+      denmark: ["FC Copenhagen","Odense BK","Brondby"]
     }
   },
   "1995": {
@@ -200,7 +236,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto"],
       netherlands: ["Ajax"],
       scotland: ["Rangers"],
-      ukraine: ["Dynamo Kyiv"]
+      ukraine: ["Dynamo Kyiv"],
+      belgium: ["Anderlecht"],
+      sweden: ["IFK Goteborg"],
+      denmark: ["AaB"]
     },
     uefa: {
       england: ["Manchester United", "Nottingham Forest", "Liverpool", "Leeds United"],
@@ -212,7 +251,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Sporting CP", "Farense"],
       netherlands: ["Roda JC", "PSV", "Feyenoord"],
       scotland: ["Motherwell","Hibernian","Celtic"],
-      ukraine: ["Dnipro","Chornomorets Odesa"]
+      ukraine: ["Dnipro","Chornomorets Odesa"],
+      belgium: ["Standard Liege","Lierse","Aalst"],
+      sweden: ["Orebro SK","Malmo FF","Halmstads BK"],
+      denmark: ["Brondby","Silkeborg","FC Copenhagen"]
     }
   },
   "1996": {
@@ -226,7 +268,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto"],
       netherlands: ["Ajax"],
       scotland: ["Rangers"],
-      ukraine: ["Dynamo Kyiv"]
+      ukraine: ["Dynamo Kyiv"],
+      belgium: ["Club Brugge"],
+      sweden: ["IFK Goteborg"],
+      denmark: ["Brondby"]
     },
     uefa: {
       england: ["Newcastle United", "Arsenal", "Liverpool", "Aston Villa", "Chelsea"],
@@ -238,7 +283,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Sporting CP", "Boavista", "Vitória de Guimarães"],
       netherlands: ["PSV", "Feyenoord", "Roda JC"],
       scotland: ["Celtic","Aberdeen"],
-      ukraine: ["Chornomorets Odesa","Shakhtar Donetsk"]
+      ukraine: ["Chornomorets Odesa","Shakhtar Donetsk"],
+      belgium: ["Anderlecht","Germinal Ekeren","RWDM"],
+      sweden: ["Malmo FF","Helsingborg","Halmstads BK"],
+      denmark: ["Silkeborg","AaB","Lyngby"]
     }
   },
   "1997": {
@@ -252,7 +300,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Sporting CP"],
       netherlands: ["PSV", "Feyenoord"],
       scotland: ["Rangers"],
-      ukraine: ["Dynamo Kyiv"]
+      ukraine: ["Dynamo Kyiv"],
+      belgium: ["Lierse"],
+      sweden: ["IFK Goteborg"],
+      denmark: ["Brondby"]
     },
     uefa: {
       england: ["Arsenal", "Aston Villa", "Liverpool", "Leicester City"],
@@ -264,7 +315,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Boavista", "Vitória de Guimarães", "Braga"],
       netherlands: ["Ajax", "FC Twente", "Vitesse"],
       scotland: ["Celtic","Dundee United"],
-      ukraine: ["Shakhtar Donetsk","Vorskla Poltava","Dnipro"]
+      ukraine: ["Shakhtar Donetsk","Vorskla Poltava","Dnipro"],
+      belgium: ["Club Brugge","Anderlecht","Mouscron"],
+      sweden: ["Malmo FF","Helsingborg","Orebro SK"],
+      denmark: ["Vejle","AGF Aarhus"]
     }
   },
   "1998": {
@@ -278,7 +332,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Benfica"],
       netherlands: ["Ajax", "PSV"],
       scotland: ["Celtic"],
-      ukraine: ["Dynamo Kyiv"]
+      ukraine: ["Dynamo Kyiv"],
+      belgium: ["Club Brugge"],
+      sweden: ["Halmstads BK"],
+      denmark: ["Brondby"]
     },
     uefa: {
       england: ["Blackburn Rovers", "Aston Villa", "Leeds United", "Liverpool"],
@@ -290,7 +347,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Boavista", "Vitória de Guimarães", "Braga"],
       netherlands: ["Feyenoord", "Vitesse", "Willem II"],
       scotland: ["Rangers","Kilmarnock","Hearts"],
-      ukraine: ["Shakhtar Donetsk"]
+      ukraine: ["Shakhtar Donetsk"],
+      belgium: ["Genk","Germinal Ekeren","Anderlecht"],
+      sweden: ["IFK Goteborg","Malmo FF"],
+      denmark: ["Silkeborg","Vejle","FC Copenhagen"]
     }
   },
   "1999": {
@@ -304,7 +364,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Boavista"],
       netherlands: ["Feyenoord", "Willem II", "PSV"],
       scotland: ["Rangers"],
-      ukraine: ["Dynamo Kyiv"]
+      ukraine: ["Dynamo Kyiv"],
+      belgium: ["Genk"],
+      sweden: ["AIK"],
+      denmark: ["AaB"]
     },
     uefa: {
       england: ["Newcastle United", "Leeds United", "West Ham United", "Tottenham Hotspur"],
@@ -316,7 +379,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Sporting CP", "Vitória de Setúbal"],
       netherlands: ["Ajax", "Vitesse", "Roda JC"],
       scotland: ["Celtic","St Johnstone","Kilmarnock"],
-      ukraine: ["Shakhtar Donetsk","Kryvbas Kryvyi Rih"]
+      ukraine: ["Shakhtar Donetsk","Kryvbas Kryvyi Rih"],
+      belgium: ["Club Brugge","Anderlecht","Lierse"],
+      sweden: ["Helsingborg","Halmstads BK","IFK Goteborg"],
+      denmark: ["Brondby","AB","Lyngby"]
     }
   },
   "2000": {
@@ -330,7 +396,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Porto"],
       netherlands: ["PSV", "sc Heerenveen", "Feyenoord"],
       scotland: ["Rangers","Celtic"],
-      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"]
+      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"],
+      belgium: ["Anderlecht"],
+      sweden: ["Helsingborg"],
+      denmark: ["Herfolge","Brondby"]
     },
     uefa: {
       england: ["Liverpool", "Chelsea", "Leicester City"],
@@ -342,7 +411,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Boavista"],
       netherlands: ["Ajax", "Vitesse", "Roda JC"],
       scotland: ["Hearts","Aberdeen"],
-      ukraine: ["Kryvbas Kryvyi Rih","Vorskla Poltava"]
+      ukraine: ["Kryvbas Kryvyi Rih","Vorskla Poltava"],
+      belgium: ["Club Brugge","Gent","Genk"],
+      sweden: ["AIK","Halmstads BK","IFK Norrkoping"],
+      denmark: ["AB","Viborg"]
     }
   },
   "2001": {
@@ -356,7 +428,10 @@ export const qualifiersBySeason = {
       portugal: ["Boavista", "Porto"],
       netherlands: ["PSV", "Feyenoord", "Ajax"],
       scotland: ["Celtic","Rangers"],
-      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"]
+      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"],
+      belgium: ["Anderlecht"],
+      sweden: ["Halmstads BK"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["Ipswich Town", "Chelsea", "Leeds United"],
@@ -368,7 +443,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Marítimo"],
       netherlands: ["FC Utrecht", "Roda JC", "FC Twente"],
       scotland: ["Hibernian","Kilmarnock"],
-      ukraine: ["Dnipro","CSKA Kyiv"]
+      ukraine: ["Dnipro","CSKA Kyiv"],
+      belgium: ["Club Brugge","Standard Liege","Westerlo"],
+      sweden: ["Helsingborg","AIK"],
+      denmark: ["Brondby","Silkeborg","Midtjylland"]
     }
   },
   "2002": {
@@ -382,7 +460,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Boavista"],
       netherlands: ["Ajax", "PSV", "Feyenoord"],
       scotland: ["Celtic","Rangers"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Genk","Club Brugge"],
+      sweden: ["Hammarby"],
+      denmark: ["Brondby"]
     },
     uefa: {
       england: ["Chelsea", "Leeds United", "Blackburn Rovers"],
@@ -394,7 +475,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Boavista", "Vitória de Guimarães"],
       netherlands: ["sc Heerenveen", "Vitesse", "FC Utrecht"],
       scotland: ["Aberdeen","Livingston"],
-      ukraine: ["Metalurh Donetsk","Metalurh Zaporizhzhia"]
+      ukraine: ["Metalurh Donetsk","Metalurh Zaporizhzhia"],
+      belgium: ["Anderlecht","Mouscron"],
+      sweden: ["Djurgarden","AIK","IFK Goteborg"],
+      denmark: ["FC Copenhagen","Midtjylland","Odense BK"]
     }
   },
   "2003": {
@@ -408,7 +492,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Benfica"],
       netherlands: ["PSV", "Ajax"],
       scotland: ["Rangers","Celtic"],
-      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"]
+      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"],
+      belgium: ["Club Brugge","Anderlecht"],
+      sweden: ["Djurgarden"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["Liverpool", "Newcastle United"],
@@ -420,7 +507,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "União de Leiria"],
       netherlands: ["Feyenoord", "NAC Breda", "FC Utrecht", "NEC Nijmegen"],
       scotland: ["Hearts","Dundee"],
-      ukraine: ["Metalurh Donetsk","Dnipro"]
+      ukraine: ["Metalurh Donetsk","Dnipro"],
+      belgium: ["Lokeren","La Louviere"],
+      sweden: ["Malmo FF","AIK"],
+      denmark: ["Brondby","Nordsjaelland","Esbjerg","Odense BK"]
     }
   },
   "2004": {
@@ -434,7 +524,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Benfica"],
       netherlands: ["Ajax", "PSV"],
       scotland: ["Celtic","Rangers"],
-      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"]
+      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"],
+      belgium: ["Anderlecht","Club Brugge"],
+      sweden: ["Djurgarden"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["Newcastle United", "Middlesbrough"],
@@ -446,7 +539,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Braga", "Nacional", "Marítimo"],
       netherlands: ["Feyenoord", "sc Heerenveen", "AZ", "FC Utrecht"],
       scotland: ["Hearts","Dunfermline Athletic"],
-      ukraine: ["Dnipro","Metalurh Donetsk"]
+      ukraine: ["Dnipro","Metalurh Donetsk"],
+      belgium: ["Standard Liege","Beveren"],
+      sweden: ["Hammarby","Elfsborg","Osters IF"],
+      denmark: ["Brondby","Esbjerg","AaB"]
     }
   },
   "2005": {
@@ -460,7 +556,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Porto", "Sporting CP"],
       netherlands: ["PSV", "Ajax"],
       scotland: ["Rangers","Celtic"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Club Brugge","Anderlecht"],
+      sweden: ["Malmo FF"],
+      denmark: ["Brondby"]
     },
     uefa: {
       england: ["Middlesbrough", "Bolton Wanderers", "Everton"],
@@ -472,7 +571,10 @@ export const qualifiersBySeason = {
       portugal: ["Braga", "Vitória de Guimarães", "Vitória de Setúbal"],
       netherlands: ["Feyenoord", "AZ", "sc Heerenveen", "Willem II"],
       scotland: ["Hibernian","Dundee United"],
-      ukraine: ["Dnipro","Metalurh Donetsk"]
+      ukraine: ["Dnipro","Metalurh Donetsk"],
+      belgium: ["Genk","Germinal Beerschot"],
+      sweden: ["Halmstads BK","Djurgarden"],
+      denmark: ["FC Copenhagen","Midtjylland","Esbjerg"]
     }
   },
   "2006": {
@@ -486,7 +588,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Sporting CP", "Benfica"],
       netherlands: ["PSV", "Ajax"],
       scotland: ["Celtic","Hearts"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Anderlecht","Standard Liege"],
+      sweden: ["Djurgarden"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["Tottenham Hotspur", "Blackburn Rovers", "Newcastle United"],
@@ -498,7 +603,10 @@ export const qualifiersBySeason = {
       portugal: ["Braga", "Nacional", "Vitória de Setúbal"],
       netherlands: ["Feyenoord", "AZ", "sc Heerenveen", "FC Groningen"],
       scotland: ["Rangers","Gretna"],
-      ukraine: ["Chornomorets Odesa","Metalurh Zaporizhzhia"]
+      ukraine: ["Chornomorets Odesa","Metalurh Zaporizhzhia"],
+      belgium: ["Club Brugge","Zulte Waregem"],
+      sweden: ["IFK Goteborg","Kalmar FF","Gefle IF"],
+      denmark: ["Brondby","Odense BK","Randers"]
     }
   },
   "2007": {
@@ -512,7 +620,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Sporting CP", "Benfica"],
       netherlands: ["PSV", "Ajax"],
       scotland: ["Celtic","Rangers"],
-      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"]
+      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"],
+      belgium: ["Anderlecht","Genk"],
+      sweden: ["Elfsborg"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["Everton", "Tottenham Hotspur", "Bolton Wanderers"],
@@ -524,7 +635,10 @@ export const qualifiersBySeason = {
       portugal: ["Braga", "Belenenses", "União de Leiria"],
       netherlands: ["AZ", "FC Twente", "sc Heerenveen", "FC Groningen"],
       scotland: ["Aberdeen","Dunfermline Athletic"],
-      ukraine: ["Metalist Kharkiv","Dnipro"]
+      ukraine: ["Metalist Kharkiv","Dnipro"],
+      belgium: ["Standard Liege","Club Brugge"],
+      sweden: ["AIK","Hammarby","BK Hacken"],
+      denmark: ["Midtjylland","AaB","Odense BK"]
     }
   },
   "2008": {
@@ -538,7 +652,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Sporting CP", "Vitória de Guimarães"],
       netherlands: ["PSV", "FC Twente"],
       scotland: ["Celtic","Rangers"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Standard Liege","Anderlecht"],
+      sweden: ["IFK Goteborg"],
+      denmark: ["AaB"]
     },
     uefa: {
       england: ["Everton", "Aston Villa", "Tottenham Hotspur", "Manchester City", "Portsmouth"],
@@ -550,7 +667,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Braga", "Marítimo"],
       netherlands: ["Ajax", "Feyenoord", "sc Heerenveen", "NEC Nijmegen"],
       scotland: ["Motherwell","Hibernian"],
-      ukraine: ["Metalist Kharkiv","Dnipro"]
+      ukraine: ["Metalist Kharkiv","Dnipro"],
+      belgium: ["Club Brugge","Gent"],
+      sweden: ["Kalmar FF","Djurgarden"],
+      denmark: ["Midtjylland","FC Copenhagen","Brondby","Nordsjaelland"]
     }
   },
   "2009": {
@@ -564,7 +684,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Sporting CP"],
       netherlands: ["AZ", "FC Twente"],
       scotland: ["Rangers","Celtic"],
-      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"]
+      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"],
+      belgium: ["Standard Liege","Anderlecht"],
+      sweden: ["Kalmar FF"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["Everton", "Aston Villa", "Fulham", "Tottenham Hotspur"],
@@ -576,7 +699,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Nacional", "Braga", "Paços de Ferreira"],
       netherlands: ["Ajax", "PSV", "sc Heerenveen", "NAC Breda"],
       scotland: ["Hearts","Aberdeen","Falkirk","Motherwell"],
-      ukraine: ["Metalist Kharkiv","Vorskla Poltava","Metalurh Donetsk"]
+      ukraine: ["Metalist Kharkiv","Vorskla Poltava","Metalurh Donetsk"],
+      belgium: ["Club Brugge","Genk","Gent"],
+      sweden: ["Elfsborg","IFK Goteborg","Helsingborg"],
+      denmark: ["Odense BK","Brondby","AaB","Randers"]
     }
   },
   "2010": {
@@ -590,7 +716,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Braga"],
       netherlands: ["FC Twente", "Ajax"],
       scotland: ["Rangers","Celtic"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Anderlecht","Gent"],
+      sweden: ["AIK"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["Manchester City", "Aston Villa", "Liverpool"],
@@ -602,7 +731,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Sporting CP", "Marítimo"],
       netherlands: ["PSV", "Feyenoord", "FC Utrecht", "AZ"],
       scotland: ["Dundee United","Hibernian","Motherwell"],
-      ukraine: ["Metalist Kharkiv","Dnipro","Karpaty Lviv","Tavriya Simferopol"]
+      ukraine: ["Metalist Kharkiv","Dnipro","Karpaty Lviv","Tavriya Simferopol"],
+      belgium: ["Club Brugge","Genk","Cercle Brugge"],
+      sweden: ["IFK Goteborg","Elfsborg","Kalmar FF"],
+      denmark: ["Odense BK","Brondby","Nordsjaelland","Randers"]
     }
   },
   "2011": {
@@ -616,7 +748,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Benfica"],
       netherlands: ["Ajax", "FC Twente"],
       scotland: ["Rangers","Celtic"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Genk","Standard Liege"],
+      sweden: ["Malmo FF"],
+      denmark: ["FC Copenhagen","Odense BK"]
     },
     uefa: {
       england: ["Tottenham Hotspur", "Birmingham City", "Stoke City"],
@@ -628,7 +763,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Braga", "Vitória de Guimarães", "Nacional"],
       netherlands: ["PSV", "AZ", "ADO Den Haag"],
       scotland: ["Hearts","Dundee United"],
-      ukraine: ["Metalist Kharkiv","Dnipro","Karpaty Lviv","Vorskla Poltava"]
+      ukraine: ["Metalist Kharkiv","Dnipro","Karpaty Lviv","Vorskla Poltava"],
+      belgium: ["Anderlecht","Club Brugge","Westerlo"],
+      sweden: ["Helsingborg","Orebro SK","Elfsborg","BK Hacken"],
+      denmark: ["Brondby","Midtjylland","Nordsjaelland"]
     }
   },
   "2012": {
@@ -642,7 +780,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Benfica", "Braga"],
       netherlands: ["Ajax", "Feyenoord"],
       scotland: ["Celtic","Motherwell"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Anderlecht","Club Brugge"],
+      sweden: ["Helsingborg"],
+      denmark: ["Nordsjaelland","FC Copenhagen"]
     },
     uefa: {
       england: ["Tottenham Hotspur", "Newcastle United", "Liverpool"],
@@ -654,7 +795,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Marítimo", "Académica"],
       netherlands: ["PSV", "AZ", "sc Heerenveen", "FC Twente"],
       scotland: ["Dundee United","St Johnstone","Hearts"],
-      ukraine: ["Metalist Kharkiv","Dnipro","Metalurh Donetsk","Arsenal Kyiv"]
+      ukraine: ["Metalist Kharkiv","Dnipro","Metalurh Donetsk","Arsenal Kyiv"],
+      belgium: ["Genk","Lokeren","Gent"],
+      sweden: ["AIK","Elfsborg","Kalmar FF"],
+      denmark: ["Midtjylland","AC Horsens"]
     }
   },
   "2013": {
@@ -668,7 +812,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Benfica", "Paços de Ferreira"],
       netherlands: ["Ajax", "PSV"],
       scotland: ["Celtic"],
-      ukraine: ["Shakhtar Donetsk","Metalist Kharkiv"]
+      ukraine: ["Shakhtar Donetsk","Metalist Kharkiv"],
+      belgium: ["Anderlecht","Zulte Waregem"],
+      sweden: ["Elfsborg"],
+      denmark: ["FC Copenhagen","Nordsjaelland"]
     },
     uefa: {
       england: ["Tottenham Hotspur", "Swansea City", "Wigan Athletic"],
@@ -680,7 +827,10 @@ export const qualifiersBySeason = {
       portugal: ["Estoril", "Braga", "Vitória de Guimarães"],
       netherlands: ["Feyenoord", "Vitesse", "FC Utrecht", "AZ"],
       scotland: ["Motherwell","St Johnstone","Hibernian"],
-      ukraine: ["Dynamo Kyiv","Dnipro","Chornomorets Odesa","Metalurh Donetsk"]
+      ukraine: ["Dynamo Kyiv","Dnipro","Chornomorets Odesa","Metalurh Donetsk"],
+      belgium: ["Genk","Standard Liege","Club Brugge"],
+      sweden: ["BK Hacken","Malmo FF","IFK Goteborg"],
+      denmark: ["Randers","Esbjerg","AaB"]
     }
   },
   "2014": {
@@ -694,7 +844,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Sporting CP", "Porto"],
       netherlands: ["Ajax", "Feyenoord"],
       scotland: ["Celtic"],
-      ukraine: ["Shakhtar Donetsk","Dnipro"]
+      ukraine: ["Shakhtar Donetsk","Dnipro"],
+      belgium: ["Anderlecht","Standard Liege"],
+      sweden: ["Malmo FF"],
+      denmark: ["AaB","FC Copenhagen"]
     },
     uefa: {
       england: ["Tottenham", "Everton"],
@@ -706,7 +859,10 @@ export const qualifiersBySeason = {
       portugal: ["Estoril", "Rio Ave", "Nacional"],
       netherlands: ["FC Twente", "PSV", "FC Groningen", "PEC Zwolle"],
       scotland: ["Motherwell","Aberdeen","St Johnstone"],
-      ukraine: ["Metalist Kharkiv","Dynamo Kyiv","Chornomorets Odesa","Zorya Luhansk"]
+      ukraine: ["Metalist Kharkiv","Dynamo Kyiv","Chornomorets Odesa","Zorya Luhansk"],
+      belgium: ["Club Brugge","Lokeren","Zulte Waregem"],
+      sweden: ["AIK","IFK Goteborg","Elfsborg"],
+      denmark: ["Midtjylland","Esbjerg","Brondby"]
     }
   },
   "2015": {
@@ -720,7 +876,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Porto", "Sporting CP"],
       netherlands: ["PSV", "Ajax"],
       scotland: ["Celtic"],
-      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"]
+      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"],
+      belgium: ["Gent","Club Brugge"],
+      sweden: ["Malmo FF"],
+      denmark: ["Midtjylland"]
     },
     uefa: {
       england: ["Liverpool", "Tottenham"],
@@ -732,7 +891,10 @@ export const qualifiersBySeason = {
       portugal: ["Braga", "Vitória de Guimarães", "Belenenses"],
       netherlands: ["AZ", "Vitesse", "FC Groningen"],
       scotland: ["Aberdeen","Inverness Caledonian Thistle","St Johnstone"],
-      ukraine: ["Dnipro","Zorya Luhansk","Vorskla Poltava"]
+      ukraine: ["Dnipro","Zorya Luhansk","Vorskla Poltava"],
+      belgium: ["Anderlecht","Standard Liege","Charleroi"],
+      sweden: ["IFK Goteborg","AIK","Elfsborg"],
+      denmark: ["FC Copenhagen","Brondby","Randers"]
     }
   },
   "2016": {
@@ -746,7 +908,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Sporting CP", "Porto"],
       netherlands: ["PSV", "Ajax"],
       scotland: ["Celtic"],
-      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"]
+      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"],
+      belgium: ["Club Brugge","Anderlecht"],
+      sweden: ["IFK Norrkoping"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["Manchester United", "Southampton", "West Ham"],
@@ -758,7 +923,10 @@ export const qualifiersBySeason = {
       portugal: ["Braga", "Arouca", "Rio Ave"],
       netherlands: ["Feyenoord", "AZ", "Heracles Almelo", "FC Utrecht"],
       scotland: ["Aberdeen","Hearts","Hibernian"],
-      ukraine: ["Zorya Luhansk","Vorskla Poltava","FC Oleksandriya"]
+      ukraine: ["Zorya Luhansk","Vorskla Poltava","FC Oleksandriya"],
+      belgium: ["Gent","Genk","Standard Liege"],
+      sweden: ["IFK Goteborg","AIK","BK Hacken"],
+      denmark: ["SonderjyskE","Midtjylland","Brondby"]
     }
   },
   "2017": {
@@ -772,7 +940,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Porto", "Sporting CP"],
       netherlands: ["Feyenoord", "Ajax"],
       scotland: ["Celtic"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Anderlecht","Club Brugge"],
+      sweden: ["Malmo FF"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["Arsenal", "Everton"],
@@ -784,7 +955,10 @@ export const qualifiersBySeason = {
       portugal: ["Vitória de Guimarães", "Braga", "Marítimo"],
       netherlands: ["PSV", "FC Utrecht", "Vitesse"],
       scotland: ["Aberdeen","Rangers","St Johnstone"],
-      ukraine: ["Zorya Luhansk","FC Oleksandriya","Olimpik Donetsk"]
+      ukraine: ["Zorya Luhansk","FC Oleksandriya","Olimpik Donetsk"],
+      belgium: ["Zulte Waregem","Gent","KV Oostende"],
+      sweden: ["AIK","IFK Norrkoping","Ostersunds FK"],
+      denmark: ["Brondby","Lyngby","Midtjylland"]
     }
   },
   "2018": {
@@ -798,7 +972,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Benfica"],
       netherlands: ["PSV", "Ajax"],
       scotland: ["Celtic"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Club Brugge","Standard Liege"],
+      sweden: ["Malmo FF"],
+      denmark: ["Midtjylland"]
     },
     uefa: {
       england: ["Chelsea", "Arsenal"],
@@ -810,7 +987,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Braga", "Rio Ave"],
       netherlands: ["AZ", "Feyenoord", "Vitesse"],
       scotland: ["Aberdeen","Rangers","Hibernian"],
-      ukraine: ["Vorskla Poltava","Zorya Luhansk","Mariupol"]
+      ukraine: ["Vorskla Poltava","Zorya Luhansk","Mariupol"],
+      belgium: ["Anderlecht","Genk","Gent"],
+      sweden: ["AIK","Djurgarden","BK Hacken"],
+      denmark: ["Brondby","Nordsjaelland","FC Copenhagen"]
     }
   },
   "2019": {
@@ -824,7 +1004,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Porto"],
       netherlands: ["Ajax", "PSV"],
       scotland: ["Celtic"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Genk","Club Brugge"],
+      sweden: ["AIK"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["Arsenal", "Manchester United"],
@@ -836,7 +1019,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Braga", "Vitória de Guimarães"],
       netherlands: ["Feyenoord", "AZ", "FC Utrecht"],
       scotland: ["Rangers","Aberdeen","Kilmarnock"],
-      ukraine: ["FC Oleksandriya","Mariupol","Zorya Luhansk"]
+      ukraine: ["FC Oleksandriya","Mariupol","Zorya Luhansk"],
+      belgium: ["Standard Liege","Antwerp","Gent"],
+      sweden: ["IFK Norrkoping","Malmo FF","BK Hacken"],
+      denmark: ["Midtjylland","Esbjerg","Brondby"]
     }
   },
   "2020": {
@@ -850,7 +1036,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Benfica"],
       netherlands: ["Ajax", "AZ"],
       scotland: ["Celtic"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Club Brugge","Gent"],
+      sweden: ["Djurgarden"],
+      denmark: ["Midtjylland"]
     },
     uefa: {
       england: ["Leicester City", "Tottenham", "Arsenal"],
@@ -862,7 +1051,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Braga", "Rio Ave"],
       netherlands: ["Feyenoord", "PSV", "Willem II"],
       scotland: ["Rangers","Motherwell","Aberdeen"],
-      ukraine: ["Zorya Luhansk","Desna Chernihiv","Kolos Kovalivka"]
+      ukraine: ["Zorya Luhansk","Desna Chernihiv","Kolos Kovalivka"],
+      belgium: ["Standard Liege","Antwerp","Charleroi"],
+      sweden: ["Malmo FF","Hammarby","IFK Goteborg"],
+      denmark: ["FC Copenhagen","AGF Aarhus","SonderjyskE"]
     }
   },
   "2021": {
@@ -876,7 +1068,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Porto", "Benfica"],
       netherlands: ["Ajax", "PSV"],
       scotland: ["Rangers","Celtic"],
-      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"]
+      ukraine: ["Dynamo Kyiv","Shakhtar Donetsk"],
+      belgium: ["Club Brugge","Genk"],
+      sweden: ["Malmo FF"],
+      denmark: ["Brondby","Midtjylland"]
     },
     uefa: {
       england: ["Leicester City", "West Ham"],
@@ -888,7 +1083,10 @@ export const qualifiersBySeason = {
       portugal: ["Braga"],
       netherlands: ["AZ", "PSV"],
       scotland: ["St Johnstone"],
-      ukraine: ["Zorya Luhansk"]
+      ukraine: ["Zorya Luhansk"],
+      belgium: ["Antwerp"],
+      sweden: [],
+      denmark: ["Randers"]
     },
     uecl: {
       england: ["Tottenham"],
@@ -900,7 +1098,10 @@ export const qualifiersBySeason = {
       portugal: ["Paços de Ferreira", "Santa Clara"],
       netherlands: ["Feyenoord", "Vitesse"],
       scotland: ["Hibernian","Aberdeen"],
-      ukraine: ["Kolos Kovalivka","Vorskla Poltava"]
+      ukraine: ["Kolos Kovalivka","Vorskla Poltava"],
+      belgium: ["Anderlecht","Gent"],
+      sweden: ["Elfsborg","BK Hacken","Hammarby"],
+      denmark: ["FC Copenhagen","AGF Aarhus"]
     }
   },
   "2022": {
@@ -914,7 +1115,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Sporting CP", "Benfica"],
       netherlands: ["Ajax", "PSV"],
       scotland: ["Celtic","Rangers"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Club Brugge","Union Saint-Gilloise"],
+      sweden: ["Malmo FF"],
+      denmark: ["FC Copenhagen","Midtjylland"]
     },
     uefa: {
       england: ["Arsenal", "Manchester United"],
@@ -926,7 +1130,10 @@ export const qualifiersBySeason = {
       portugal: ["Braga"],
       netherlands: ["Feyenoord", "PSV"],
       scotland: ["Hearts"],
-      ukraine: ["Dnipro-1"]
+      ukraine: ["Dnipro-1"],
+      belgium: ["Gent"],
+      sweden: [],
+      denmark: []
     },
     uecl: {
       england: ["West Ham"],
@@ -938,7 +1145,10 @@ export const qualifiersBySeason = {
       portugal: ["Gil Vicente", "Vitória de Guimarães"],
       netherlands: ["FC Twente", "AZ"],
       scotland: ["Dundee United","Motherwell"],
-      ukraine: ["Zorya Luhansk","Vorskla Poltava"]
+      ukraine: ["Zorya Luhansk","Vorskla Poltava"],
+      belgium: ["Anderlecht","Antwerp"],
+      sweden: ["AIK","Djurgarden","Elfsborg"],
+      denmark: ["Silkeborg","Brondby","Viborg"]
     }
   },
   "2023": {
@@ -952,7 +1162,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica", "Porto", "Braga"],
       netherlands: ["Feyenoord", "PSV"],
       scotland: ["Celtic","Rangers"],
-      ukraine: ["Shakhtar Donetsk","Dnipro-1"]
+      ukraine: ["Shakhtar Donetsk","Dnipro-1"],
+      belgium: ["Antwerp","Genk"],
+      sweden: ["BK Hacken"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["West Ham", "Brighton", "Liverpool"],
@@ -964,7 +1177,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP"],
       netherlands: ["Ajax"],
       scotland: ["Aberdeen"],
-      ukraine: ["Zorya Luhansk"]
+      ukraine: ["Zorya Luhansk"],
+      belgium: ["Union Saint-Gilloise"],
+      sweden: ["BK Hacken"],
+      denmark: []
     },
     uecl: {
       england: ["Aston Villa"],
@@ -976,7 +1192,10 @@ export const qualifiersBySeason = {
       portugal: ["Arouca", "Vitória de Guimarães"],
       netherlands: ["AZ", "FC Twente"],
       scotland: ["Hearts","Hibernian"],
-      ukraine: ["Dynamo Kyiv","Vorskla Poltava"]
+      ukraine: ["Dynamo Kyiv","Vorskla Poltava"],
+      belgium: ["Club Brugge","Gent"],
+      sweden: ["Djurgarden","Hammarby","Kalmar FF"],
+      denmark: ["Nordsjaelland","AGF Aarhus","Midtjylland"]
     }
   },
   "2024": {
@@ -990,7 +1209,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Benfica"],
       netherlands: ["PSV", "Feyenoord"],
       scotland: ["Celtic","Rangers"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Club Brugge","Union Saint-Gilloise"],
+      sweden: ["Malmo FF"],
+      denmark: ["Midtjylland"]
     },
     uefa: {
       england: ["Tottenham", "Manchester United"],
@@ -1002,7 +1224,10 @@ export const qualifiersBySeason = {
       portugal: ["Porto", "Braga"],
       netherlands: ["AZ", "FC Twente"],
       scotland: ["Hearts"],
-      ukraine: ["Kryvbas Kryvyi Rih"]
+      ukraine: ["Kryvbas Kryvyi Rih"],
+      belgium: ["Anderlecht"],
+      sweden: ["Elfsborg","Malmo FF"],
+      denmark: []
     },
     uecl: {
       england: ["Chelsea"],
@@ -1014,7 +1239,10 @@ export const qualifiersBySeason = {
       portugal: ["Vitória de Guimarães"],
       netherlands: ["Ajax", "Go Ahead Eagles"],
       scotland: ["Kilmarnock","St Mirren"],
-      ukraine: ["Dnipro-1","Polissya Zhytomyr"]
+      ukraine: ["Dnipro-1","Polissya Zhytomyr"],
+      belgium: ["Cercle Brugge","Gent"],
+      sweden: ["BK Hacken","Djurgarden"],
+      denmark: ["FC Copenhagen","Brondby","Silkeborg"]
     }
   },
   "2025": {
@@ -1028,7 +1256,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Benfica", "Porto"],
       netherlands: ["PSV", "Feyenoord", "Ajax"],
       scotland: ["Celtic","Rangers"],
-      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"]
+      ukraine: ["Shakhtar Donetsk","Dynamo Kyiv"],
+      belgium: ["Union Saint-Gilloise","Club Brugge"],
+      sweden: ["Malmo FF"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["Aston Villa", "Nottingham Forest"],
@@ -1040,7 +1271,10 @@ export const qualifiersBySeason = {
       portugal: ["Braga", "Vitória de Guimarães"],
       netherlands: ["AZ", "FC Twente"],
       scotland: ["Hearts","Aberdeen"],
-      ukraine: ["Kryvbas Kryvyi Rih","Polissya Zhytomyr"]
+      ukraine: ["Kryvbas Kryvyi Rih","Polissya Zhytomyr"],
+      belgium: ["Genk"],
+      sweden: ["BK Hacken"],
+      denmark: ["Midtjylland"]
     },
     uecl: {
       england: ["Crystal Palace"],
@@ -1052,7 +1286,10 @@ export const qualifiersBySeason = {
       portugal: ["Moreirense"],
       netherlands: ["FC Utrecht"],
       scotland: ["Kilmarnock","St Mirren"],
-      ukraine: ["FC Oleksandriya","Rukh Lviv"]
+      ukraine: ["FC Oleksandriya","Rukh Lviv"],
+      belgium: ["Anderlecht","Charleroi"],
+      sweden: ["Hammarby","AIK"],
+      denmark: ["Brondby","Silkeborg"]
     }
   },
   "2026": {
@@ -1066,7 +1303,10 @@ export const qualifiersBySeason = {
       portugal: ["Sporting CP", "Porto"],
       netherlands: ["PSV", "Feyenoord"],
       scotland: [],
-      ukraine: ["Shakhtar Donetsk"]
+      ukraine: ["Shakhtar Donetsk"],
+      belgium: ["Club Brugge","Union Saint-Gilloise"],
+      sweden: ["Malmo FF"],
+      denmark: ["FC Copenhagen"]
     },
     uefa: {
       england: ["Bournemouth", "Crystal Palace", "Sunderland"],
@@ -1078,7 +1318,10 @@ export const qualifiersBySeason = {
       portugal: ["Benfica"],
       netherlands: ["AZ", "NEC Nijmegen"],
       scotland: ["Celtic"],
-      ukraine: []
+      ukraine: [],
+      belgium: ["Genk","Anderlecht"],
+      sweden: ["Hammarby"],
+      denmark: ["Midtjylland"]
     },
     uecl: {
       england: ["Brighton"],
@@ -1090,7 +1333,10 @@ export const qualifiersBySeason = {
       portugal: ["Braga"],
       netherlands: ["Ajax", "FC Twente"],
       scotland: ["Hearts"],
-      ukraine: []
+      ukraine: [],
+      belgium: ["Gent","Antwerp"],
+      sweden: ["AIK","Djurgarden"],
+      denmark: ["Brondby","AGF Aarhus"]
     }
   }
 };

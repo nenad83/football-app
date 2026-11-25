@@ -150,7 +150,7 @@ function buildCurrentStepPreview({
   const isHome = side === 'home';
   const attRoster = isHome ? homeRoster : awayRoster;
   const attTeamTactics = isHome ? homeTeamTactics : awayTeamTactics;
-  const focus = forceChannel !== 'auto' ? forceChannel : (attTeamTactics?.attackingFocus || 'both_flanks');
+  const focus = forceChannel !== 'auto' ? forceChannel : (attTeamTactics?.attackingFocus || 'mixed');
   const isLong = forceStep1Mode !== 'gk_long' && attTeamTactics?.passing === 'long';
   const curZone = session.ballZone;
   const ownBox = isHome ? 'a2' : 'd2';
@@ -587,6 +587,7 @@ export default function Zone12EngineTestDemo() {
               onChange={(e) => setTactics((p) => ({ ...p, attackingFocus: e.target.value }))}
               style={{ background: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '4px', padding: '4px', fontSize: '11px' }}
             >
+              <option value="mixed">Mixed (33% L / 33% R / 34% C)</option>
               <option value="both_flanks">Both Flanks (50/50)</option>
               <option value="left">Left Flank (80%)</option>
               <option value="right">Right Flank (80%)</option>

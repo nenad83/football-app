@@ -302,6 +302,9 @@ const COUNTRY_MAP = {
   rus: "russia",
   sco: "scotland",
   ukr: "ukraine",
+  bel: "belgium",
+  swe: "sweden",
+  den: "denmark",
   mex: "mexico",
   usa: "usa",
   cl: "europe_cl",
@@ -1100,7 +1103,126 @@ const NAME_ALIASES = {
   "violette": ["violette athletic club", "violette ac"],
   "cibao fc": ["cibao fc"],
   "forge fc": ["forge fc"],
-  "cavalry fc": ["cavalry fc"]
+  "cavalry fc": ["cavalry fc"],
+  // Belgium (First Division / Pro League)
+  "anderlecht": ["rsc anderlecht", "r s c anderlecht", "anderlecht"],
+  "club brugge": ["club brugge kv", "club brugge", "fc bruges"],
+  "standard liege": ["standard de liege", "r standard de liege", "standard liege", "standard"],
+  "genk": ["krc genk", "racing genk", "fc genk", "genk"],
+  "gent": ["kaa gent", "aa gent", "la gantoise", "gent"],
+  "antwerp": ["royal antwerp fc", "r antwerp fc", "antwerp", "fc antwerp"],
+  "union saint gilloise": ["royale union saint gilloise", "r union saint gilloise", "union saint gilloise", "union sg"],
+  "kv mechelen": ["kv mechelen", "fc mechelen", "mechelen", "kv malines"],
+  "charleroi": ["r charleroi sc", "charleroi sc", "sporting charleroi", "charleroi"],
+  "cercle brugge": ["cercle brugge ksv", "cercle brugge"],
+  "sint truiden": ["sint truidense vv", "k sint truidense vv", "st truiden", "sint truiden", "stvv"],
+  "westerlo": ["kvc westerlo", "westerlo"],
+  "kortrijk": ["kv kortrijk", "kortrijk"],
+  "oh leuven": ["oud heverlee leuven", "oh leuven", "leuven"],
+  "zulte waregem": ["sv zulte waregem", "zulte waregem"],
+  "waregem": ["ksv waregem", "waregem"],
+  "lierse": ["lierse sk", "k lierse sk", "lierse"],
+  "lokeren": ["ksc lokeren", "lokeren", "sporting lokeren"],
+  "beveren": ["ksk beveren", "beveren"],
+  "waasland beveren": ["waasland beveren", "sk beveren", "beveren"],
+  "kv oostende": ["kv oostende", "k v oostende", "oostende"],
+  "mouscron": ["excelsior mouscron", "r excelsior mouscron", "royal excel mouscron", "mouscron peruwelz", "mouscron"],
+  "eupen": ["kas eupen", "as eupen", "eupen"],
+  "germinal ekeren": ["kfc germinal ekeren", "germinal ekeren", "ekeren"],
+  "germinal beerschot": ["kfc germinal beerschot", "germinal beerschot", "gba", "beerschot ac"],
+  "beerschot": ["k beerschot vac", "beerschot wilrijk", "beerschot va", "beerschot"],
+  "rwdm": ["rwd molenbeek", "rwdm", "molenbeek"],
+  "fc brussels": ["fc brussels", "fc brussel"],
+  "rfc liege": ["rfc liege", "rfc de liege", "club liegeois"],
+  "aalst": ["ksc eendracht aalst", "eendracht aalst", "aalst"],
+  "lommel": ["kfc lommel sk", "lommel sk", "lommel"],
+  "harelbeke": ["krc harelbeke", "harelbeke"],
+  "roeselare": ["ksv roeselare", "roeselare"],
+  "mons": ["raec mons", "mons"],
+  "la louviere": ["raa louvieroise", "raal la louviere", "la louviere"],
+  "seraing": ["rfc seraing", "seraing"],
+  "dender": ["fcv dender eh", "dender"],
+  "boom": ["kfc boom", "boom fc", "boom"],
+  "geel": ["kfc verbroedering geel", "verbroedering geel", "geel"],
+  "tubize": ["afc tubize", "tubize"],
+  "heusden zolder": ["k beringen heusden zolder", "heusden zolder"],
+  // Sweden (Allsvenskan - includes normalizeName ä->ae, ö->oe forms too)
+  "malmo ff": ["malmo ff", "malmoe ff", "malmo"],
+  "ifk goteborg": ["ifk goteborg", "ifk goeteborg", "goeteborg", "goteborg", "ifk gothenburg"],
+  "aik": ["aik solna", "aik stockholm", "aik"],
+  "djurgarden": ["djurgardens if", "djurgarden"],
+  "hammarby": ["hammarby if", "hammarby"],
+  "elfsborg": ["if elfsborg", "elfsborg"],
+  "ifk norrkoping": ["ifk norrkoeping", "norrkoeping", "ifk norrkoping", "norrkoping"],
+  "bk hacken": ["bk haecken", "haecken", "bk hacken", "hacken"],
+  "helsingborg": ["helsingborgs if", "helsingborg"],
+  "kalmar ff": ["kalmar ff", "kalmar"],
+  "halmstads bk": ["halmstads bk", "halmstad"],
+  "orebro sk": ["oerebro sk", "oerebro", "orebro sk", "orebro"],
+  "gais": ["gais goeteborg", "gais goteborg", "gais"],
+  "mjallby aif": ["mjaellby aif", "mjaellby", "mjallby aif", "mjallby"],
+  "ik sirius": ["ik sirius", "sirius"],
+  "if brommapojkarna": ["if brommapojkarna", "brommapojkarna"],
+  "gif sundsvall": ["gif sundsvall", "sundsvall"],
+  "trelleborgs ff": ["trelleborgs ff", "trelleborg"],
+  "orgryte is": ["oergryte is", "oergryte", "orgryte is", "orgryte"],
+  "osters if": ["oesters if", "oester", "osters if", "oster"],
+  "degerfors if": ["degerfors if", "degerfors"],
+  "gefle if": ["gefle if", "gefle"],
+  "atvidabergs ff": ["atvidabergs ff", "atvidaberg"],
+  "landskrona bois": ["landskrona bois", "landskrona"],
+  "ifk varnamo": ["ifk vaernamo", "vaernamo", "ifk varnamo", "varnamo"],
+  "varbergs bois": ["varbergs bois", "varberg"],
+  "vasteras sk": ["vaesteras sk", "vaesteras", "vasteras sk", "vasteras"],
+  "falkenbergs ff": ["falkenbergs ff", "falkenberg"],
+  "jonkopings sodra": ["joenkoepings soedra if", "joenkoepings soedra", "jonkopings sodra if", "jonkopings sodra"],
+  "ostersunds fk": ["oestersunds fk", "oestersund", "ostersunds fk", "ostersund"],
+  "afc eskilstuna": ["afc eskilstuna", "afc united", "vaesby united", "vasby united"],
+  "ljungskile sk": ["ljungskile sk", "ljungskile"],
+  "syrianska fc": ["syrianska fc", "syrianska"],
+  "assyriska ff": ["assyriska ff", "assyriska"],
+  "enkopings sk": ["enkoepings sk", "enkoeping", "enkopings sk", "enkoping"],
+  "vastra frolunda": ["vaestra froelunda if", "vaestra froelunda", "vastra frolunda if", "vastra frolunda"],
+  "ik brage": ["ik brage", "brage"],
+  "umea fc": ["umea fc", "umea"],
+  "ik oddevold": ["ik oddevold", "oddevold"],
+  "dalkurd ff": ["dalkurd ff", "dalkurd"],
+  // Denmark (Superliga - includes normalizeName æ->ae, ø->o, ä->ae, ö->oe forms too)
+  "fc copenhagen": ["fc kobenhavn", "fc copenhagen", "f c kobenhavn", "kobenhavn", "copenhagen"],
+  "brondby": ["brondby if", "brondby"],
+  "midtjylland": ["fc midtjylland", "midtjylland"],
+  "nordsjaelland": ["fc nordsjaelland", "farum bk", "nordsjaelland", "farum"],
+  "agf aarhus": ["agf aarhus", "aarhus gf", "aarhus gymnastikforening", "agf"],
+  "aab": ["aalborg bk", "aab aalborg", "aalborg", "aab"],
+  "ob": ["odense bk", "odense boldklub", "odense", "ob"],
+  "odense bk": ["odense bk", "odense boldklub", "odense", "ob"],
+  "silkeborg": ["silkeborg if", "silkeborg"],
+  "randers": ["randers fc", "randers freja", "randers"],
+  "viborg": ["viborg ff", "viborg"],
+  "lyngby": ["lyngby bk", "lyngby fc", "lyngby"],
+  "vejle": ["vejle bk", "vejle boldklub", "vejle"],
+  "esbjerg": ["esbjerg fb", "esbjerg"],
+  "sonderjyske": ["soenderjyske", "sonderjyske", "hfk sonderjylland", "haderslev fk"],
+  "ac horsens": ["ac horsens", "horsens"],
+  "herfolge": ["herfolge bk", "herfoelge bk", "herfolge", "herfoelge"],
+  "ab": ["akademisk boldklub", "ab copenhagen", "ab"],
+  "ikast fs": ["ikast fs", "ikast"],
+  "naestved": ["naestved bk", "naestved if", "naestved"],
+  "bk frem": ["boldklubben frem", "bk frem", "frem"],
+  "b 1903": ["boldklubben 1903", "b 1903", "b1903"],
+  "kb": ["kjobenhavns boldklub", "kb copenhagen", "kb"],
+  "hobro": ["hobro ik", "hobro"],
+  "hb koge": ["hb koge", "hb koege", "herfolge koge"],
+  "koge": ["koge bk", "koege bk", "koge", "koege"],
+  "hvidovre": ["hvidovre if", "hvidovre"],
+  "fc helsingor": ["fc helsingor", "fc helsingoer", "elite 3000 helsingor", "helsingor"],
+  "vendsyssel": ["vendsyssel ff", "fc hjorring", "vendsyssel"],
+  "fc vestsjaelland": ["fc vestsjaelland", "vestsjaelland"],
+  "aarhus fremad": ["aarhus fremad"],
+  "b 93": ["boldklubben af 1893", "b 93", "b93"],
+  "bronshoj": ["bronshoj bk", "broenshoej bk", "bronshoj", "broenshoej"],
+  "b 1913": ["boldklubben 1913", "b 1913", "b1913"],
+  "fredericia": ["fc fredericia", "fredericia"]
 };
 
 function findBestMatchingClub(teamName, cmClubs, playersByClubId) {
@@ -1204,6 +1326,8 @@ function synthesizeSquadFiller10(existingPlayers, team, seasonYear, region = "")
   const isHispanic = ['colombia', 'argentina', 'mexico', 'north_america_concacaf', 'south_america_clib', 'south_america_csud', 'spain'].includes(region);
   const isItalian = region === 'italy' || /perugia|juventus|milan|inter|roma|lazio|napoli|palermo|sampdoria/i.test(team.name);
   const isAmerican = region === 'usa';
+  const isNordic = region === 'sweden' || region === 'denmark';
+  const isBelgian = region === 'belgium';
 
   const firstNames = isItalian ? [
     "Alessandro", "Gianluigi", "Marco", "Francesco", "Andrea", "Matteo", "Lorenzo", "Roberto", "Simone", "Luca",
@@ -1214,10 +1338,16 @@ function synthesizeSquadFiller10(existingPlayers, team, seasonYear, region = "")
   ] : (isAmerican ? [
     "Chris", "Jason", "Ryan", "Matt", "Brian", "Kevin", "Tyler", "Brandon", "Jordan", "Austin",
     "Taylor", "Justin", "Andrew", "Kyle", "Josh", "Nick", "Sean", "Evan", "Eric", "Scott"
+  ] : (isNordic ? [
+    "Erik", "Johan", "Anders", "Henrik", "Lars", "Mikkel", "Kasper", "Christian", "Mads", "Soren",
+    "Jonas", "Fredrik", "Gustav", "Viktor", "Jesper", "Niels", "Peter", "Rasmus", "Emil", "Sebastian"
+  ] : (isBelgian ? [
+    "Kevin", "Jan", "Thomas", "Dries", "Eden", "Romelu", "Thibaut", "Axel", "Yannick", "Pieter",
+    "Bram", "Koen", "Jelle", "Nicolas", "Laurent", "Olivier", "Wout", "Niels", "Maarten", "Maxime"
   ] : [
     "Luka", "Marko", "Ivan", "David", "Matej", "Filip", "Jan", "Milan", "Stefan", "Nikola",
     "Alex", "Thomas", "Daniel", "Martin", "Andreas", "Michael", "Lucas", "Paul", "Erik", "Simon"
-  ]));
+  ]))));
 
   const lastNames = isItalian ? [
     "Rossi", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci", "Marino", "Greco", "Bruno",
@@ -1228,10 +1358,16 @@ function synthesizeSquadFiller10(existingPlayers, team, seasonYear, region = "")
   ] : (isAmerican ? [
     "Johnson", "Williams", "Brown", "Miller", "Davis", "Wilson", "Clark", "Lewis", "Walker", "Hall",
     "Allen", "Young", "King", "Wright", "Scott", "Adams", "Baker", "Nelson", "Carter", "Mitchell"
+  ] : (isNordic ? [
+    "Larsson", "Johansson", "Andersson", "Nilsson", "Eriksson", "Lindqvist", "Karlsson", "Bergstrom", "Hansen", "Nielsen",
+    "Jensen", "Pedersen", "Madsen", "Christensen", "Sorensen", "Rasmussen", "Jorgensen", "Holm", "Lindholm", "Olsen"
+  ] : (isBelgian ? [
+    "De Bruyne", "Peeters", "Janssens", "Maes", "Jacobs", "Mertens", "Willems", "Claes", "Goossens", "Wouters",
+    "De Smet", "Vermeulen", "Van Der Berg", "Hendrickx", "Bogaert", "Lambert", "Dupont", "Simon", "Michiels", "Bogaerts"
   ] : [
     "Kovacic", "Modric", "Petrovic", "Horvat", "Novak", "Kovacevic", "Babic", "Maric", "Juric", "Simic",
     "Schmidt", "Muller", "Weber", "Fischer", "Schneider", "Hansen", "Johansson", "Larsson", "Nielsen", "Jensen"
-  ]));
+  ]))));
 
   let fillerIdx = 0;
   while (squad.length < 22) {
@@ -1493,7 +1629,10 @@ async function main() {
 
   const filteredFiles = competitionFiles.filter(item => {
     if (!targetLeague) return true;
-    return item.filename.toLowerCase().includes(targetLeague.toLowerCase());
+    const tl = targetLeague.toLowerCase();
+    const fn = item.filename.toLowerCase();
+    const cp = item.countryPrefix.toLowerCase();
+    return cp === tl || fn.startsWith(tl) || fn.replace('.json', '') === tl;
   });
 
   console.log(`📋 Processing ${filteredFiles.length} competition files for season ${targetSeason}...\n`);

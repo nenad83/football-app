@@ -462,24 +462,11 @@ function chooseTargetChannelHelper(attR, isHomeSide, teamTacticsObj = null, forc
     return Math.random() < 0.5 ? { channel: 'left', zone: leftZone } : { channel: 'right', zone: rightZone };
   }
 
-  const candidates = [];
-  if (hasLeftWing) candidates.push({ channel: 'left', zone: leftZone, weight: hasAMC ? 35 : 50 });
-  if (hasRightWing) candidates.push({ channel: 'right', zone: rightZone, weight: hasAMC ? 35 : 50 });
-  if (hasAMC || (!hasLeftWing && !hasRightWing)) {
-    candidates.push({ channel: 'center', zone: centerZone, weight: (hasLeftWing || hasRightWing) ? 30 : 100 });
-  }
-
-  const totalWeight = candidates.reduce((s, c) => s + c.weight, 0);
-  let pick = Math.random() * totalWeight;
-  let selected = candidates[0];
-  for (const c of candidates) {
-    pick -= c.weight;
-    if (pick <= 0) {
-      selected = c;
-      break;
-    }
-  }
-  return selected;
+  // Default / 'mixed': 33% Left Flank, 33% Right Flank, 34% Center
+  const roll = Math.random();
+  if (roll < 0.33) return { channel: 'left', zone: leftZone };
+  if (roll < 0.66) return { channel: 'right', zone: rightZone };
+  return { channel: 'center', zone: centerZone };
 }
 
 function pickHoldTargetHelper(attR, currZone, currPasser, isHomeSide) {
@@ -772,73 +759,13 @@ function runZone12PossessionCore({
 
   // Helper to choose an attacking channel ('left', 'center', or 'right')
   // Respects Team Instructions attackingFocus:
+  // - 'mixed' (default): 33% Left Flank, 33% Right Flank, 34% Center
   // - 'left': 80% Left Flank, 20% Right/Center
   // - 'right': 80% Right Flank, 20% Left/Center
   // - 'center': 80% Center, 20% Left/Right
   // - 'both_flanks': 50% Left Flank, 50% Right Flank
-  const chooseTargetChannel = (attR, isHomeSide, teamTacticsObj = null) => {
-    const hasLeftWing = attR.leftWings.length > 0;
-    const hasRightWing = attR.rightWings.length > 0;
-    const hasAMC = (attR.effectiveAmcs && attR.effectiveAmcs.length > 0);
-
-    const leftZone = isHomeSide ? 'c1' : 'b3';
-    const centerZone = isHomeSide ? 'c2' : 'b2';
-    const rightZone = isHomeSide ? 'c3' : 'b1';
-
-    if (testOverrides?.forceChannel && ['left', 'center', 'right'].includes(testOverrides.forceChannel)) {
-      if (testOverrides.forceChannel === 'left') return { channel: 'left', zone: leftZone };
-      if (testOverrides.forceChannel === 'right') return { channel: 'right', zone: rightZone };
-      return { channel: 'center', zone: centerZone };
-    }
-
-    const focus = teamTacticsObj?.attackingFocus || null;
-    if (focus === 'left') {
-      if (Math.random() < 0.80) return { channel: 'left', zone: leftZone };
-      if (hasRightWing && hasAMC) {
-        return Math.random() < 0.5 ? { channel: 'right', zone: rightZone } : { channel: 'center', zone: centerZone };
-      }
-      if (hasAMC && !hasRightWing) return { channel: 'center', zone: centerZone };
-      return { channel: 'right', zone: rightZone };
-    }
-    if (focus === 'right') {
-      if (Math.random() < 0.80) return { channel: 'right', zone: rightZone };
-      if (hasLeftWing && hasAMC) {
-        return Math.random() < 0.5 ? { channel: 'left', zone: leftZone } : { channel: 'center', zone: centerZone };
-      }
-      if (hasAMC && !hasLeftWing) return { channel: 'center', zone: centerZone };
-      return { channel: 'left', zone: leftZone };
-    }
-    if (focus === 'center') {
-      if (Math.random() < 0.80) return { channel: 'center', zone: centerZone };
-      return Math.random() < 0.5 ? { channel: 'left', zone: leftZone } : { channel: 'right', zone: rightZone };
-    }
-    if (focus === 'both_flanks') {
-      return Math.random() < 0.5 ? { channel: 'left', zone: leftZone } : { channel: 'right', zone: rightZone };
-    }
-
-    const candidates = [];
-    if (hasLeftWing) {
-      candidates.push({ channel: 'left', zone: leftZone, weight: hasAMC ? 35 : 50 });
-    }
-    if (hasRightWing) {
-      candidates.push({ channel: 'right', zone: rightZone, weight: hasAMC ? 35 : 50 });
-    }
-    if (hasAMC || (!hasLeftWing && !hasRightWing)) {
-      candidates.push({ channel: 'center', zone: centerZone, weight: (hasLeftWing || hasRightWing) ? 30 : 100 });
-    }
-
-    const totalWeight = candidates.reduce((s, c) => s + c.weight, 0);
-    let pick = Math.random() * totalWeight;
-    let selected = candidates[0];
-    for (const c of candidates) {
-      pick -= c.weight;
-      if (pick <= 0) {
-        selected = c;
-        break;
-      }
-    }
-    return selected;
-  };
+  const chooseTargetChannel = (attR, isHomeSide, teamTacticsObj = null) =>
+    chooseTargetChannelHelper(attR, isHomeSide, teamTacticsObj, testOverrides?.forceChannel);
 
   // ---------------------------------------------------------------------------
   // STEP 1: Check GK Distribution Instruction ('long' vs 'short') or Midfield / Recycled Build-up
@@ -2763,7 +2690,7 @@ function runZone12PossessionCore({
     : (striker.instruction === 'target_man' ? 1 : (striker.instruction === 'poacher' ? -1 : 0));
 
   const totalAttBonus = attMentalityMod + strikerInstrMod;
-  const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus;
+  const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod;
   const forcedCrossFin = testOverrides?.forceStep3Outcome === 'goal'
     ? 3
     : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
@@ -2853,8 +2780,25 @@ function runZone12PossessionCore({
  * must pass out of their won zone (e.g. B3 -> B2 MC or up flank) instead of warping to MC.
  */
 export function simulateZone12Possession(params) {
-  const res = runZone12PossessionCore(params);
-  if (!res || res.isGoal || res.nextRecycleState || res.isHoldPossession) {
+  let res = runZone12PossessionCore(params);
+  if (!res) return res;
+
+  // Replace internal step minute prefixes with exact live clock labels (e.g. 35', 36', 37' or 45+1', 45+2')
+  const labels = params?.stepMinuteLabels;
+  if (labels && Array.isArray(res.steps)) {
+    const stampedSteps = res.steps.map((st, idx) => {
+      const targetLbl = labels[`step${idx + 1}`] || labels.step1;
+      if (!targetLbl || !st?.stepLog?.text) return st;
+      const updatedText = String(st.stepLog.text).replace(/^\d+'/, `${targetLbl}'`);
+      return {
+        ...st,
+        stepLog: { ...st.stepLog, text: updatedText }
+      };
+    });
+    res = { ...res, steps: stampedSteps };
+  }
+
+  if (res.isGoal || res.nextRecycleState || res.isHoldPossession) {
     return res;
   }
 

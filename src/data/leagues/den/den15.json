@@ -1,0 +1,134 @@
+[
+  {
+    "idnum": 0,
+    "id": "den15",
+    "name": "FC Copenhagen",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0038A8"
+  },
+  {
+    "idnum": 1,
+    "id": "den15",
+    "name": "SonderjyskE",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#5BC2E7",
+    "secondaryColor": "#111111"
+  },
+  {
+    "idnum": 2,
+    "id": "den15",
+    "name": "Midtjylland",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "swe92/3.png",
+    "primaryColor": "#111111",
+    "secondaryColor": "#D90429"
+  },
+  {
+    "idnum": 3,
+    "id": "den15",
+    "name": "Brondby",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#0038A8"
+  },
+  {
+    "idnum": 4,
+    "id": "den15",
+    "name": "AaB",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "den15",
+    "name": "Randers",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#5BC2E7",
+    "secondaryColor": "#111111"
+  },
+  {
+    "idnum": 6,
+    "id": "den15",
+    "name": "Odense BK",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0047AB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "den15",
+    "name": "Viborg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "den15",
+    "name": "Nordsjaelland",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFD700"
+  },
+  {
+    "idnum": 9,
+    "id": "den15",
+    "name": "AGF Aarhus",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0038A8"
+  },
+  {
+    "idnum": 10,
+    "id": "den15",
+    "name": "Esbjerg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0047AB",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "den15",
+    "name": "Hobro",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#0038A8"
+  }
+]

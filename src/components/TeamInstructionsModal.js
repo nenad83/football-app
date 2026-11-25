@@ -29,12 +29,13 @@ export default function TeamInstructionsModal({
     {
       key: 'attackingFocus',
       label: 'ATTACKING',
-      hint: '80% focus on chosen lane (Center requires AMC or loses ball; Both Flanks 50/50)',
+      hint: 'Mixed (Default): 33% Left / 33% Right / 34% Center • Left/Right/Center: 80% lane • Both Flanks: 50/50',
       options: [
+        { value: 'mixed', label: '🎲 Mixed', color: '#00ff64' },
         { value: 'left', label: '⬅️ Left Flank', color: '#00e5ff' },
         { value: 'right', label: '➡️ Right Flank', color: '#00e5ff' },
         { value: 'center', label: '🎯 Center', color: '#ffd700' },
-        { value: 'both_flanks', label: '↔️ Both Flanks', color: '#00ff64' }
+        { value: 'both_flanks', label: '↔️ Both Flanks', color: '#a855f7' }
       ]
     },
     {

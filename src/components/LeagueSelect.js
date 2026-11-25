@@ -61,13 +61,20 @@ const TeamFlag = ({ primaryColor, secondaryColor, size = 120 }) => {
   );
 };
 
+const getLeagueRoundCycles = (countryKey, teamsCount) => {
+  if (countryKey === "usa") return 1;
+  if ((countryKey === "scotland" || countryKey === "denmark") && teamsCount === 12) return 3;
+  if (countryKey === "scotland" && teamsCount === 10) return 4;
+  return 2;
+};
+
 // Berger tables generator (inserts a bye slot when teamsList.length is odd)
-const generateRoundRobinFixtures = (teamsList, singleRound = false) => {
+const generateRoundRobinFixtures = (teamsList, cyclesInput = 2) => {
+  const cycles = typeof cyclesInput === 'boolean' ? (cyclesInput ? 1 : 2) : Math.max(1, cyclesInput || 2);
   const list = teamsList.length % 2 === 0 ? [...teamsList] : [...teamsList, null];
   const n = list.length;
-  const fixtures = [];
+  const firstLeg = [];
 
-  // First Leg
   for (let round = 0; round < n - 1; round++) {
     const roundFixtures = [];
     for (let i = 0; i < n / 2; i++) {
@@ -80,24 +87,23 @@ const generateRoundRobinFixtures = (teamsList, singleRound = false) => {
         roundFixtures.push({ homeId: away.idnum, awayId: home.idnum, played: false, homeScore: 0, awayScore: 0 });
       }
     }
-    fixtures.push(roundFixtures);
+    firstLeg.push(roundFixtures);
     list.splice(1, 0, list.pop());
   }
 
-  if (singleRound) {
-    return fixtures;
-  }
-
-  // Second Leg (swapped home/away)
-  for (let round = 0; round < n - 1; round++) {
-    const roundFixtures = fixtures[round].map(f => ({
-      homeId: f.awayId,
-      awayId: f.homeId,
-      played: false,
-      homeScore: 0,
-      awayScore: 0
-    }));
-    fixtures.push(roundFixtures);
+  const fixtures = [];
+  for (let cycle = 0; cycle < cycles; cycle++) {
+    const swapHomeAway = cycle % 2 === 1;
+    for (let round = 0; round < firstLeg.length; round++) {
+      const roundFixtures = firstLeg[round].map(f => ({
+        homeId: swapHomeAway ? f.awayId : f.homeId,
+        awayId: swapHomeAway ? f.homeId : f.awayId,
+        played: false,
+        homeScore: 0,
+        awayScore: 0
+      }));
+      fixtures.push(roundFixtures);
+    }
   }
 
   return fixtures;
@@ -213,6 +219,9 @@ const EUROPE_LEAGUES = [
   { id: 'netherlands', name: 'Netherlands', getTitle: () => 'Eredivisie' },
   { id: 'portugal', name: 'Portugal', getTitle: () => 'Primeira Liga' },
   { id: 'scotland', name: 'Scotland', getTitle: () => 'Scottish Premier' },
+  { id: 'belgium', name: 'Belgium', getTitle: (yr) => (parseInt(yr, 10) >= 2009 ? 'Pro League' : 'First Division') },
+  { id: 'sweden', name: 'Sweden', getTitle: () => 'Allsvenskan' },
+  { id: 'denmark', name: 'Denmark', getTitle: () => 'Superliga' },
   { id: 'russia', name: 'Russia', getTitle: () => 'Russian Premier' },
   { id: 'ukraine', name: 'Ukraine', getTitle: () => 'Ukrainian Premier' }
 ];
@@ -480,7 +489,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
     window.lastFetchedStartingBudget = startingBudget;
 
     const expObj = getExpectation(activeTeamObj, roster);
-    const fixtures = generateRoundRobinFixtures(roster, country === "usa");
+    const fixtures = generateRoundRobinFixtures(roster, getLeagueRoundCycles(country, roster.length));
 
     // SA / NA / European Cup Initialization
     const isSA = (country === "argentina" || country === "brazil" || country === "colombia");
@@ -689,7 +698,10 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                 ...(cupQualifiers.portugal || []),
                 ...(cupQualifiers.netherlands || []),
                 ...(cupQualifiers.scotland || []),
-                ...(cupQualifiers.ukraine || [])
+                ...(cupQualifiers.ukraine || []),
+                ...(cupQualifiers.belgium || []),
+                ...(cupQualifiers.sweden || []),
+                ...(cupQualifiers.denmark || [])
               ];
               indexToReplace = clTeams.findIndex(t => !mainPlayableClTeams.includes(t.name));
               if (indexToReplace === -1) {
@@ -797,7 +809,10 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                 ...(cupQualifiers.portugal || []),
                 ...(cupQualifiers.netherlands || []),
                 ...(cupQualifiers.scotland || []),
-                ...(cupQualifiers.ukraine || [])
+                ...(cupQualifiers.ukraine || []),
+                ...(cupQualifiers.belgium || []),
+                ...(cupQualifiers.sweden || []),
+                ...(cupQualifiers.denmark || [])
               ];
               indexToReplace = clTeams.findIndex(t => !mainPlayableClTeams.includes(t.name));
               if (indexToReplace === -1) {
@@ -867,7 +882,10 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                 ...(activeQualifiersUefa.portugal || activeQualifiersCl.portugal || []),
                 ...(activeQualifiersUefa.netherlands || activeQualifiersCl.netherlands || []),
                 ...(activeQualifiersUefa.scotland || activeQualifiersCl.scotland || []),
-                ...(activeQualifiersUefa.ukraine || activeQualifiersCl.ukraine || [])
+                ...(activeQualifiersUefa.ukraine || activeQualifiersCl.ukraine || []),
+                ...(activeQualifiersUefa.belgium || activeQualifiersCl.belgium || []),
+                ...(activeQualifiersUefa.sweden || activeQualifiersCl.sweden || []),
+                ...(activeQualifiersUefa.denmark || activeQualifiersCl.denmark || [])
               ];
               indexToReplace = teams.findIndex(t => !mainPlayableTeams.includes(t.name));
               if (indexToReplace === -1) {

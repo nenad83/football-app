@@ -1,0 +1,178 @@
+[
+  {
+    "idnum": 0,
+    "id": "swe21",
+    "name": "Malmo FF",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#5BC2E7",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "swe21",
+    "name": "AIK",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/3.png",
+    "primaryColor": "#111111",
+    "secondaryColor": "#FFD700"
+  },
+  {
+    "idnum": 2,
+    "id": "swe21",
+    "name": "Djurgarden",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0038A8",
+    "secondaryColor": "#5BC2E7"
+  },
+  {
+    "idnum": 3,
+    "id": "swe21",
+    "name": "Elfsborg",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#111111"
+  },
+  {
+    "idnum": 4,
+    "id": "swe21",
+    "name": "Hammarby",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "swe21",
+    "name": "Kalmar FF",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "swe21",
+    "name": "IFK Norrkoping",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0047AB"
+  },
+  {
+    "idnum": 7,
+    "id": "swe21",
+    "name": "IFK Goteborg",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0055A4",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "swe21",
+    "name": "Mjallby AIF",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#111111"
+  },
+  {
+    "idnum": 9,
+    "id": "swe21",
+    "name": "Varbergs BoIS",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#111111"
+  },
+  {
+    "idnum": 10,
+    "id": "swe21",
+    "name": "IK Sirius",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0038A8",
+    "secondaryColor": "#111111"
+  },
+  {
+    "idnum": 11,
+    "id": "swe21",
+    "name": "BK Hacken",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#111111"
+  },
+  {
+    "idnum": 12,
+    "id": "swe21",
+    "name": "Degerfors IF",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "swe21",
+    "name": "Halmstads BK",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0047AB",
+    "secondaryColor": "#111111"
+  },
+  {
+    "idnum": 14,
+    "id": "swe21",
+    "name": "Orebro SK",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/3.png",
+    "primaryColor": "#111111",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "swe21",
+    "name": "Ostersunds FK",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/3.png",
+    "primaryColor": "#111111",
+    "secondaryColor": "#D90429"
+  }
+]
