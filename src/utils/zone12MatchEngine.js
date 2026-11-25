@@ -1,5 +1,13 @@
 import { getFormationSlots, getIdealSlotPosition } from '../components/FormationTactics';
 import { getDefaultInstructionForSlot } from './tacticalRoleEngine';
+import { resolveFoulCheck } from './matchEngine';
+
+function getTacklingMod(teamTacticsObj = null) {
+  const mode = String(teamTacticsObj?.tackling || 'normal').toLowerCase();
+  if (mode === 'hard') return 1;
+  if (mode === 'easy') return -1;
+  return 0;
+}
 
 /**
  * ==============================================================================
@@ -387,11 +395,283 @@ function pickFlankActor(pureWingers, fullback, fbOverlaps) {
   return fullback;
 }
 
+function resolveDuelWithOverride(attBase, defBase, overrideDiff = null) {
+  if (overrideDiff === null || overrideDiff === undefined) {
+    const attDie = rollD10();
+    const defDie = rollD10();
+    return {
+      attDie,
+      defDie,
+      attTotal: attDie + attBase,
+      defTotal: defDie + defBase,
+      diff: (attDie + attBase) - (defDie + defBase)
+    };
+  }
+  const baseDiff = attBase - defBase;
+  const neededDieDiff = overrideDiff - baseDiff;
+  let defDie = Math.max(1, Math.min(10, Math.round(5 - neededDieDiff / 2)));
+  let attDie = Math.max(1, Math.min(10, defDie + neededDieDiff));
+  defDie = Math.max(1, Math.min(10, attDie - neededDieDiff));
+  attDie = Math.max(1, Math.min(10, defDie + neededDieDiff));
+  return {
+    attDie,
+    defDie,
+    attTotal: attDie + attBase,
+    defTotal: defDie + defBase,
+    diff: overrideDiff
+  };
+}
+
+function chooseTargetChannelHelper(attR, isHomeSide, teamTacticsObj = null, forceChannel = null) {
+  const hasLeftWing = attR.leftWings.length > 0;
+  const hasRightWing = attR.rightWings.length > 0;
+  const hasAMC = (attR.effectiveAmcs && attR.effectiveAmcs.length > 0);
+
+  const leftZone = isHomeSide ? 'c1' : 'b3';
+  const centerZone = isHomeSide ? 'c2' : 'b2';
+  const rightZone = isHomeSide ? 'c3' : 'b1';
+
+  if (forceChannel && ['left', 'center', 'right'].includes(forceChannel)) {
+    if (forceChannel === 'left') return { channel: 'left', zone: leftZone };
+    if (forceChannel === 'right') return { channel: 'right', zone: rightZone };
+    return { channel: 'center', zone: centerZone };
+  }
+
+  const focus = teamTacticsObj?.attackingFocus || null;
+  if (focus === 'left') {
+    if (Math.random() < 0.80) return { channel: 'left', zone: leftZone };
+    if (hasRightWing && hasAMC) {
+      return Math.random() < 0.5 ? { channel: 'right', zone: rightZone } : { channel: 'center', zone: centerZone };
+    }
+    if (hasAMC && !hasRightWing) return { channel: 'center', zone: centerZone };
+    return { channel: 'right', zone: rightZone };
+  }
+  if (focus === 'right') {
+    if (Math.random() < 0.80) return { channel: 'right', zone: rightZone };
+    if (hasLeftWing && hasAMC) {
+      return Math.random() < 0.5 ? { channel: 'left', zone: leftZone } : { channel: 'center', zone: centerZone };
+    }
+    if (hasAMC && !hasLeftWing) return { channel: 'center', zone: centerZone };
+    return { channel: 'left', zone: leftZone };
+  }
+  if (focus === 'center') {
+    if (Math.random() < 0.80) return { channel: 'center', zone: centerZone };
+    return Math.random() < 0.5 ? { channel: 'left', zone: leftZone } : { channel: 'right', zone: rightZone };
+  }
+  if (focus === 'both_flanks') {
+    return Math.random() < 0.5 ? { channel: 'left', zone: leftZone } : { channel: 'right', zone: rightZone };
+  }
+
+  const candidates = [];
+  if (hasLeftWing) candidates.push({ channel: 'left', zone: leftZone, weight: hasAMC ? 35 : 50 });
+  if (hasRightWing) candidates.push({ channel: 'right', zone: rightZone, weight: hasAMC ? 35 : 50 });
+  if (hasAMC || (!hasLeftWing && !hasRightWing)) {
+    candidates.push({ channel: 'center', zone: centerZone, weight: (hasLeftWing || hasRightWing) ? 30 : 100 });
+  }
+
+  const totalWeight = candidates.reduce((s, c) => s + c.weight, 0);
+  let pick = Math.random() * totalWeight;
+  let selected = candidates[0];
+  for (const c of candidates) {
+    pick -= c.weight;
+    if (pick <= 0) {
+      selected = c;
+      break;
+    }
+  }
+  return selected;
+}
+
+function pickHoldTargetHelper(attR, currZone, currPasser, isHomeSide) {
+  const fallbackZone = isHomeSide ? 'a2' : 'd2';
+  let candidateZones;
+  if (isHomeSide) {
+    if (currZone === 'b2') candidateZones = ['b1', 'b3', 'a1', 'a3', 'a2'];
+    else if (currZone === 'b1') candidateZones = ['a1', 'b2', 'a2', 'a3', 'b3'];
+    else if (currZone === 'b3') candidateZones = ['a3', 'b2', 'a2', 'a1', 'b1'];
+    else candidateZones = ['a1', 'a3', 'a2', 'b2', 'b1', 'b3'];
+  } else {
+    if (currZone === 'c2') candidateZones = ['c1', 'c3', 'd1', 'd3', 'd2'];
+    else if (currZone === 'c1') candidateZones = ['d1', 'c2', 'd2', 'd3', 'c3'];
+    else if (currZone === 'c3') candidateZones = ['d3', 'c2', 'd2', 'd1', 'c1'];
+    else candidateZones = ['d1', 'd3', 'd2', 'c2', 'c1', 'c3'];
+  }
+
+  const options = [];
+  candidateZones.forEach((z) => {
+    const list = attR.zonePlayers[z] || [];
+    list.forEach((p) => {
+      if (p && p.name !== currPasser?.name) {
+        options.push({ zone: z, player: p });
+      }
+    });
+  });
+
+  if (options.length > 0) return pickRandom(options);
+  const fbPool = attR.zonePlayers[fallbackZone] || [];
+  const fbPlayer = fbPool[0] || currPasser;
+  return { zone: fbPool[0] ? fallbackZone : currZone, player: fbPlayer };
+}
+
+function resolveBoxDefenseHelper(defRoster, mode = 'standard') {
+  const dcPool = defRoster.dcs && defRoster.dcs.length > 0 ? defRoster.dcs : defRoster.effectiveDcs;
+  const dc = pickRandom(dcPool);
+  const gk = defRoster.gk;
+  const gkHand = gk ? gk.skills.handling : 6;
+
+  let dcSkillVal = dc ? dc.skills.marking : 6;
+  let dcSkillLabel = 'Mark';
+  let dcInstrBonus = 0;
+
+  if (mode === 'high_cross') {
+    dcSkillVal = dc ? dc.skills.heading : 6;
+    dcSkillLabel = 'Head';
+    if (dc?.instruction === 'tight_marking') dcInstrBonus = 1;
+  } else if (mode === 'low_cross') {
+    dcSkillVal = dc ? dc.skills.tackling : 6;
+    dcSkillLabel = 'Tack';
+    if (dc?.instruction === 'aggressive_tackle') dcInstrBonus = 1;
+  } else {
+    dcSkillVal = dc ? dc.skills.marking : 6;
+    dcSkillLabel = 'Mark';
+    if (dc?.instruction === 'aggressive_tackle') dcInstrBonus = 1;
+  }
+
+  const combinedSkill = Math.round((dcSkillVal + gkHand) / 2);
+  return {
+    dc,
+    gk,
+    dcSkillVal,
+    dcSkillLabel,
+    dcInstrBonus,
+    gkHand,
+    combinedSkill,
+    formulaName: `(${dcSkillLabel}+Hand)/2`,
+    label: `${dc?.name || 'DC'} (${dcSkillLabel}:${dcSkillVal}) & ${gk?.name || 'GK'} (Hand:${gkHand})`
+  };
+}
+
 /**
- * Simulates one possession sequence on the 12-box grid (`a1..d3`) with full
- * Position Individual Instructions support.
+ * Resolves where a successful Step 1 pass goes when starting outside center midfield
+ * (`a2`/`d2` GK/DC, `a1`/`a3`/`d1`/`d3` fullbacks, `b1`/`b3`/`c1`/`c3` flank wins)
+ * so players never teleport directly to MC without a real pass check:
+ * - Own Box (GK short or DC in a2/d2): always passes to MC (randomly among MCs in b2/c2).
+ * - Own Flank (DR/DL in b3/b1 or a3/a1): follows flank/team focus logic — advances up THAT flank
+ *   if team focus selects that flank and a forward flank teammate exists; otherwise passes inside
+ *   to MC (or MCs if more than one).
+ * - High press win in opponent's flank: attacks forward directly from that channel.
  */
-export function simulateZone12Possession({
+function resolveFlankOrDefBuildUpPlan({
+  startZone,
+  attRoster,
+  isHomeAtt,
+  attTeamTactics,
+  forceChannel = null,
+  isRecovery = false
+}) {
+  const midZone = isHomeAtt ? 'b2' : 'c2';
+  const ownBoxZone = isHomeAtt ? 'a2' : 'd2';
+  const mcPoolInBox = (attRoster.zonePlayers[midZone] || []).filter((p) => p.effectivePos !== 'GK');
+  const mcFallbackPool = mcPoolInBox.length > 0
+    ? mcPoolInBox
+    : (attRoster.buildUpMids?.length > 0 ? attRoster.buildUpMids : attRoster.centralMids);
+  const pickedMc = pickRandom(mcFallbackPool) || attRoster.all?.[0] || null;
+  const chosenChannel = chooseTargetChannelHelper(attRoster, isHomeAtt, attTeamTactics, forceChannel);
+
+  // If team has Counter Attack enabled after winning the ball in own half/box,
+  // bypass slow MC build-up and fast-forward straight into STEP 2 with +2!
+  const ownHalfZones = isHomeAtt ? ['a1', 'a2', 'a3', 'b1', 'b2', 'b3'] : ['d1', 'd2', 'd3', 'c1', 'c2', 'c3'];
+  if (isRecovery && attTeamTactics?.counterAttack === true && ownHalfZones.includes(startZone)) {
+    return {
+      kind: 'to_counter_step2',
+      chosenChannel,
+      counterBonus: 2,
+      reason: 'counter_attack_recovery'
+    };
+  }
+
+  if (startZone === ownBoxZone) {
+    return {
+      kind: 'to_mc',
+      nextZone: midZone,
+      nextPlayer: pickedMc,
+      chosenChannel: null,
+      reason: 'own_box_to_mc'
+    };
+  }
+
+  const isLong = attTeamTactics?.passing === 'long';
+
+  const leftDeep = isHomeAtt ? 'a1' : 'd3';
+  const rightDeep = isHomeAtt ? 'a3' : 'd1';
+  if (startZone === leftDeep || startZone === rightDeep) {
+    const flankSide = startZone === leftDeep ? 'left' : 'right';
+    const adjFlankBox = isHomeAtt
+      ? (flankSide === 'left' ? 'b1' : 'b3')
+      : (flankSide === 'left' ? 'c3' : 'c1');
+    const adjPool = (attRoster.zonePlayers[adjFlankBox] || []).filter((p) => p.effectivePos !== 'GK');
+    if (chosenChannel.channel === flankSide && !isLong && adjPool.length > 0) {
+      return {
+        kind: 'to_flank_mid',
+        nextZone: adjFlankBox,
+        nextPlayer: pickRandom(adjPool),
+        chosenChannel,
+        reason: 'deep_flank_up_line'
+      };
+    }
+    return {
+      kind: 'to_mc',
+      nextZone: midZone,
+      nextPlayer: pickedMc,
+      chosenChannel,
+      reason: 'deep_flank_to_mc'
+    };
+  }
+
+  const leftMid = isHomeAtt ? 'b1' : 'c3';
+  const rightMid = isHomeAtt ? 'b3' : 'c1';
+  if (startZone === leftMid || startZone === rightMid) {
+    const flankSide = startZone === leftMid ? 'left' : 'right';
+    const shortForwardFlank = isHomeAtt
+      ? (flankSide === 'left' ? 'c1' : 'c3')
+      : (flankSide === 'left' ? 'b3' : 'b1');
+    const longForwardFlank = isHomeAtt
+      ? (flankSide === 'left' ? 'd1' : 'd3')
+      : (flankSide === 'left' ? 'a3' : 'a1');
+    const targetForwardBox = isLong ? longForwardFlank : shortForwardFlank;
+    const forwardPool = (attRoster.zonePlayers[targetForwardBox] || []).filter((p) => p.effectivePos !== 'GK');
+
+    if (chosenChannel.channel === flankSide && forwardPool.length > 0) {
+      return {
+        kind: 'to_step2_flank',
+        chosenChannel: { channel: flankSide, zone: shortForwardFlank },
+        targetBox: targetForwardBox,
+        reason: 'mid_flank_up_line'
+      };
+    }
+
+    return {
+      kind: 'to_mc',
+      nextZone: midZone,
+      nextPlayer: pickedMc,
+      chosenChannel,
+      reason: 'mid_flank_to_mc'
+    };
+  }
+
+  const attLeft = isHomeAtt ? 'c1' : 'b3';
+  const attRight = isHomeAtt ? 'c3' : 'b1';
+  if (startZone === attLeft) {
+    return { kind: 'to_step2_direct', chosenChannel: { channel: 'left', zone: attLeft }, reason: 'high_press_flank' };
+  }
+  if (startZone === attRight) {
+    return { kind: 'to_step2_direct', chosenChannel: { channel: 'right', zone: attRight }, reason: 'high_press_flank' };
+  }
+
+  return { kind: 'forward_standard', chosenChannel, reason: 'center_mid_forward' };
+}
+
+function runZone12PossessionCore({
   homeLineup,
   awayLineup,
   homeRoles = {},
@@ -409,8 +689,39 @@ export function simulateZone12Possession({
   minute = 3,
   maxMinute = null,
   preferredAttacker = null,
-  isKickoffRestart = false
+  isKickoffRestart = false,
+  recycleState = null,
+  testOverrides = null
 }) {
+  // Helper for deterministic scenario testing in Zone12EngineTestDemo (null in normal matches)
+  const resolveDuelWithOverride = (attBase, defBase, overrideDiff = null) => {
+    if (overrideDiff === null || overrideDiff === undefined) {
+      const attDie = rollD10();
+      const defDie = rollD10();
+      return {
+        attDie,
+        defDie,
+        attTotal: attDie + attBase,
+        defTotal: defDie + defBase,
+        diff: (attDie + attBase) - (defDie + defBase)
+      };
+    }
+    const baseDiff = attBase - defBase;
+    const neededDieDiff = overrideDiff - baseDiff;
+    let defDie = Math.max(1, Math.min(10, Math.round(5 - neededDieDiff / 2)));
+    let attDie = Math.max(1, Math.min(10, defDie + neededDieDiff));
+    defDie = Math.max(1, Math.min(10, attDie - neededDieDiff));
+    attDie = Math.max(1, Math.min(10, defDie + neededDieDiff));
+    const attTotal = attDie + attBase;
+    const defTotal = defDie + defBase;
+    return {
+      attDie,
+      defDie,
+      attTotal,
+      defTotal,
+      diff: overrideDiff
+    };
+  };
   const resolveEventMinute = (elapsed) => {
     const raw = (Number(minute) || 0) + elapsed;
     return maxMinute ? Math.min(maxMinute, raw) : raw;
@@ -452,6 +763,7 @@ export function simulateZone12Possession({
   const initDefTeamName = initIsHome ? (awayTeam?.name || 'Away') : (homeTeam?.name || 'Home');
   const initAttTactic = initIsHome ? homeTactic : awayTactic;
   const initAttTeamTactics = initIsHome ? homeTeamTactics : awayTeamTactics;
+  const initDefTeamTactics = initIsHome ? awayTeamTactics : homeTeamTactics;
 
   const steps = [];
   const logs = [];
@@ -472,6 +784,12 @@ export function simulateZone12Possession({
     const leftZone = isHomeSide ? 'c1' : 'b3';
     const centerZone = isHomeSide ? 'c2' : 'b2';
     const rightZone = isHomeSide ? 'c3' : 'b1';
+
+    if (testOverrides?.forceChannel && ['left', 'center', 'right'].includes(testOverrides.forceChannel)) {
+      if (testOverrides.forceChannel === 'left') return { channel: 'left', zone: leftZone };
+      if (testOverrides.forceChannel === 'right') return { channel: 'right', zone: rightZone };
+      return { channel: 'center', zone: centerZone };
+    }
 
     const focus = teamTacticsObj?.attackingFocus || null;
     if (focus === 'left') {
@@ -523,19 +841,61 @@ export function simulateZone12Possession({
   };
 
   // ---------------------------------------------------------------------------
-  // STEP 1: Check GK Distribution Instruction ('long' vs 'short') or Midfield Build-up
+  // STEP 1: Check GK Distribution Instruction ('long' vs 'short') or Midfield / Recycled Build-up
   //         Note: Kickoff restarts always begin in center midfield (never GK long kick).
   // ---------------------------------------------------------------------------
+  const activeRecycle = (!isKickoffRestart && recycleState && recycleState.side === initSide && recycleState.player)
+    ? recycleState
+    : null;
   const initGk = initAttRoster.gk;
-  const isGkLongDistribution = !isKickoffRestart && initGk?.instruction === 'long';
+  const isGkRecycle = Boolean(activeRecycle && (activeRecycle.player?.effectivePos === 'GK' || activeRecycle.player?.name === initGk?.name));
+  const isGkLongDistribution = !isKickoffRestart && (!activeRecycle || isGkRecycle) && (
+    typeof testOverrides?.forceGkLong === 'boolean'
+      ? testOverrides.forceGkLong
+      : initGk?.instruction === 'long'
+  );
 
-  let startZone = initIsHome ? 'b2' : 'c2';
+  let startZone = activeRecycle?.zone || (initIsHome ? 'b2' : 'c2');
   let midPasser = null;
   let midMarker = null;
   let midSuccess = false;
   let counterTriggered = false;
   let step2SkillBonus = 0; // +3 if MC/DMC succeeds a through_ball (diff >= 4)
   let preChosenChannel = null;
+
+  // Picks a valid occupied lateral/back zone & teammate to hold possession on diff 0 or 1
+  const pickHoldTarget = (attR, currZone, currPasser, isHomeSide) => {
+    const fallbackZone = isHomeSide ? 'a2' : 'd2';
+    let candidateZones;
+    if (isHomeSide) {
+      if (currZone === 'b2') candidateZones = ['b1', 'b3', 'a1', 'a3', 'a2'];
+      else if (currZone === 'b1') candidateZones = ['a1', 'b2', 'a2', 'a3', 'b3'];
+      else if (currZone === 'b3') candidateZones = ['a3', 'b2', 'a2', 'a1', 'b1'];
+      else candidateZones = ['a1', 'a3', 'a2', 'b2', 'b1', 'b3'];
+    } else {
+      if (currZone === 'c2') candidateZones = ['c1', 'c3', 'd1', 'd3', 'd2'];
+      else if (currZone === 'c1') candidateZones = ['d1', 'c2', 'd2', 'd3', 'c3'];
+      else if (currZone === 'c3') candidateZones = ['d3', 'c2', 'd2', 'd1', 'c1'];
+      else candidateZones = ['d1', 'd3', 'd2', 'c2', 'c1', 'c3'];
+    }
+
+    const options = [];
+    candidateZones.forEach((z) => {
+      const list = attR.zonePlayers[z] || [];
+      list.forEach((p) => {
+        if (p && p.name !== currPasser?.name) {
+          options.push({ zone: z, player: p });
+        }
+      });
+    });
+
+    if (options.length > 0) {
+      return pickRandom(options);
+    }
+    const fbPool = attR.zonePlayers[fallbackZone] || [];
+    const fbPlayer = fbPool[0] || currPasser;
+    return { zone: fbPool[0] ? fallbackZone : currZone, player: fbPlayer };
+  };
 
   if (isGkLongDistribution) {
     // GK LONG DISTRIBUTION:
@@ -567,15 +927,21 @@ export function simulateZone12Possession({
     midPasser = targetAttPlayer;
     midMarker = targetDefPlayer;
 
-    const attTackDie = rollD10();
-    const defTackDie = rollD10();
     const attTackSkill = targetAttPlayer.skills.tackling;
     const defTackSkill = targetDefPlayer.skills.tackling;
-    const attTackBonus = initAttTactic === 'attack' ? 1 : 0;
-    const defTackBonus = 0;
-    const attTackTotal = attTackDie + attTackSkill + attTackBonus;
-    const defTackTotal = defTackDie + defTackSkill + defTackBonus;
-    const tackDiff = attTackTotal - defTackTotal;
+    const attTackBonus = (initAttTactic === 'attack' ? 1 : 0) + (isGkRecycle ? 5 : 0);
+    const defTackBonus = getTacklingMod(initDefTeamTactics);
+    const forcedGkDiff = testOverrides?.forceStep1Outcome === 'success_2' || testOverrides?.forceStep1Outcome === 'success_4'
+      ? 2
+      : (testOverrides?.forceStep1Outcome === 'counter_2'
+        ? -2
+        : (testOverrides?.forceStep1Outcome ? -1 : null));
+    const gkDuel = resolveDuelWithOverride(attTackSkill + attTackBonus, defTackSkill + defTackBonus, forcedGkDiff);
+    const attTackDie = gkDuel.attDie;
+    const defTackDie = gkDuel.defDie;
+    const attTackTotal = gkDuel.attTotal;
+    const defTackTotal = gkDuel.defTotal;
+    const tackDiff = gkDuel.diff;
 
     midSuccess = tackDiff >= 2;
     counterTriggered = tackDiff <= -2;
@@ -645,7 +1011,7 @@ export function simulateZone12Possession({
       };
     }
   } else {
-    // GK SHORT DISTRIBUTION -> Standard Midfield Build-up in b2 (Home) / c2 (Away)
+    // GK SHORT DISTRIBUTION / RECYCLED BUILD-UP (b2/c2 or lateral/back hold zone)
     zonePath.push(startZone);
 
     const attMids = initAttRoster.buildUpMids && initAttRoster.buildUpMids.length > 0
@@ -658,11 +1024,32 @@ export function simulateZone12Possession({
       ? initDefRoster.step1PressMids
       : (initDefRoster.centralMids.length > 0 ? initDefRoster.centralMids : initDefRoster.all);
 
-    midPasser = pickRandom(attMids);
-    midMarker = pickRandom(defMids);
+    const resolvePressingDefenderForZone = (z) => {
+      const isDeepBack = initIsHome ? z.startsWith('a') : z.startsWith('d');
+      if (isDeepBack) {
+        const highPressPool = [...(initDefRoster.strikers || []), ...(initDefRoster.effectiveAmcs || [])].filter(Boolean);
+        if (highPressPool.length > 0) return pickRandom(highPressPool);
+      }
+      if (z === 'b1' || z === 'c1' || z === 'b3' || z === 'c3') {
+        const widePress = initIsHome
+          ? (z === 'b1' ? initDefRoster.rightWings : initDefRoster.leftWings)
+          : (z === 'c1' ? initDefRoster.leftWings : initDefRoster.rightWings);
+        if (widePress && widePress.length > 0) return pickRandom(widePress);
+      }
+      return pickRandom(defMids);
+    };
+
+    midPasser = activeRecycle
+      ? (Object.values(initAttRoster.zonePlayers).flat().find(p => p && p.name === activeRecycle.player.name) || activeRecycle.player)
+      : pickRandom(attMids);
+    midMarker = activeRecycle ? resolvePressingDefenderForZone(startZone) : pickRandom(defMids);
 
     // Check MC / DMC Individual Instruction: 'pass' (default, diff >= 2) vs 'through_ball' (diff >= 4, grants +3 skill to receiver!)
-    const isMidThroughBall = midPasser.instruction === 'through_ball';
+    const isMidThroughBall = !activeRecycle && (
+      testOverrides?.forceStep1ThroughBall
+        ? testOverrides.forceStep1ThroughBall === 'through_ball'
+        : midPasser.instruction === 'through_ball'
+    );
     const requiredMidDiff = isMidThroughBall ? 4 : 2;
     const ballPlayDcBonus = (['DC', 'CB', 'SW'].includes(midPasser.effectivePos) && midPasser.instruction === 'direct_pass') ? 1 : 0;
 
@@ -670,32 +1057,53 @@ export function simulateZone12Possession({
     const defNumBonus = initDefRoster.centralMids.length > initAttRoster.centralMids.length ? 1 : 0;
     const doublePivotPassBonus = initAttRoster.dmcCount >= 2 ? 1 : 0;
     const mentalityPassBonus = initAttTactic === 'attack' ? 1 : (initAttTactic === 'defense' ? -2 : 0);
+    const gkPassProtectionBonus = (midPasser.effectivePos === 'GK' || midPasser.name === initGk?.name) ? 5 : 0;
 
-    const attStep1Bonus = attNumBonus + doublePivotPassBonus + mentalityPassBonus + ballPlayDcBonus;
-    const defStep1Bonus = defNumBonus;
+    const attStep1Bonus = attNumBonus + doublePivotPassBonus + mentalityPassBonus + ballPlayDcBonus + gkPassProtectionBonus;
+    const defStep1Bonus = defNumBonus + getTacklingMod(initDefTeamTactics);
+    const baseCounterThreshold = initAttTactic === 'defense' ? -4 : -2;
+    const counterThreshold = initDefTeamTactics?.counterAttack === true
+      ? (initAttTactic === 'defense' ? -2 : -1)
+      : baseCounterThreshold;
 
-    const passDie = rollD10();
-    const markDie = rollD10();
+    let forcedStep1Diff = null;
+    if (testOverrides?.forceStep1Outcome === 'success_2') forcedStep1Diff = requiredMidDiff;
+    else if (testOverrides?.forceStep1Outcome === 'success_4') forcedStep1Diff = 4;
+    else if (testOverrides?.forceStep1Outcome === 'hold_0_1') forcedStep1Diff = 0;
+    else if (testOverrides?.forceStep1Outcome === 'fail_1') forcedStep1Diff = -1;
+    else if (testOverrides?.forceStep1Outcome === 'counter_2') forcedStep1Diff = counterThreshold;
+
     const passSkill = midPasser.skills.passing;
     const markSkill = midMarker.skills.marking;
-    const passTotal = passDie + passSkill + attStep1Bonus;
-    const markTotal = markDie + markSkill + defStep1Bonus;
-    const midDiff = passTotal - markTotal;
+    const step1Duel = resolveDuelWithOverride(passSkill + attStep1Bonus, markSkill + defStep1Bonus, forcedStep1Diff);
+    const passDie = step1Duel.attDie;
+    const markDie = step1Duel.defDie;
+    const passTotal = step1Duel.attTotal;
+    const markTotal = step1Duel.defTotal;
+    const midDiff = step1Duel.diff;
 
     midSuccess = midDiff >= requiredMidDiff;
+    // Hold Possession rule: diff 0 or 1 keeps the ball (recycles to b1/b3/a1/a3/a2 for Home, c1/c3/d1/d3/d2 for Away).
+    // Turnovers only happen on diff <= -1 (or diff 2-3 if attempting a risky through-ball without succeeding).
+    const isHoldPossession = !isMilestoneStopCheck(midSuccess, counterTriggered) && (midDiff === 0 || midDiff === 1);
+    function isMilestoneStopCheck() { return false; }
+
     // Center-circle kickoff restarts cannot be counter-ambushed in Step 1;
     // Defensive low-blocks only leave counters open on heavy turnovers (diff <= -4).
-    const counterThreshold = initAttTactic === 'defense' ? -4 : -2;
     counterTriggered = !isKickoffRestart && midDiff <= counterThreshold;
 
     if (midSuccess && isMidThroughBall) {
       step2SkillBonus = 3;
     }
 
+    const holdPick = isHoldPossession ? pickHoldTarget(initAttRoster, startZone, midPasser, initIsHome) : null;
+
     steps.push({
       phase: isKickoffRestart
         ? (isMidThroughBall ? 'KICKOFF THROUGH-BALL (+3)' : 'KICKOFF RESTART (MIDFIELD)')
-        : (isMidThroughBall ? 'MIDFIELD THROUGH-BALL (+3)' : 'MIDFIELD BUILD-UP'),
+        : (activeRecycle
+          ? 'RECYCLED BUILD-UP PASS'
+          : (isMidThroughBall ? 'MIDFIELD THROUGH-BALL (+3)' : 'MIDFIELD BUILD-UP')),
       zone: startZone,
       attacker: midPasser.name,
       attackerPlayer: midPasser,
@@ -719,21 +1127,152 @@ export function simulateZone12Possession({
       requiredDiff: requiredMidDiff,
       success: midSuccess,
       counterTriggered,
+      holdPossession: isHoldPossession,
+      holdTargetZone: holdPick?.zone || null,
       summary: midSuccess
         ? (isMidThroughBall
           ? `🗡️ ${midPasser.name} splits the defence from [${startZone.toUpperCase()}]! (d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal} vs ${midMarker.name} d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal}, diff +${midDiff} >= 4 → Receiver gets +3 Skill!)`
-          : `${midPasser.name} wins midfield in [${startZone.toUpperCase()}] (d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal} vs ${midMarker.name} d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal}, diff +${midDiff} >= 2)`)
+          : `${midPasser.name} passes cleanly from [${startZone.toUpperCase()}] (d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal} vs ${midMarker.name} d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal}, diff +${midDiff} >= 2)`)
         : (counterTriggered
           ? `⚡ ${midMarker.name} intercepts ${midPasser.name} in [${startZone.toUpperCase()}] and launches an instant counter! (d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal} vs d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal})`
-          : `${midMarker.name} stops ${midPasser.name}'s ${isMidThroughBall ? 'through-ball' : 'pass'} in [${startZone.toUpperCase()}] (d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal} vs d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal}, diff ${midDiff >= 0 ? `+${midDiff}` : midDiff} < ${requiredMidDiff})`)
+          : (isHoldPossession && holdPick
+            ? `🔄 Closed down in [${startZone.toUpperCase()}] (diff ${midDiff >= 0 ? `+${midDiff}` : midDiff}) — ${midPasser.name} recycles safely to ${holdPick.player.name} in [${holdPick.zone.toUpperCase()}] to keep possession!`
+            : `${midMarker.name} stops ${midPasser.name}'s ${isMidThroughBall ? 'through-ball' : 'pass'} in [${startZone.toUpperCase()}] (d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal} vs d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal}, diff ${midDiff >= 0 ? `+${midDiff}` : midDiff} < ${requiredMidDiff})`))
     });
 
+    const ownBoxZone = initIsHome ? 'a2' : 'd2';
+    if (!midSuccess && !isHoldPossession && startZone === ownBoxZone) {
+      // Attacker stole GK/DC short pass right inside the penalty box (a2 / d2) -> immediate shot!
+      const oppSide = initIsHome ? 'away' : 'home';
+      const oppAttTactic = initIsHome ? awayTactic : homeTactic;
+      const oppDefTactic = initIsHome ? homeTactic : awayTactic;
+      const stealFinMod = oppAttTactic === 'attack' ? 1 : (oppAttTactic === 'defense' ? -2 : 0);
+      const stealDefMod = oppDefTactic === 'defense' ? 1 : (oppDefTactic === 'attack' ? -1 : 0);
+      const is1v1Gk = (midPasser.effectivePos === 'GK' || midPasser.name === initGk?.name);
+      const boxDef = resolveBoxDefenseHelper(initAttRoster, 'standard');
+      const defSkillVal = is1v1Gk ? (initGk?.skills?.handling || 6) : boxDef.combinedSkill;
+      const defLabel = is1v1Gk ? (initGk?.name || 'GK') : `${boxDef.dc?.name || 'DC'} + ${initGk?.name || 'GK'}`;
+      const finSkill = midMarker.skills.finishing;
+      const forcedStealShotDiff = testOverrides?.forceStep3Outcome === 'goal'
+        ? 3
+        : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
+      const stealShotDuel = resolveDuelWithOverride(finSkill + stealFinMod, defSkillVal + stealDefMod, forcedStealShotDiff);
+      const isGoal = stealShotDuel.diff >= 3;
+
+      const stealLog = {
+        text: `${midEventMin}' ⚡ ${midMarker.name} (${initDefTeamName}) intercepts ${midPasser.name}'s pass inside [${startZone.toUpperCase()}]!`,
+        type: 'chance'
+      };
+      steps[0].stepLog = stealLog;
+      logs.push(stealLog);
+
+      const shotLog = isGoal
+        ? {
+          text: `${midEventMin}' ⚽ GOAL! ${midMarker.name} (${initDefTeamName}) punishes the mistake in [${startZone.toUpperCase()}] and fires past ${initGk?.name || 'the keeper'}!`,
+          type: 'goal'
+        }
+        : {
+          text: `${midEventMin}' 🧤 SAVE! ${midMarker.name} (${initDefTeamName}) gets an instant shot inside [${startZone.toUpperCase()}], but ${defLabel} recovers to keep it out!`,
+          type: 'save'
+        };
+
+      steps.push({
+        phase: is1v1Gk ? 'BOX STEAL 1v1 vs KEEPER' : 'BOX STEAL FINISH',
+        zone: startZone,
+        attacker: midMarker.name,
+        attackerPlayer: midMarker,
+        attackerSlotId: midMarker.slotId || null,
+        attackerPos: midMarker.effectivePos,
+        attackerSkillName: 'Finishing',
+        attackerSkill: finSkill,
+        attackerBonus: stealFinMod,
+        attackerDie: stealShotDuel.attDie,
+        attackerTotal: stealShotDuel.attTotal,
+        defender: defLabel,
+        defenderPlayer: is1v1Gk ? initGk : (boxDef.dc || initGk),
+        defenderSlotId: is1v1Gk ? (initGk?.slotId || null) : (boxDef.dc?.slotId || null),
+        defenderPos: is1v1Gk ? 'GK' : 'DC+GK',
+        defenderSkillName: is1v1Gk ? 'Handling' : boxDef.formulaName,
+        defenderSkill: defSkillVal,
+        defenderBonus: stealDefMod,
+        defenderDie: stealShotDuel.defDie,
+        defenderTotal: stealShotDuel.defTotal,
+        diff: stealShotDuel.diff,
+        requiredDiff: 3,
+        success: isGoal,
+        stepLog: shotLog,
+        summary: isGoal
+          ? `⚽ BOX STEAL GOAL! ${midMarker.name} scores in [${startZone.toUpperCase()}]! (diff +${stealShotDuel.diff} >= 3)`
+          : `🧤 ${defLabel} stops ${midMarker.name}'s instant shot in [${startZone.toUpperCase()}] (diff ${stealShotDuel.diff} < 3)`
+      });
+      logs.push(shotLog);
+
+      return {
+        minutesElapsed: 2,
+        step1Side: initSide,
+        attackingSide: oppSide,
+        nextAttacker: initSide,
+        counterTriggered: true,
+        startZone,
+        activeZone: startZone,
+        zonePath,
+        steps,
+        logs,
+        isGoal,
+        isShot: true,
+        isOnTarget: true,
+        scorer: isGoal ? midMarker : null,
+        assister: null,
+        homePenaltyTaker,
+        awayPenaltyTaker,
+        homeGk,
+        awayGk,
+        homeZonePlayers: homeRoster.zonePlayers,
+        awayZonePlayers: awayRoster.zonePlayers
+      };
+    }
+
     if (!midSuccess && !counterTriggered) {
+      if (isHoldPossession && holdPick) {
+        zonePath.push(holdPick.zone);
+        const holdLog = {
+          text: `${midEventMin}' 🔄 ${midPasser.name} (${initAttTeamName}) is pressed by ${midMarker.name} in [${startZone.toUpperCase()}], and plays a safe pass to ${holdPick.player.name} in [${holdPick.zone.toUpperCase()}] to hold possession.`,
+          type: 'normal'
+        };
+        steps[0].stepLog = holdLog;
+        logs.push(holdLog);
+        return {
+          minutesElapsed: 2,
+          step1Side: initSide,
+          attackingSide: initSide,
+          nextAttacker: initSide,
+          nextRecycleState: { side: initSide, zone: holdPick.zone, player: holdPick.player },
+          isHoldPossession: true,
+          counterTriggered: false,
+          startZone,
+          activeZone: holdPick.zone,
+          zonePath,
+          steps,
+          logs,
+          isGoal: false,
+          isShot: false,
+          isOnTarget: false,
+          scorer: null,
+          assister: null,
+          homePenaltyTaker,
+          awayPenaltyTaker,
+          homeGk,
+          awayGk,
+          homeZonePlayers: homeRoster.zonePlayers,
+          awayZonePlayers: awayRoster.zonePlayers
+        };
+      }
+
       const oppSide = initIsHome ? 'away' : 'home';
       const failLog = {
         text: isKickoffRestart
           ? `${midEventMin}' ${initAttTeamName} restarts from the center circle — ${midPasser.name} probes forward, before ${midMarker.name} (${initDefTeamName}) closes down and wins possession!`
-          : `${midEventMin}' ${midPasser.name} (${initAttTeamName}) attempts a ${isMidThroughBall ? 'defence-splitting through-ball' : 'forward pass'}, but ${midMarker.name} (${initDefTeamName}) closes down and intercepts cleanly. ${initDefTeamName} wins possession!`,
+          : `${midEventMin}' ${midPasser.name} (${initAttTeamName}) attempts a ${isMidThroughBall ? 'defence-splitting through-ball' : 'forward pass'} from [${startZone.toUpperCase()}], but ${midMarker.name} (${initDefTeamName}) closes down and intercepts cleanly. ${initDefTeamName} wins possession!`,
         type: 'normal'
       };
       steps[0].stepLog = failLog;
@@ -743,6 +1282,8 @@ export function simulateZone12Possession({
         step1Side: initSide,
         attackingSide: initSide,
         nextAttacker: oppSide,
+        nextRecycleState: null,
+        isHoldPossession: false,
         counterTriggered: false,
         startZone,
         activeZone: startZone,
@@ -775,6 +1316,8 @@ export function simulateZone12Possession({
   const attTactic = isHomeAtt ? homeTactic : awayTactic;
   const defTactic = isHomeAtt ? awayTactic : homeTactic;
   const attTeamTactics = isHomeAtt ? homeTeamTactics : awayTeamTactics;
+  const defTeamTactics = isHomeAtt ? awayTeamTactics : homeTeamTactics;
+  const defTacklingMod = getTacklingMod(defTeamTactics);
 
   // Team Mentality modifiers for Steps 2 & 3:
   // Defensive mentality penalizes attacking skills (passing, crossing, finishing, heading, dribbling, through balls) by -2,
@@ -785,10 +1328,44 @@ export function simulateZone12Possession({
 
   // ---------------------------------------------------------------------------
   // STEP 2: Choose Next Box (c1, c2, or c3 for Home; b1, b2, or b3 for Away)
+  //         If build-up started outside b2/c2 (e.g. DR won in b3 or GK/DC in a2),
+  //         apply flank/MC transfer logic first (unless Counter Attack = Yes launches straight to Step 2!).
   // ---------------------------------------------------------------------------
+  let recoveryTransferPlan = null;
+  if (!counterTriggered && !isGkLongDistribution && activeRecycle) {
+    recoveryTransferPlan = resolveFlankOrDefBuildUpPlan({
+      startZone,
+      attRoster,
+      isHomeAtt,
+      attTeamTactics,
+      forceChannel: testOverrides?.forceChannel || null,
+      isRecovery: Boolean(activeRecycle?.isRecovery)
+    });
+    if ((recoveryTransferPlan.kind === 'to_mc' || recoveryTransferPlan.kind === 'to_flank_mid') && recoveryTransferPlan.nextZone) {
+      if (zonePath[zonePath.length - 1] !== recoveryTransferPlan.nextZone) {
+        zonePath.push(recoveryTransferPlan.nextZone);
+      }
+      if (recoveryTransferPlan.nextPlayer) {
+        midPasser = recoveryTransferPlan.nextPlayer;
+      }
+      if (steps[0]) {
+        steps[0].summary = `${steps[0].summary} ➔ Feeds [${recoveryTransferPlan.nextZone.toUpperCase()}] (${midPasser?.name || 'MC'})`;
+      }
+    }
+  }
+
+  const isCounterLaunch = Boolean(
+    (counterTriggered && attTeamTactics?.counterAttack === true) ||
+    recoveryTransferPlan?.kind === 'to_counter_step2' ||
+    (isGkLongDistribution && isGkRecycle && attTeamTactics?.counterAttack === true)
+  );
+  if (isCounterLaunch) {
+    step2SkillBonus += 2;
+  }
+
   const chosenChannel = (!counterTriggered && preChosenChannel)
     ? preChosenChannel
-    : chooseTargetChannel(attRoster, isHomeAtt, attTeamTactics);
+    : (recoveryTransferPlan?.chosenChannel || chooseTargetChannel(attRoster, isHomeAtt, attTeamTactics));
   const isTeamLongPass = !isGkLongDistribution && attTeamTactics?.passing === 'long';
   const deepTargetZone = isHomeAtt
     ? (chosenChannel.channel === 'left' ? 'd1' : (chosenChannel.channel === 'right' ? 'd3' : 'd2'))
@@ -868,14 +1445,18 @@ export function simulateZone12Possession({
 
   const resolveLongShotOutcome = ({ shooter, shotZone, targetBoxZone, extraAttBonus = 0, extraDefBonus = 0, isFlank = false }) => {
     const boxDef = getBoxDefenseTarget('standard');
-    const shotDie = rollD10();
-    const saveDie = rollD10();
     const longShotSkill = shooter.skills.longShots;
     const longShotAttBonus = extraAttBonus + longShotMentalityMod + step2SkillBonus;
     const longShotDefBonus = extraDefBonus + defMentalityMod;
-    const shotTotal = shotDie + longShotSkill + longShotAttBonus;
-    const saveTotal = saveDie + boxDef.combinedSkill + longShotDefBonus;
-    const shotDiff = shotTotal - saveTotal;
+    const forcedShotDiff = testOverrides?.forceStep3Outcome === 'goal'
+      ? 5
+      : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
+    const shotDuel = resolveDuelWithOverride(longShotSkill + longShotAttBonus, boxDef.combinedSkill + longShotDefBonus, forcedShotDiff);
+    const shotDie = shotDuel.attDie;
+    const saveDie = shotDuel.defDie;
+    const shotTotal = shotDuel.attTotal;
+    const saveTotal = shotDuel.defTotal;
+    const shotDiff = shotDuel.diff;
     const isGoal = shotDiff >= 5;
 
     const longShotLog = isGoal
@@ -1041,15 +1622,19 @@ export function simulateZone12Possession({
       const defTarget = pickRandom(defDeepPlayers);
       const attTwoBonus = attDeepPlayers.length >= 2 ? 2 : 0;
       const defTwoBonus = defDeepPlayers.length >= 2 ? 2 : 0;
-      const attTackDie = rollD10();
-      const defTackDie = rollD10();
       const attTackSkill = attTarget.skills.tackling;
       const defTackSkill = defTarget.skills.tackling;
       const attBonus = attTwoBonus + attMentalityMod + step2SkillBonus;
-      const defBonus = defTwoBonus + defMentalityMod;
-      const attTotal = attTackDie + attTackSkill + attBonus;
-      const defTotal = defTackDie + defTackSkill + defBonus;
-      const tackDiff = attTotal - defTotal;
+      const defBonus = defTwoBonus + defMentalityMod + defTacklingMod;
+      const forcedLongTackleDiff = testOverrides?.forceStep2Outcome === 'success'
+        ? 1
+        : (testOverrides?.forceStep2Outcome === 'fail' ? -1 : null);
+      const longTackleDuel = resolveDuelWithOverride(attTackSkill + attBonus, defTackSkill + defBonus, forcedLongTackleDiff);
+      const attTackDie = longTackleDuel.attDie;
+      const defTackDie = longTackleDuel.defDie;
+      const attTotal = longTackleDuel.attTotal;
+      const defTotal = longTackleDuel.defTotal;
+      const tackDiff = longTackleDuel.diff;
       const tackleWon = tackDiff >= 1;
 
       const longTackleLog = tackleWon
@@ -1164,18 +1749,22 @@ export function simulateZone12Possession({
       ? attTarget
       : (pickRandom(attRoster.strikers) || attTarget);
     const boxDef = getBoxDefenseTarget(isHighCrossLong ? 'high_cross' : 'standard');
-    const finDie = rollD10();
-    const gkDie = rollD10();
     const finSkill = isHighCrossLong ? finisher.skills.heading : finisher.skills.finishing;
     const finSkillName = isHighCrossLong ? 'Heading' : 'Finishing';
     const finInstrBonus = isHighCrossLong
       ? (finisher.instruction === 'target_man' ? 1 : (finisher.instruction === 'poacher' ? -1 : 0))
       : (finisher.instruction === 'poacher' ? 1 : 0);
     const totalFinBonus = attMentalityMod + finInstrBonus;
-    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus;
-    const finTotal = finDie + finSkill + totalFinBonus;
-    const gkTotal = gkDie + boxDef.combinedSkill + totalDefBonus;
-    const finDiff = finTotal - gkTotal;
+    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod;
+    const forcedLongFinDiff = testOverrides?.forceStep3Outcome === 'goal'
+      ? 3
+      : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
+    const longFinDuel = resolveDuelWithOverride(finSkill + totalFinBonus, boxDef.combinedSkill + totalDefBonus, forcedLongFinDiff);
+    const finDie = longFinDuel.attDie;
+    const gkDie = longFinDuel.defDie;
+    const finTotal = longFinDuel.attTotal;
+    const gkTotal = longFinDuel.defTotal;
+    const finDiff = longFinDuel.diff;
     const isGoal = finDiff >= 3;
 
     const finishLog = isGoal
@@ -1281,7 +1870,10 @@ export function simulateZone12Possession({
       ? pickRandom(defRoster.defensiveMids)
       : (defRoster.dcs.length > 0 ? pickRandom(defRoster.dcs) : midMarker);
 
-    const amcInstr = amcPlayer.instruction || 'pass';
+    const rawAmcInstr = amcPlayer.instruction || 'pass';
+    const amcInstr = (testOverrides?.forceActorInstruction && ['long_shot', 'dribble', 'through_ball', 'pass'].includes(testOverrides.forceActorInstruction))
+      ? testOverrides.forceActorInstruction
+      : rawAmcInstr;
     const dmcManMarkBonus = oppCentralDef?.instruction === 'man_mark' ? 1 : 0;
     const boxZone = isHomeAtt ? 'd2' : 'a2';
 
@@ -1299,15 +1891,19 @@ export function simulateZone12Possession({
 
     // 2. AMC Instruction: DRIBBLE ('dribble') -> Beats DMC or DC tackling -> shoots 1-on-1 with the keeper!
     if (amcInstr === 'dribble') {
-      const dribDie = rollD10();
-      const tackDie = rollD10();
       const dribSkill = amcPlayer.skills.dribbling;
       const tackSkill = oppCentralDef.skills.tackling;
       const dribAttBonus = (attRoster.amcCount >= 2 ? 1 : 0) + attMentalityMod + step2SkillBonus;
-      const dribDefBonus = (defRoster.dmcCount >= 2 ? 1 : 0) + defMentalityMod;
-      const dribTotal = dribDie + dribSkill + dribAttBonus;
-      const tackTotal = tackDie + tackSkill + dribDefBonus;
-      const dribDiff = dribTotal - tackTotal;
+      const dribDefBonus = (defRoster.dmcCount >= 2 ? 1 : 0) + defMentalityMod + defTacklingMod;
+      const forcedDribDiff = testOverrides?.forceStep2Outcome === 'success'
+        ? 2
+        : (testOverrides?.forceStep2Outcome === 'fail' ? 0 : null);
+      const dribDuel = resolveDuelWithOverride(dribSkill + dribAttBonus, tackSkill + dribDefBonus, forcedDribDiff);
+      const dribDie = dribDuel.attDie;
+      const tackDie = dribDuel.defDie;
+      const dribTotal = dribDuel.attTotal;
+      const tackTotal = dribDuel.defTotal;
+      const dribDiff = dribDuel.diff;
       const dribSuccess = dribDiff >= 2;
 
       const dribLog = dribSuccess
@@ -1382,13 +1978,17 @@ export function simulateZone12Possession({
       zonePath.push(boxZone);
       const gk = defRoster.gk;
       const dcForFoul = pickRandom(defRoster.dcs);
-      const finDie = rollD10();
-      const gkDie = rollD10();
       const finSkill = amcPlayer.skills.finishing;
       const gkHand = gk ? gk.skills.handling : 6;
-      const finTotal = finDie + finSkill + attMentalityMod;
-      const gkTotal = gkDie + gkHand + defMentalityMod;
-      const finDiff = finTotal - gkTotal;
+      const forcedAmcDribFin = testOverrides?.forceStep3Outcome === 'goal'
+        ? 3
+        : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
+      const amcFinDuel = resolveDuelWithOverride(finSkill + attMentalityMod, gkHand + defMentalityMod, forcedAmcDribFin);
+      const finDie = amcFinDuel.attDie;
+      const gkDie = amcFinDuel.defDie;
+      const finTotal = amcFinDuel.attTotal;
+      const gkTotal = amcFinDuel.defTotal;
+      const finDiff = amcFinDuel.diff;
       const isGoal = finDiff >= 3;
 
       const finLog = isGoal
@@ -1463,15 +2063,19 @@ export function simulateZone12Possession({
     const requiredAmcDiff = isAmcThroughBall ? 4 : 2;
     const strikerThroughBallBonus = isAmcThroughBall ? 3 : 0;
 
-    const tbPassDie = rollD10();
-    const tbMarkDie = rollD10();
     const tbPassSkill = amcPlayer.skills.passing;
     const tbMarkSkill = oppCentralDef.skills.marking;
     const tbAttBonus = (attRoster.amcCount >= 2 ? 1 : 0) + attMentalityMod + step2SkillBonus;
-    const tbDefBonus = (defRoster.dmcCount >= 2 ? 1 : 0) + defMentalityMod + dmcManMarkBonus;
-    const tbPassTotal = tbPassDie + tbPassSkill + tbAttBonus;
-    const tbMarkTotal = tbMarkDie + tbMarkSkill + tbDefBonus;
-    const tbDiff = tbPassTotal - tbMarkTotal;
+    const tbDefBonus = (defRoster.dmcCount >= 2 ? 1 : 0) + defMentalityMod + dmcManMarkBonus + defTacklingMod;
+    const forcedTbDiff = testOverrides?.forceStep2Outcome === 'success'
+      ? requiredAmcDiff
+      : (testOverrides?.forceStep2Outcome === 'fail' ? 0 : null);
+    const tbDuel = resolveDuelWithOverride(tbPassSkill + tbAttBonus, tbMarkSkill + tbDefBonus, forcedTbDiff);
+    const tbPassDie = tbDuel.attDie;
+    const tbMarkDie = tbDuel.defDie;
+    const tbPassTotal = tbDuel.attTotal;
+    const tbMarkTotal = tbDuel.defTotal;
+    const tbDiff = tbDuel.diff;
     const tbSuccess = tbDiff >= requiredAmcDiff;
 
     const tbLog = tbSuccess
@@ -1546,15 +2150,19 @@ export function simulateZone12Possession({
     zonePath.push(boxZone);
     const striker = pickRandom(attRoster.strikers);
     const boxDef = getBoxDefenseTarget('standard');
-    const finDie = rollD10();
-    const gkDie = rollD10();
     const finSkill = striker.skills.finishing;
     const poacherBonus = striker.instruction === 'poacher' ? 1 : 0;
     const totalFinBonus = attMentalityMod + strikerThroughBallBonus + poacherBonus;
-    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus;
-    const finTotal = finDie + finSkill + totalFinBonus;
-    const gkTotal = gkDie + boxDef.combinedSkill + totalDefBonus;
-    const finDiff = finTotal - gkTotal;
+    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod;
+    const forcedFinDiff = testOverrides?.forceStep3Outcome === 'goal'
+      ? 3
+      : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
+    const finDuel = resolveDuelWithOverride(finSkill + totalFinBonus, boxDef.combinedSkill + totalDefBonus, forcedFinDiff);
+    const finDie = finDuel.attDie;
+    const gkDie = finDuel.defDie;
+    const finTotal = finDuel.attTotal;
+    const gkTotal = finDuel.defTotal;
+    const finDiff = finDuel.diff;
     const isGoal = finDiff >= 3;
 
     const finLog = isGoal
@@ -1685,11 +2293,16 @@ export function simulateZone12Possession({
   );
   const rawWingInstr = winger?.instruction;
   const wingAction = (
-    ['high_cross', 'low_cross', 'dribble', 'through_ball'].includes(rawWingInstr) ||
-    (rawWingInstr === 'long_shot' && canWingLongShot)
+    testOverrides?.forceActorInstruction &&
+    ['high_cross', 'low_cross', 'dribble', 'through_ball', 'long_shot'].includes(testOverrides.forceActorInstruction)
   )
-    ? rawWingInstr
-    : (winger?.duty === 'attack' ? 'dribble' : 'high_cross');
+    ? testOverrides.forceActorInstruction
+    : ((
+      ['high_cross', 'low_cross', 'dribble', 'through_ball'].includes(rawWingInstr) ||
+      (rawWingInstr === 'long_shot' && canWingLongShot)
+    )
+      ? rawWingInstr
+      : (winger?.duty === 'attack' ? 'dribble' : 'high_cross'));
 
   // 0. Attacking Winger / Attacking Wide Mid Instruction: LONG SHOT ('long_shot')
   if (wingAction === 'long_shot') {
@@ -1705,15 +2318,19 @@ export function simulateZone12Possession({
 
   // 1. Winger / WB (+MID) Instruction: THROUGH BALL ('through_ball')
   if (wingAction === 'through_ball') {
-    const tbDie = rollD10();
-    const fbDie = rollD10();
     const tbSkill = winger.skills.passing;
     const fbSkill = oppFullback.skills.marking;
     const tbAttBonus = attMentalityMod + step2SkillBonus;
-    const tbDefBonus = defMentalityMod + oppFbTightMarkMod;
-    const tbTotal = tbDie + tbSkill + tbAttBonus;
-    const fbTotal = fbDie + fbSkill + tbDefBonus;
-    const tbDiff = tbTotal - fbTotal;
+    const tbDefBonus = defMentalityMod + oppFbTightMarkMod + defTacklingMod;
+    const forcedWingTb = testOverrides?.forceStep2Outcome === 'success'
+      ? 4
+      : (testOverrides?.forceStep2Outcome === 'fail' ? 0 : null);
+    const wingTbDuel = resolveDuelWithOverride(tbSkill + tbAttBonus, fbSkill + tbDefBonus, forcedWingTb);
+    const tbDie = wingTbDuel.attDie;
+    const fbDie = wingTbDuel.defDie;
+    const tbTotal = wingTbDuel.attTotal;
+    const fbTotal = wingTbDuel.defTotal;
+    const tbDiff = wingTbDuel.diff;
     const tbSuccess = tbDiff >= 4;
 
     const tbLog = tbSuccess
@@ -1786,15 +2403,19 @@ export function simulateZone12Possession({
     zonePath.push(boxZone);
     const striker = pickRandom(attRoster.strikers);
     const boxDef = getBoxDefenseTarget('low_cross');
-    const finDie = rollD10();
-    const gkDie = rollD10();
     const finSkill = striker.skills.finishing;
     const poacherBonus = striker.instruction === 'poacher' ? 1 : 0;
     const totalFinBonus = attMentalityMod + 3 + poacherBonus;
-    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus;
-    const finTotal = finDie + finSkill + totalFinBonus;
-    const gkTotal = gkDie + boxDef.combinedSkill + totalDefBonus;
-    const finDiff = finTotal - gkTotal;
+    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod;
+    const forcedTbFin = testOverrides?.forceStep3Outcome === 'goal'
+      ? 3
+      : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
+    const tbFinDuel = resolveDuelWithOverride(finSkill + totalFinBonus, boxDef.combinedSkill + totalDefBonus, forcedTbFin);
+    const finDie = tbFinDuel.attDie;
+    const gkDie = tbFinDuel.defDie;
+    const finTotal = tbFinDuel.attTotal;
+    const gkTotal = tbFinDuel.defTotal;
+    const finDiff = tbFinDuel.diff;
     const isGoal = finDiff >= 3;
 
     const finLog = isGoal
@@ -1865,15 +2486,19 @@ export function simulateZone12Possession({
 
   // 2. Winger / Attacking WB Instruction: DRIBBLE ('dribble') -> Beats opponent tackling -> 1-on-1 with Keeper!
   if (wingAction === 'dribble') {
-    const dribDie = rollD10();
-    const tackDie = rollD10();
     const dribSkill = winger.skills.dribbling;
     const tackSkill = oppFullback.skills.tackling;
     const dribAttBonus = attMentalityMod + step2SkillBonus;
-    const dribDefBonus = defMentalityMod + oppFbTackleMod;
-    const dribTotal = dribDie + dribSkill + dribAttBonus;
-    const tackTotal = tackDie + tackSkill + dribDefBonus;
-    const dribDiff = dribTotal - tackTotal;
+    const dribDefBonus = defMentalityMod + oppFbTackleMod + defTacklingMod;
+    const forcedWingDrib = testOverrides?.forceStep2Outcome === 'success'
+      ? 2
+      : (testOverrides?.forceStep2Outcome === 'fail' ? 0 : null);
+    const wingDribDuel = resolveDuelWithOverride(dribSkill + dribAttBonus, tackSkill + dribDefBonus, forcedWingDrib);
+    const dribDie = wingDribDuel.attDie;
+    const tackDie = wingDribDuel.defDie;
+    const dribTotal = wingDribDuel.attTotal;
+    const tackTotal = wingDribDuel.defTotal;
+    const dribDiff = wingDribDuel.diff;
     const dribSuccess = dribDiff >= 2;
 
     const dribLog = dribSuccess
@@ -1950,14 +2575,18 @@ export function simulateZone12Possession({
     }
 
     const boxDef = getBoxDefenseTarget('standard');
-    const finDie = rollD10();
-    const gkDie = rollD10();
     const finSkill = winger.skills.finishing;
     const totalFinBonus = attMentalityMod;
-    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus;
-    const finTotal = finDie + finSkill + totalFinBonus;
-    const gkTotal = gkDie + boxDef.combinedSkill + totalDefBonus;
-    const finDiff = finTotal - gkTotal;
+    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod;
+    const forcedWingDribFin = testOverrides?.forceStep3Outcome === 'goal'
+      ? 3
+      : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
+    const wingDribFinDuel = resolveDuelWithOverride(finSkill + totalFinBonus, boxDef.combinedSkill + totalDefBonus, forcedWingDribFin);
+    const finDie = wingDribFinDuel.attDie;
+    const gkDie = wingDribFinDuel.defDie;
+    const finTotal = wingDribFinDuel.attTotal;
+    const gkTotal = wingDribFinDuel.defTotal;
+    const finDiff = wingDribFinDuel.diff;
     const isGoal = finDiff >= 3;
 
     const dribFinishLog = isGoal
@@ -2035,15 +2664,19 @@ export function simulateZone12Possession({
   //    - 50% random chance which DC and which Striker contest it if there are 2!
   // ---------------------------------------------------------------------------
   const isLowCross = wingAction === 'low_cross';
-  const crossDie = rollD10();
-  const fbMarkDie = rollD10();
   const crossSkill = winger.skills.crossing;
   const fbMarkSkill = oppFullback.skills.marking;
   const crossAttBonus = attMentalityMod + step2SkillBonus;
-  const crossDefBonus = defMentalityMod + oppFbTightMarkMod;
-  const crossTotal = crossDie + crossSkill + crossAttBonus;
-  const fbMarkTotal = fbMarkDie + fbMarkSkill + crossDefBonus;
-  const crossDiff = crossTotal - fbMarkTotal;
+  const crossDefBonus = defMentalityMod + oppFbTightMarkMod + defTacklingMod;
+  const forcedCrossDiff = testOverrides?.forceStep2Outcome === 'success'
+    ? 2
+    : (testOverrides?.forceStep2Outcome === 'fail' ? 0 : null);
+  const crossDuel = resolveDuelWithOverride(crossSkill + crossAttBonus, fbMarkSkill + crossDefBonus, forcedCrossDiff);
+  const crossDie = crossDuel.attDie;
+  const fbMarkDie = crossDuel.defDie;
+  const crossTotal = crossDuel.attTotal;
+  const fbMarkTotal = crossDuel.defTotal;
+  const crossDiff = crossDuel.diff;
   const crossSuccess = crossDiff >= 2;
 
   const crossTypeLabel = isLowCross ? 'LOW CROSS' : 'HIGH CROSS';
@@ -2122,8 +2755,6 @@ export function simulateZone12Possession({
   zonePath.push(boxZone);
   const striker = pickRandom(attRoster.strikers);
   const boxDef = getBoxDefenseTarget(isLowCross ? 'low_cross' : 'high_cross');
-  const finishDie = rollD10();
-  const gkDie = rollD10();
 
   const strikerSkill = isLowCross ? striker.skills.finishing : striker.skills.heading;
   const strikerSkillName = isLowCross ? 'Finishing' : 'Heading';
@@ -2133,10 +2764,15 @@ export function simulateZone12Possession({
 
   const totalAttBonus = attMentalityMod + strikerInstrMod;
   const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus;
-
-  const finishTotal = finishDie + strikerSkill + totalAttBonus;
-  const gkTotal = gkDie + boxDef.combinedSkill + totalDefBonus;
-  const finishDiff = finishTotal - gkTotal;
+  const forcedCrossFin = testOverrides?.forceStep3Outcome === 'goal'
+    ? 3
+    : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
+  const crossFinDuel = resolveDuelWithOverride(strikerSkill + totalAttBonus, boxDef.combinedSkill + totalDefBonus, forcedCrossFin);
+  const finishDie = crossFinDuel.attDie;
+  const gkDie = crossFinDuel.defDie;
+  const finishTotal = crossFinDuel.attTotal;
+  const gkTotal = crossFinDuel.defTotal;
+  const finishDiff = crossFinDuel.diff;
   const isGoal = finishDiff >= 3;
 
   const finishLog = isGoal
@@ -2207,6 +2843,48 @@ export function simulateZone12Possession({
     awayGk,
     homeZonePlayers: homeRoster.zonePlayers,
     awayZonePlayers: awayRoster.zonePlayers
+  };
+}
+
+/**
+ * Simulates one possession sequence on the 12-box grid (`a1..d3`) with full
+ * Position Individual Instructions support.
+ * Preserves recovered ball zone & defender on turnovers/saves so defenders (DR/DL/DC/GK)
+ * must pass out of their won zone (e.g. B3 -> B2 MC or up flank) instead of warping to MC.
+ */
+export function simulateZone12Possession(params) {
+  const res = runZone12PossessionCore(params);
+  if (!res || res.isGoal || res.nextRecycleState || res.isHoldPossession) {
+    return res;
+  }
+
+  const winnerSide = res.nextAttacker;
+  if (!winnerSide) return res;
+  const winIsHome = winnerSide === 'home';
+
+  if (res.isShot) {
+    // Save by Keeper -> GK has the ball in a2 / d2 to distribute to MC (or GK Long)
+    const winZone = winIsHome ? 'a2' : 'd2';
+    const winGk = winIsHome ? res.homeGk : res.awayGk;
+    return {
+      ...res,
+      nextRecycleState: winGk
+        ? { side: winnerSide, zone: winZone, player: winGk, isRecovery: true }
+        : null
+    };
+  }
+
+  const lastStep = res.steps && res.steps.length > 0 ? res.steps[res.steps.length - 1] : null;
+  const winZone = lastStep?.zone || res.activeZone || (winIsHome ? 'b2' : 'c2');
+  const winnerZonePlayers = winIsHome ? res.homeZonePlayers : res.awayZonePlayers;
+  const fallbackPool = winnerZonePlayers?.[winZone] || [];
+  const winPlayer = lastStep?.defenderPlayer || fallbackPool[0] || null;
+
+  return {
+    ...res,
+    nextRecycleState: winPlayer
+      ? { side: winnerSide, zone: winZone, player: winPlayer, isRecovery: true }
+      : null
   };
 }
 
@@ -2417,4 +3095,1338 @@ export function getZone12MatchPreviewPlacements(
   });
 
   return placements;
+}
+
+/**
+ * Initializes an idle Step 1 session for the 12-Box interactive step-by-step test sandbox.
+ */
+export function createZone12StepSession({
+  possessionSide = 'home',
+  homeRoster = null,
+  awayRoster = null,
+  forceStep1Mode = 'auto',
+  isKickoffRestart = false,
+  recycleState = null
+} = {}) {
+  const isHome = possessionSide === 'home';
+  const attRoster = isHome ? homeRoster : awayRoster;
+  const activeRecycle = (!isKickoffRestart && recycleState && recycleState.side === possessionSide && recycleState.player)
+    ? recycleState
+    : null;
+  const isGkRecycle = Boolean(activeRecycle && (activeRecycle.player?.effectivePos === 'GK' || activeRecycle.player?.name === attRoster?.gk?.name));
+  const isGkLong = !isKickoffRestart && (!activeRecycle || isGkRecycle) && attRoster && (
+    forceStep1Mode === 'gk_long' ||
+    (forceStep1Mode === 'auto' && attRoster.gk?.instruction === 'long')
+  );
+  const startZone = activeRecycle?.zone || (isGkLong ? (isHome ? 'a2' : 'd2') : (isHome ? 'b2' : 'c2'));
+
+  return {
+    phase: 'STEP_1',
+    possessionSide,
+    attackingSide: possessionSide,
+    ballZone: startZone,
+    displayPath: [startZone],
+    steps: [],
+    logs: [],
+    cards: [],
+    recycleState: activeRecycle,
+    isKickoffRestart,
+    step2Context: null,
+    step3Context: null,
+    lastStepSummary: null,
+    turnoverSide: null,
+    isCompleted: false
+  };
+}
+
+/**
+ * Advances the interactive 12-Box step-by-step sandbox by EXACTLY ONE decision step:
+ *  - From `STEP_1`: executes Midfield/Recycled Pass or GK Long Kick ONLY -> stops at `STEP_2`
+ *    (or stays `STEP_1` on Hold 0/+1, or flips possession on Failure -1 / Empty Turnover).
+ *  - From `STEP_2`: executes Long Ball Tackle, AMC Play, Wing Cross/Dribble, or Long Shot ->
+ *    stops at `STEP_3` inside the penalty box (or flips possession on Failure / resolves Long Shot).
+ *  - From `STEP_3`: executes Box Finish / Header -> Goal or Save, then resets to Opponent `STEP_1`.
+ */
+export function advanceZone12SandboxStep({
+  session,
+  decision = 'random', // STEP_1: 'success_2'|'success_4'|'hold_0_1'|'fail_1'|'counter_2'|'random' | STEP_2: 'success'|'fail'|'goal'|'save'|'random' | STEP_3: 'goal'|'save'|'random'
+  homeLineup,
+  awayLineup,
+  homeRoles = {},
+  awayRoles = {},
+  homeInstructions = {},
+  awayInstructions = {},
+  homeTeamTactics = null,
+  awayTeamTactics = null,
+  homeFormation = '4-4-2',
+  awayFormation = '4-4-2',
+  homeTactic = 'balanced',
+  awayTactic = 'balanced',
+  homeTeam = { name: 'Home XI' },
+  awayTeam = { name: 'Away XI' },
+  forceChannel = 'auto',
+  forceStep1Mode = 'auto',
+  forceActorInstruction = 'auto'
+}) {
+  const homeRoster = buildTeamZoneRoster(homeLineup, homeRoles, 'home', homeTeam, homeFormation, homeInstructions);
+  const awayRoster = buildTeamZoneRoster(awayLineup, awayRoles, 'away', awayTeam, awayFormation, awayInstructions);
+  const current = session || createZone12StepSession({
+    possessionSide: 'home',
+    homeRoster,
+    awayRoster,
+    forceStep1Mode
+  });
+
+  const mentalityBonusMap = (tactic) => (tactic === 'attack' ? 1 : (tactic === 'defense' ? -1 : 0));
+  const eventMin = 42;
+  const existingCards = Array.isArray(current.cards) ? current.cards : [];
+
+  const evaluateSandboxDiscipline = ({
+    defSide,
+    defPlayer,
+    defDie,
+    defTeamTactics,
+    isBoxZone = false,
+    boxZone = null,
+    attRoster = null,
+    defRoster = null
+  }) => {
+    const tackleMode = String(defTeamTactics?.tackling || 'normal').toLowerCase();
+    const teamReds = existingCards.filter((c) => c.side === defSide && (c.type === 'red' || c.type === 'second_yellow')).length;
+    const matchReds = existingCards.filter((c) => c.type === 'red' || c.type === 'second_yellow').length;
+    const check = resolveFoulCheck({
+      rawRoll: defDie,
+      sides: 10,
+      tackling: tackleMode,
+      teamRedCards: teamReds,
+      matchRedCards: matchReds,
+      foulFrequencyScale: 1
+    });
+
+    if (!check.foul) {
+      return { cardEntry: null, nextCards: existingCards, penaltyResult: null, note: '' };
+    }
+
+    const offender = (defPlayer && defPlayer.effectivePos !== 'GK')
+      ? defPlayer
+      : (defRoster?.dcs?.[0] || defPlayer || { name: 'Defender', position: 'DC' });
+    const priorYellows = existingCards.filter(
+      (c) => c.side === defSide && c.playerName === offender.name && c.type === 'yellow'
+    ).length;
+
+    let cardEntry = null;
+    let nextCards = existingCards;
+    let cardNote = `⚠️ Foul by ${offender.name} (${tackleMode.toUpperCase()} tackling)`;
+
+    if (check.outcome !== 'warning') {
+      const cardType = check.outcome === 'red'
+        ? 'red'
+        : (priorYellows >= 1 ? 'second_yellow' : 'yellow');
+      cardEntry = {
+        id: `${Date.now()}_${defSide}_${offender.name}`,
+        side: defSide,
+        playerName: offender.name,
+        type: cardType
+      };
+      nextCards = [...existingCards, cardEntry];
+      cardNote = cardType === 'red'
+        ? `🟥 DIRECT RED CARD: ${offender.name} sent off!`
+        : (cardType === 'second_yellow'
+          ? `🟨🟥 SECOND YELLOW RED: ${offender.name} sent off!`
+          : `🟨 YELLOW CARD: ${offender.name} booked!`);
+    }
+
+    let penaltyResult = null;
+    if (isBoxZone && attRoster && defRoster) {
+      const attSide = defSide === 'home' ? 'away' : 'home';
+      const taker = attRoster.strikers?.[0] || attRoster.effectiveAmcs?.[0] || attRoster.all?.[0];
+      const gk = defRoster.gk;
+      penaltyResult = resolveZone12PenaltyKick({
+        attackingSide: attSide,
+        zone: boxZone || (attSide === 'home' ? 'd2' : 'a2'),
+        taker,
+        gk,
+        attTeamName: attSide === 'home' ? (homeTeam?.name || 'Home XI') : (awayTeam?.name || 'Away XI'),
+        defTeamName: defSide === 'home' ? (homeTeam?.name || 'Home XI') : (awayTeam?.name || 'Away XI'),
+        minute: eventMin
+      });
+      cardNote = `🚨 PENALTY KICK! ${cardNote} ➔ ${penaltyResult.log.text}`;
+    }
+
+    return { cardEntry, nextCards, penaltyResult, note: cardNote };
+  };
+
+  const buildNextIdleSession = ({
+    nextSide,
+    kickoff = false,
+    nextRecycle = null,
+    visualZone,
+    displayPath,
+    steps,
+    logs,
+    lastStepSummary,
+    turnoverSide = null,
+    isGoal = false,
+    isShot = false,
+    isHold = false,
+    counterTriggered = false,
+    nextCards = existingCards
+  }) => {
+    let resolvedRecycle = nextRecycle;
+    if (isGoal || kickoff) {
+      resolvedRecycle = null;
+    } else if (!resolvedRecycle) {
+      const nextIsHome = nextSide === 'home';
+      const nextRoster = nextIsHome ? homeRoster : awayRoster;
+      if (isShot) {
+        const saveZone = nextIsHome ? 'a2' : 'd2';
+        resolvedRecycle = nextRoster.gk
+          ? { side: nextSide, zone: saveZone, player: nextRoster.gk, isRecovery: true }
+          : null;
+      } else {
+        const lastStep = steps && steps.length > 0 ? steps[steps.length - 1] : null;
+        const winZone = visualZone || (nextIsHome ? 'b2' : 'c2');
+        const fallbackPool = nextRoster.zonePlayers?.[winZone] || [];
+        const winPlayer = lastStep?.defenderPlayer || fallbackPool[0] || null;
+        resolvedRecycle = winPlayer
+          ? { side: nextSide, zone: winZone, player: winPlayer, isRecovery: true }
+          : null;
+      }
+    }
+
+    return {
+      session: {
+        phase: 'STEP_1',
+        possessionSide: nextSide,
+        attackingSide: nextSide,
+        ballZone: (resolvedRecycle?.zone) || (nextSide === 'home' ? 'b2' : 'c2'),
+        displayPath,
+        steps: [],
+        logs: [],
+        cards: nextCards,
+        recycleState: resolvedRecycle,
+        isKickoffRestart: kickoff,
+        step2Context: null,
+        step3Context: null,
+        lastStepSummary,
+        turnoverSide,
+        isCompleted: true
+      },
+      zoneResult: {
+        minutesElapsed: 1,
+        step1Side: current.possessionSide,
+        attackingSide: current.attackingSide,
+        nextAttacker: nextSide,
+        nextRecycleState: resolvedRecycle,
+        isHoldPossession: isHold,
+        counterTriggered,
+        startZone: displayPath[0] || visualZone,
+        activeZone: visualZone,
+        zonePath: displayPath,
+        steps,
+        logs,
+        cards: nextCards,
+        isGoal,
+        isShot,
+        isOnTarget: isShot,
+        isLongJump: false,
+        homeZonePlayers: homeRoster.zonePlayers,
+        awayZonePlayers: awayRoster.zonePlayers
+      }
+    };
+  };
+
+  // ===========================================================================
+  // PHASE 1: MIDFIELD / RECYCLED PASS / GK LONG KICK -> STOPS BEFORE STEP 2
+  // ===========================================================================
+  if (current.phase === 'STEP_1') {
+    const initSide = current.possessionSide;
+    const initIsHome = initSide === 'home';
+    const oppSide = initIsHome ? 'away' : 'home';
+    const initAttRoster = initIsHome ? homeRoster : awayRoster;
+    const initDefRoster = initIsHome ? awayRoster : homeRoster;
+    const initDefTeamName = initIsHome ? (awayTeam?.name || 'Away XI') : (homeTeam?.name || 'Home XI');
+    const initAttTactic = initIsHome ? homeTactic : awayTactic;
+    const initAttTeamTactics = initIsHome ? homeTeamTactics : awayTeamTactics;
+  const initDefTeamTactics = initIsHome ? awayTeamTactics : homeTeamTactics;
+
+    const activeRecycle = (!current.isKickoffRestart && current.recycleState && current.recycleState.side === initSide && current.recycleState.player)
+      ? current.recycleState
+      : null;
+    const initGk = initAttRoster.gk;
+    const isGkRecycle = Boolean(activeRecycle && (activeRecycle.player?.effectivePos === 'GK' || activeRecycle.player?.name === initGk?.name));
+    const isGkLongDistribution = !current.isKickoffRestart && (!activeRecycle || isGkRecycle) && (
+      forceStep1Mode === 'gk_long' ||
+      (forceStep1Mode === 'auto' && initGk?.instruction === 'long')
+    );
+
+    const startZone = activeRecycle?.zone || (isGkLongDistribution ? (initIsHome ? 'a2' : 'd2') : (initIsHome ? 'b2' : 'c2'));
+    const channelOverride = forceChannel !== 'auto' ? forceChannel : null;
+
+    let midPasser = null;
+    let midMarker = null;
+    let midSuccess = false;
+    let counterTriggered = false;
+    let step2SkillBonus = 0;
+    let step1Record = null;
+    let preChosenChannel = null;
+
+    if (isGkLongDistribution) {
+      preChosenChannel = chooseTargetChannelHelper(initAttRoster, initIsHome, initAttTeamTactics, channelOverride);
+      const targetZone = preChosenChannel.zone;
+      let targetAttPlayer;
+      let targetDefPlayer;
+      if (preChosenChannel.channel === 'left') {
+        targetAttPlayer = pickFlankActor(initAttRoster.pureLeftWings, initAttRoster.dl, initAttRoster.dlOverlaps);
+        targetDefPlayer = initDefRoster.dr;
+      } else if (preChosenChannel.channel === 'right') {
+        targetAttPlayer = pickFlankActor(initAttRoster.pureRightWings, initAttRoster.dr, initAttRoster.drOverlaps);
+        targetDefPlayer = initDefRoster.dl;
+      } else {
+        const amcPool = initAttRoster.effectiveAmcs.length > 0 ? initAttRoster.effectiveAmcs : initAttRoster.mcs;
+        targetAttPlayer = pickRandom(amcPool) || pickRandom(initAttRoster.all);
+        const defPool = initDefRoster.defensiveMids.length > 0 ? initDefRoster.defensiveMids : initDefRoster.dcs;
+        targetDefPlayer = pickRandom(defPool) || pickRandom(initDefRoster.all);
+      }
+
+      midPasser = targetAttPlayer;
+      midMarker = targetDefPlayer;
+      const attTackBonus = (initAttTactic === 'attack' ? 1 : 0) + (isGkRecycle ? 5 : 0);
+      const defTackBonus = getTacklingMod(initDefTeamTactics);
+      const forcedGkDiff = (decision === 'success_2' || decision === 'success_4')
+        ? 2
+        : (decision === 'counter_2' ? -2 : (decision === 'fail_1' || decision === 'hold_0_1' ? -1 : null));
+      const gkDuel = resolveDuelWithOverride(targetAttPlayer.skills.tackling + attTackBonus, targetDefPlayer.skills.tackling + defTackBonus, forcedGkDiff);
+      const tackDiff = gkDuel.diff;
+      midSuccess = tackDiff >= 2;
+      counterTriggered = tackDiff <= -2;
+
+      step1Record = {
+        phase: 'GK LONG DISTRIBUTION (TACKLE)',
+        zone: targetZone,
+        attacker: targetAttPlayer.name,
+        attackerPlayer: targetAttPlayer,
+        attackerSlotId: targetAttPlayer.slotId || null,
+        attackerPos: targetAttPlayer.effectivePos,
+        attackerSkillName: 'Tackling',
+        attackerSkill: targetAttPlayer.skills.tackling,
+        attackerBonus: attTackBonus,
+        attackerDie: gkDuel.attDie,
+        attackerTotal: gkDuel.attTotal,
+        defender: targetDefPlayer.name,
+        defenderPlayer: targetDefPlayer,
+        defenderSlotId: targetDefPlayer.slotId || null,
+        defenderPos: targetDefPlayer.effectivePos,
+        defenderSkillName: 'Tackling',
+        defenderSkill: targetDefPlayer.skills.tackling,
+        defenderBonus: defTackBonus,
+        defenderDie: gkDuel.defDie,
+        defenderTotal: gkDuel.defTotal,
+        diff: tackDiff,
+        requiredDiff: 2,
+        success: midSuccess,
+        counterTriggered,
+        summary: midSuccess
+          ? `🚀 ${initGk.name} launches long [${startZone.toUpperCase()} -> ${targetZone.toUpperCase()}]! ${targetAttPlayer.name} wins tackle vs ${targetDefPlayer.name} (diff +${tackDiff})`
+          : (counterTriggered
+            ? `⚡ ${targetDefPlayer.name} wins GK long-ball tackle in [${targetZone.toUpperCase()}] and triggers a COUNTER! (diff ${tackDiff})`
+            : `❌ ${targetDefPlayer.name} wins GK long-ball tackle in [${targetZone.toUpperCase()}] — ${initDefTeamName} takes possession! (diff ${tackDiff})`)
+      };
+
+      if (!midSuccess && !counterTriggered) {
+        const failLog = { text: `${eventMin}' ${step1Record.summary}`, type: 'normal' };
+        return buildNextIdleSession({
+          nextSide: oppSide,
+          visualZone: targetZone,
+          displayPath: [startZone, targetZone],
+          steps: [step1Record],
+          logs: [failLog],
+          lastStepSummary: step1Record.summary,
+          turnoverSide: oppSide
+        });
+      }
+    } else {
+      const attMids = initAttRoster.buildUpMids && initAttRoster.buildUpMids.length > 0
+        ? initAttRoster.buildUpMids
+        : initAttRoster.centralMids;
+      const defMids = initDefRoster.step1PressMids && initDefRoster.step1PressMids.length > 0
+        ? initDefRoster.step1PressMids
+        : initDefRoster.centralMids;
+
+      const resolvePressingDefenderForZone = (z) => {
+        const isDeepBack = initIsHome ? z.startsWith('a') : z.startsWith('d');
+        if (isDeepBack) {
+          const highPressPool = [...(initDefRoster.strikers || []), ...(initDefRoster.effectiveAmcs || [])].filter(Boolean);
+          if (highPressPool.length > 0) return pickRandom(highPressPool);
+        }
+        if (z === 'b1' || z === 'c1' || z === 'b3' || z === 'c3') {
+          const widePress = initIsHome
+            ? (z === 'b1' ? initDefRoster.rightWings : initDefRoster.leftWings)
+            : (z === 'c1' ? initDefRoster.leftWings : initDefRoster.rightWings);
+          if (widePress && widePress.length > 0) return pickRandom(widePress);
+        }
+        return pickRandom(defMids);
+      };
+
+      midPasser = activeRecycle
+        ? (Object.values(initAttRoster.zonePlayers).flat().find((p) => p && p.name === activeRecycle.player.name) || activeRecycle.player)
+        : pickRandom(attMids);
+      midMarker = activeRecycle ? resolvePressingDefenderForZone(startZone) : pickRandom(defMids);
+
+      const isMidThroughBall = !activeRecycle && (
+        forceStep1Mode === 'mid_through'
+          ? true
+          : (forceStep1Mode === 'mid_pass' ? false : midPasser.instruction === 'through_ball')
+      );
+      const requiredMidDiff = isMidThroughBall ? 4 : 2;
+      const ballPlayDcBonus = (['DC', 'CB', 'SW'].includes(midPasser.effectivePos) && midPasser.instruction === 'direct_pass') ? 1 : 0;
+      const gkPassProtectionBonus = (midPasser.effectivePos === 'GK' || midPasser.name === initGk?.name) ? 5 : 0;
+      const attStep1Bonus = (initAttRoster.centralMids.length > initDefRoster.centralMids.length ? 1 : 0)
+        + (initAttRoster.dmcCount >= 2 ? 1 : 0)
+        + (initAttTactic === 'attack' ? 1 : (initAttTactic === 'defense' ? -2 : 0))
+        + ballPlayDcBonus
+        + gkPassProtectionBonus;
+      const defStep1Bonus = (initDefRoster.centralMids.length > initAttRoster.centralMids.length ? 1 : 0) + getTacklingMod(initDefTeamTactics);
+      const baseCounterThreshold = initAttTactic === 'defense' ? -4 : -2;
+      const counterThreshold = initDefTeamTactics?.counterAttack === true
+        ? (initAttTactic === 'defense' ? -2 : -1)
+        : baseCounterThreshold;
+
+      let forcedStep1Diff = null;
+      if (decision === 'success_2') forcedStep1Diff = requiredMidDiff;
+      else if (decision === 'success_4') forcedStep1Diff = 4;
+      else if (decision === 'hold_0_1') forcedStep1Diff = 0;
+      else if (decision === 'fail_1') forcedStep1Diff = -1;
+      else if (decision === 'counter_2') forcedStep1Diff = counterThreshold;
+
+      const s1Duel = resolveDuelWithOverride(midPasser.skills.passing + attStep1Bonus, midMarker.skills.marking + defStep1Bonus, forcedStep1Diff);
+      const midDiff = s1Duel.diff;
+      midSuccess = midDiff >= requiredMidDiff;
+      counterTriggered = !current.isKickoffRestart && midDiff <= counterThreshold;
+      const isHoldPossession = !midSuccess && !counterTriggered && (midDiff === 0 || midDiff === 1);
+      if (midSuccess && isMidThroughBall) step2SkillBonus = 3;
+
+      const s1Disc = evaluateSandboxDiscipline({
+        defSide: oppSide,
+        defPlayer: midMarker,
+        defDie: s1Duel.defDie,
+        defTeamTactics: initDefTeamTactics,
+        isBoxZone: false,
+        attRoster: initAttRoster,
+        defRoster: initDefRoster
+      });
+
+      const holdPick = isHoldPossession ? pickHoldTargetHelper(initAttRoster, startZone, midPasser, initIsHome) : null;
+      const baseSummary = midSuccess
+        ? `✅ ${midPasser.name} passes cleanly from [${startZone.toUpperCase()}] (diff +${midDiff} >= ${requiredMidDiff})`
+        : (counterTriggered
+          ? `⚡ ${midMarker.name} steals from ${midPasser.name} in [${startZone.toUpperCase()}] & launches a COUNTER! (diff ${midDiff})`
+          : (isHoldPossession && holdPick
+            ? `🔄 Closed down (diff +${midDiff}) — ${midPasser.name} recycles safely [${startZone.toUpperCase()} -> ${holdPick.zone.toUpperCase()}] to ${holdPick.player.name}!`
+            : `❌ ${midMarker.name} intercepts ${midPasser.name} in [${startZone.toUpperCase()}] — ${initDefTeamName} takes possession! (diff ${midDiff})`));
+
+      step1Record = {
+        phase: activeRecycle ? 'RECYCLED BUILD-UP PASS' : (isMidThroughBall ? 'MIDFIELD THROUGH-BALL (+3)' : 'MIDFIELD BUILD-UP'),
+        zone: startZone,
+        attacker: midPasser.name,
+        attackerPlayer: midPasser,
+        attackerSlotId: midPasser.slotId || null,
+        attackerPos: midPasser.effectivePos,
+        attackerSkillName: 'Passing',
+        attackerSkill: midPasser.skills.passing,
+        attackerBonus: attStep1Bonus,
+        attackerDie: s1Duel.attDie,
+        attackerTotal: s1Duel.attTotal,
+        defender: midMarker.name,
+        defenderPlayer: midMarker,
+        defenderSlotId: midMarker.slotId || null,
+        defenderPos: midMarker.effectivePos,
+        defenderSkillName: 'Marking',
+        defenderSkill: midMarker.skills.marking,
+        defenderBonus: defStep1Bonus,
+        defenderDie: s1Duel.defDie,
+        defenderTotal: s1Duel.defTotal,
+        diff: midDiff,
+        requiredDiff: requiredMidDiff,
+        success: midSuccess,
+        counterTriggered,
+        holdPossession: isHoldPossession,
+        holdTargetZone: holdPick?.zone || null,
+        summary: s1Disc.note ? `${baseSummary} | ${s1Disc.note}` : baseSummary
+      };
+
+      const ownBoxZone = initIsHome ? 'a2' : 'd2';
+      if (!midSuccess && !isHoldPossession && startZone === ownBoxZone) {
+        // Attacker stole GK/DC short pass right inside the penalty box (a2 / d2) -> go straight to STEP_3 shot!
+        const oppIsHome = oppSide === 'home';
+        const oppAttTactic = oppIsHome ? homeTactic : awayTactic;
+        const oppDefTactic = oppIsHome ? awayTactic : homeTactic;
+        const stealFinMod = oppAttTactic === 'attack' ? 1 : (oppAttTactic === 'defense' ? -2 : 0);
+        const stealDefMod = oppDefTactic === 'defense' ? 1 : (oppDefTactic === 'attack' ? -1 : 0);
+        const is1v1Gk = (midPasser.effectivePos === 'GK' || midPasser.name === initGk?.name);
+        const boxDef = resolveBoxDefenseHelper(initAttRoster, 'standard');
+        const stealSummary = `⚡ ${midMarker.name} steals ${midPasser.name}'s pass inside [${startZone.toUpperCase()}] — immediate 1v1 shot in the box!${s1Disc.note ? ` | ${s1Disc.note}` : ''}`;
+        const stealRecord = { ...step1Record, summary: stealSummary };
+        const nextSession = {
+          phase: 'STEP_3',
+          possessionSide: oppSide,
+          attackingSide: oppSide,
+          ballZone: startZone,
+          displayPath: [startZone],
+          steps: [stealRecord],
+          logs: [{ text: `${eventMin}' ${stealSummary}`, type: 'chance' }],
+          cards: s1Disc.nextCards,
+          recycleState: null,
+          isKickoffRestart: false,
+          step2Context: null,
+          step3Context: {
+            attackingSide: oppSide,
+            defendingSide: initSide,
+            boxZone: startZone,
+            finisher: midMarker,
+            assister: null,
+            boxDefMode: 'standard',
+            boxDef,
+            finSkill: midMarker.skills.finishing,
+            finSkillName: 'Finishing',
+            totalFinBonus: stealFinMod,
+            totalDefBonus: stealDefMod + (is1v1Gk ? 0 : boxDef.dcInstrBonus + getTacklingMod(initAttTeamTactics)),
+            is1v1Keeper: is1v1Gk,
+            counterTriggered: true
+          },
+          lastStepSummary: stealSummary,
+          turnoverSide: oppSide,
+          isCompleted: false
+        };
+        return {
+          session: nextSession,
+          zoneResult: {
+            minutesElapsed: 1,
+            step1Side: initSide,
+            attackingSide: oppSide,
+            nextAttacker: oppSide,
+            counterTriggered: true,
+            startZone,
+            activeZone: startZone,
+            zonePath: [startZone],
+            steps: nextSession.steps,
+            logs: nextSession.logs,
+            cards: s1Disc.nextCards,
+            isGoal: false,
+            isShot: false,
+            homeZonePlayers: homeRoster.zonePlayers,
+            awayZonePlayers: awayRoster.zonePlayers
+          }
+        };
+      }
+
+      if (!midSuccess && !counterTriggered) {
+        if (isHoldPossession && holdPick) {
+          const holdLog = { text: `${eventMin}' ${step1Record.summary}`, type: 'normal' };
+          return buildNextIdleSession({
+            nextSide: initSide,
+            nextRecycle: { side: initSide, zone: holdPick.zone, player: holdPick.player },
+            visualZone: holdPick.zone,
+            displayPath: [startZone, holdPick.zone],
+            steps: [step1Record],
+            logs: [holdLog],
+            lastStepSummary: step1Record.summary,
+            isHold: true,
+            nextCards: s1Disc.nextCards
+          });
+        }
+        const failLog = { text: `${eventMin}' ${step1Record.summary}`, type: 'normal' };
+        return buildNextIdleSession({
+          nextSide: oppSide,
+          visualZone: startZone,
+          displayPath: [startZone],
+          steps: [step1Record],
+          logs: [failLog],
+          lastStepSummary: step1Record.summary,
+          turnoverSide: oppSide,
+          nextCards: s1Disc.nextCards
+        });
+      }
+    }
+
+    // Step 1 succeeded OR Counter triggered!
+    // If starting from a won defensive/flank box (e.g. DR in b3 or GK/DC in a2), apply flank/MC transfer logic
+    // unless Counter Attack = Yes launches directly into STEP 2 (+2)!
+    const attackingSide = counterTriggered ? oppSide : initSide;
+    const defendingSide = attackingSide === 'home' ? 'away' : 'home';
+    const isHomeAtt = attackingSide === 'home';
+    const attRoster = isHomeAtt ? homeRoster : awayRoster;
+    const defRoster = isHomeAtt ? awayRoster : homeRoster;
+    const attTeamName = isHomeAtt ? (homeTeam?.name || 'Home XI') : (awayTeam?.name || 'Away XI');
+    const defTeamName = isHomeAtt ? (awayTeam?.name || 'Away XI') : (homeTeam?.name || 'Home XI');
+    const attTeamTactics = isHomeAtt ? homeTeamTactics : awayTeamTactics;
+
+    let recoveryTransferPlan = null;
+    if (!counterTriggered && !isGkLongDistribution && activeRecycle) {
+      recoveryTransferPlan = resolveFlankOrDefBuildUpPlan({
+        startZone,
+        attRoster,
+        isHomeAtt,
+        attTeamTactics,
+        forceChannel: channelOverride,
+        isRecovery: Boolean(activeRecycle?.isRecovery)
+      });
+      if ((recoveryTransferPlan.kind === 'to_mc' || recoveryTransferPlan.kind === 'to_flank_mid') && recoveryTransferPlan.nextZone) {
+        const nextPlayer = recoveryTransferPlan.nextPlayer;
+        const transferSummary = `✅ ${midPasser.name} passes [${startZone.toUpperCase()} ➔ ${recoveryTransferPlan.nextZone.toUpperCase()}] to ${nextPlayer?.name || 'MC'}!`;
+        const transferRecord = {
+          ...step1Record,
+          phase: 'RECOVERY PASS',
+          summary: transferSummary
+        };
+        return buildNextIdleSession({
+          nextSide: attackingSide,
+          nextRecycle: nextPlayer
+            ? { side: attackingSide, zone: recoveryTransferPlan.nextZone, player: nextPlayer, isRecovery: true }
+            : null,
+          visualZone: recoveryTransferPlan.nextZone,
+          displayPath: [startZone, recoveryTransferPlan.nextZone],
+          steps: [transferRecord],
+          logs: [{ text: `${eventMin}' ${transferSummary}`, type: 'normal' }],
+          lastStepSummary: transferSummary
+        });
+      }
+    }
+
+    const isCounterLaunch = Boolean(
+      (counterTriggered && attTeamTactics?.counterAttack === true) ||
+      recoveryTransferPlan?.kind === 'to_counter_step2' ||
+      (isGkLongDistribution && isGkRecycle && attTeamTactics?.counterAttack === true)
+    );
+    if (isCounterLaunch) {
+      step2SkillBonus += 2;
+    }
+
+    const chosenChannel = (!counterTriggered && preChosenChannel)
+      ? preChosenChannel
+      : (recoveryTransferPlan?.chosenChannel || chooseTargetChannelHelper(attRoster, isHomeAtt, attTeamTactics, channelOverride));
+    const isTeamLongPass = !isGkLongDistribution && attTeamTactics?.passing === 'long';
+    const deepTargetZone = isHomeAtt
+      ? (chosenChannel.channel === 'left' ? 'd1' : (chosenChannel.channel === 'right' ? 'd3' : 'd2'))
+      : (chosenChannel.channel === 'left' ? 'a3' : (chosenChannel.channel === 'right' ? 'a1' : 'a2'));
+    const secondZone = isTeamLongPass ? deepTargetZone : chosenChannel.zone;
+    const boxZone = isHomeAtt ? 'd2' : 'a2';
+    const pathToStep2 = [startZone, secondZone];
+
+    // Check empty-box turnovers on Step 1 -> Step 2 transition
+    if (isTeamLongPass) {
+      const attDeepPlayers = (attRoster.zonePlayers[deepTargetZone] || []).filter((p) => p.effectivePos !== 'GK' && p !== attRoster.gk);
+      if (attDeepPlayers.length === 0) {
+        const emptySummary = `❌ Long ball to [${deepTargetZone.toUpperCase()}] — NO ${attTeamName} player in box! ${defTeamName} collects.`;
+        const emptyStep = { phase: 'LONG BALL (NO TEAMMATE IN BOX)', zone: deepTargetZone, success: false, summary: emptySummary };
+        return buildNextIdleSession({
+          nextSide: defendingSide,
+          visualZone: deepTargetZone,
+          displayPath: pathToStep2,
+          steps: [step1Record, emptyStep],
+          logs: [{ text: `${eventMin}' ${emptySummary}`, type: 'save' }],
+          lastStepSummary: emptySummary,
+          turnoverSide: defendingSide,
+          counterTriggered
+        });
+      }
+
+      const attTarget = pickRandom(attDeepPlayers);
+      const defDeepPlayers = (defRoster.zonePlayers[deepTargetZone] || []).filter((p) => p.effectivePos !== 'GK' && p !== defRoster.gk);
+      const defTarget = defDeepPlayers.length > 0 ? pickRandom(defDeepPlayers) : null;
+      const mode = defDeepPlayers.length > 0 ? 'long_ball_tackle' : 'long_ball_uncontested';
+
+      const nextSession = {
+        phase: 'STEP_2',
+        possessionSide: attackingSide,
+        attackingSide,
+        ballZone: secondZone,
+        displayPath: pathToStep2,
+        steps: [step1Record],
+        logs: [{ text: `${eventMin}' ${step1Record.summary}`, type: 'chance' }],
+        recycleState: null,
+        isKickoffRestart: false,
+        step2Context: {
+          mode,
+          attackingSide,
+          defendingSide,
+          channel: chosenChannel.channel,
+          secondZone,
+          boxZone,
+          isTeamLongPass: true,
+          isGkLongDistribution: false,
+          step2SkillBonus,
+          counterTriggered,
+          actor: attTarget,
+          defender: defTarget,
+          attDeepCount: attDeepPlayers.length,
+          defDeepCount: defDeepPlayers.length,
+          defaultAction: attTarget.instruction || 'pass',
+          initiator: counterTriggered ? midMarker : midPasser
+        },
+        step3Context: null,
+        lastStepSummary: `${step1Record.summary} ➔ Long jump to [${secondZone.toUpperCase()}].`,
+        turnoverSide: null,
+        isCompleted: false
+      };
+      return {
+        session: nextSession,
+        zoneResult: {
+          minutesElapsed: 1,
+          step1Side: initSide,
+          attackingSide,
+          nextAttacker: attackingSide,
+          counterTriggered,
+          startZone,
+          activeZone: secondZone,
+          zonePath: pathToStep2,
+          steps: nextSession.steps,
+          logs: nextSession.logs,
+          isGoal: false,
+          isShot: false,
+          isOnTarget: false,
+          isLongJump: true,
+          homeZonePlayers: homeRoster.zonePlayers,
+          awayZonePlayers: awayRoster.zonePlayers
+        }
+      };
+    }
+
+    if (chosenChannel.channel === 'center') {
+      const hasAMCInCenter = Boolean(attRoster.effectiveAmcs && attRoster.effectiveAmcs.length > 0);
+      if (!hasAMCInCenter && !isGkLongDistribution) {
+        const noAmcSummary = `❌ Center pass into [${secondZone.toUpperCase()}] — NO AMC / Attacking MC stationed there! ${defTeamName} intercepts.`;
+        const emptyStep = { phase: 'CENTER PASS (NO AMC — TURNOVER)', zone: secondZone, success: false, summary: noAmcSummary };
+        return buildNextIdleSession({
+          nextSide: defendingSide,
+          visualZone: secondZone,
+          displayPath: pathToStep2,
+          steps: [step1Record, emptyStep],
+          logs: [{ text: `${eventMin}' ${noAmcSummary}`, type: 'save' }],
+          lastStepSummary: noAmcSummary,
+          turnoverSide: defendingSide,
+          counterTriggered
+        });
+      }
+
+      const amcPool = hasAMCInCenter ? attRoster.effectiveAmcs : attRoster.mcs;
+      const nonPasserAmcs = (counterTriggered || isGkLongDistribution) ? amcPool : amcPool.filter((p) => p.name !== midPasser.name);
+      const amcPlayer = isGkLongDistribution && !counterTriggered
+        ? midPasser
+        : (nonPasserAmcs.length > 0 ? pickRandom(nonPasserAmcs) : (amcPool[0] || midPasser));
+      const oppCentralDef = (defRoster.defensiveMids?.length > 0)
+        ? pickRandom(defRoster.defensiveMids)
+        : (defRoster.dcs[0] || midMarker);
+
+      const nextSession = {
+        phase: 'STEP_2',
+        possessionSide: attackingSide,
+        attackingSide,
+        ballZone: secondZone,
+        displayPath: pathToStep2,
+        steps: [step1Record],
+        logs: [{ text: `${eventMin}' ${step1Record.summary}`, type: 'chance' }],
+        recycleState: null,
+        isKickoffRestart: false,
+        step2Context: {
+          mode: 'center_amc',
+          attackingSide,
+          defendingSide,
+          channel: 'center',
+          secondZone,
+          boxZone,
+          isTeamLongPass: false,
+          isGkLongDistribution,
+          step2SkillBonus,
+          counterTriggered,
+          actor: amcPlayer,
+          defender: oppCentralDef,
+          defaultAction: amcPlayer.instruction || 'pass',
+          initiator: counterTriggered ? midMarker : (isGkLongDistribution ? initGk : midPasser)
+        },
+        step3Context: null,
+        lastStepSummary: `${step1Record.summary} ➔ Ball moves to ${amcPlayer.name} in [${secondZone.toUpperCase()}].`,
+        turnoverSide: null,
+        isCompleted: false
+      };
+      return {
+        session: nextSession,
+        zoneResult: {
+          minutesElapsed: 1,
+          step1Side: initSide,
+          attackingSide,
+          nextAttacker: attackingSide,
+          counterTriggered,
+          startZone,
+          activeZone: secondZone,
+          zonePath: pathToStep2,
+          steps: nextSession.steps,
+          logs: nextSession.logs,
+          isGoal: false,
+          isShot: false,
+          isOnTarget: false,
+          isLongJump: isGkLongDistribution,
+          homeZonePlayers: homeRoster.zonePlayers,
+          awayZonePlayers: awayRoster.zonePlayers
+        }
+      };
+    }
+
+    // Wing Flank Step 2 setup
+    const isLeftChannel = chosenChannel.channel === 'left';
+    const primaryBorderFlankBox = isHomeAtt ? (isLeftChannel ? 'c1' : 'c3') : (isLeftChannel ? 'b3' : 'b1');
+    const secondaryBorderFlankBox = isHomeAtt ? (isLeftChannel ? 'b1' : 'b3') : (isLeftChannel ? 'c3' : 'c1');
+    const borderFlankPlayers = [
+      ...(attRoster.zonePlayers[primaryBorderFlankBox] || []),
+      ...(attRoster.zonePlayers[secondaryBorderFlankBox] || [])
+    ];
+    if (!isGkLongDistribution && attTeamTactics && borderFlankPlayers.length === 0) {
+      const noWingSummary = `❌ Short pass to [${primaryBorderFlankBox.toUpperCase()}] — NO teammate in bordering flank box! ${defTeamName} intercepts.`;
+      const emptyStep = { phase: 'SHORT PASS (NO BORDERING RECEIVER)', zone: primaryBorderFlankBox, success: false, summary: noWingSummary };
+      return buildNextIdleSession({
+        nextSide: defendingSide,
+        visualZone: primaryBorderFlankBox,
+        displayPath: pathToStep2,
+        steps: [step1Record, emptyStep],
+        logs: [{ text: `${eventMin}' ${noWingSummary}`, type: 'save' }],
+        lastStepSummary: noWingSummary,
+        turnoverSide: defendingSide,
+        counterTriggered
+      });
+    }
+
+    const pureWingPool = isLeftChannel ? attRoster.pureLeftWings : attRoster.pureRightWings;
+    const attFlankFb = isLeftChannel ? attRoster.dl : attRoster.dr;
+    const fbOverlaps = isLeftChannel ? attRoster.dlOverlaps : attRoster.drOverlaps;
+    const winger = (isGkLongDistribution && !counterTriggered)
+      ? midPasser
+      : ((attTeamTactics && borderFlankPlayers.length > 0)
+        ? pickRandom(borderFlankPlayers)
+        : pickFlankActor(pureWingPool, attFlankFb, fbOverlaps));
+    const oppFullback = isLeftChannel ? defRoster.dr : defRoster.dl;
+    const rawWingInstr = winger?.instruction;
+    const canWingLongShot = Boolean(winger && winger !== attFlankFb && (['AMR', 'AML', 'LW', 'RW', 'FL', 'FR'].includes(winger.effectivePos) || winger.duty === 'attack'));
+    const defaultWingAction = (['high_cross', 'low_cross', 'dribble', 'through_ball'].includes(rawWingInstr) || (rawWingInstr === 'long_shot' && canWingLongShot))
+      ? rawWingInstr
+      : (winger?.duty === 'attack' ? 'dribble' : 'high_cross');
+
+    const nextSession = {
+      phase: 'STEP_2',
+      possessionSide: attackingSide,
+      attackingSide,
+      ballZone: secondZone,
+      displayPath: pathToStep2,
+      steps: [step1Record],
+      logs: [{ text: `${eventMin}' ${step1Record.summary}`, type: 'chance' }],
+      recycleState: null,
+      isKickoffRestart: false,
+      step2Context: {
+        mode: 'wing',
+        attackingSide,
+        defendingSide,
+        channel: chosenChannel.channel,
+        secondZone,
+        boxZone,
+        isTeamLongPass: false,
+        isGkLongDistribution,
+        step2SkillBonus,
+        counterTriggered,
+        actor: winger,
+        defender: oppFullback,
+        defaultAction: defaultWingAction,
+        initiator: counterTriggered ? midMarker : (isGkLongDistribution ? initGk : midPasser)
+      },
+      step3Context: null,
+      lastStepSummary: `${step1Record.summary} ➔ Ball moves to ${winger.name} in [${secondZone.toUpperCase()}].`,
+      turnoverSide: null,
+      isCompleted: false
+    };
+    return {
+      session: nextSession,
+      zoneResult: {
+        minutesElapsed: 1,
+        step1Side: initSide,
+        attackingSide,
+        nextAttacker: attackingSide,
+        counterTriggered,
+        startZone,
+        activeZone: secondZone,
+        zonePath: pathToStep2,
+        steps: nextSession.steps,
+        logs: nextSession.logs,
+        isGoal: false,
+        isShot: false,
+        isOnTarget: false,
+        isLongJump: isGkLongDistribution,
+        homeZonePlayers: homeRoster.zonePlayers,
+        awayZonePlayers: awayRoster.zonePlayers
+      }
+    };
+  }
+
+  // ===========================================================================
+  // PHASE 2: ATTACKING HALF ACTION (C1/C2/C3 or D1/D2/D3) -> STOPS AT STEP 3
+  // ===========================================================================
+  if (current.phase === 'STEP_2' && current.step2Context) {
+    const ctx = current.step2Context;
+    const isHomeAtt = ctx.attackingSide === 'home';
+    const attRoster = isHomeAtt ? homeRoster : awayRoster;
+    const defRoster = isHomeAtt ? awayRoster : homeRoster;
+    const attTactic = isHomeAtt ? homeTactic : awayTactic;
+    const defTactic = isHomeAtt ? awayTactic : homeTactic;
+    const defTeamTactics = isHomeAtt ? awayTeamTactics : homeTeamTactics;
+    const defTacklingMod = getTacklingMod(defTeamTactics);
+    const attMentalityMod = mentalityBonusMap(attTactic);
+    const defMentalityMod = mentalityBonusMap(defTactic);
+    const defTeamName = isHomeAtt ? (awayTeam?.name || 'Away XI') : (homeTeam?.name || 'Home XI');
+    const zonePathWithBox = [...current.displayPath, ctx.boxZone];
+
+    // Special case: Uncontested Long Ball in d1/d2/d3
+    if (ctx.mode === 'long_ball_uncontested') {
+      const freeSummary = `🚀 ${ctx.actor.name} collects the uncontested long ball in [${ctx.secondZone.toUpperCase()}] and squares into [${ctx.boxZone.toUpperCase()}]!`;
+      const step2Record = {
+        phase: 'LONG BALL (UNCONTESTED)',
+        zone: ctx.secondZone,
+        attacker: ctx.actor.name,
+        attackerPlayer: ctx.actor,
+        attackerSlotId: ctx.actor.slotId || null,
+        defender: 'Open Space',
+        success: true,
+        summary: freeSummary
+      };
+      const isCenterLong = ctx.channel === 'center';
+      const isHighCrossLong = !isCenterLong && ctx.actor.instruction === 'high_cross';
+      const finisher = isCenterLong || ['dribble', 'long_shot'].includes(ctx.actor.instruction)
+        ? ctx.actor
+        : (pickRandom(attRoster.strikers) || ctx.actor);
+      const boxDefMode = isHighCrossLong ? 'high_cross' : 'standard';
+      const boxDef = resolveBoxDefenseHelper(defRoster, boxDefMode);
+      const nextSession = {
+        phase: 'STEP_3',
+        possessionSide: ctx.attackingSide,
+        attackingSide: ctx.attackingSide,
+        ballZone: ctx.boxZone,
+        displayPath: zonePathWithBox,
+        steps: [...current.steps, step2Record],
+        logs: [...current.logs, { text: `${eventMin}' ${freeSummary}`, type: 'chance' }],
+        cards: existingCards,
+        recycleState: null,
+        isKickoffRestart: false,
+        step2Context: null,
+        step3Context: {
+          attackingSide: ctx.attackingSide,
+          defendingSide: ctx.defendingSide,
+          boxZone: ctx.boxZone,
+          finisher,
+          assister: finisher.name !== ctx.actor.name ? ctx.actor : ctx.initiator,
+          boxDefMode,
+          boxDef,
+          finSkill: isHighCrossLong ? finisher.skills.heading : finisher.skills.finishing,
+          finSkillName: isHighCrossLong ? 'Heading' : 'Finishing',
+          totalFinBonus: attMentalityMod + (ctx.step2SkillBonus || 0) + (isHighCrossLong ? (finisher.instruction === 'target_man' ? 1 : (finisher.instruction === 'poacher' ? -1 : 0)) : (finisher.instruction === 'poacher' ? 1 : 0)),
+          totalDefBonus: defMentalityMod + boxDef.dcInstrBonus + defTacklingMod,
+          is1v1Keeper: false,
+          counterTriggered: ctx.counterTriggered
+        },
+        lastStepSummary: freeSummary,
+        turnoverSide: null,
+        isCompleted: false
+      };
+      return {
+        session: nextSession,
+        zoneResult: {
+          minutesElapsed: 1,
+          attackingSide: ctx.attackingSide,
+          nextAttacker: ctx.attackingSide,
+          counterTriggered: ctx.counterTriggered,
+          startZone: ctx.secondZone,
+          activeZone: ctx.boxZone,
+          zonePath: [ctx.secondZone, ctx.boxZone],
+          steps: nextSession.steps,
+          logs: nextSession.logs,
+          isGoal: false,
+          isShot: false,
+          homeZonePlayers: homeRoster.zonePlayers,
+          awayZonePlayers: awayRoster.zonePlayers
+        }
+      };
+    }
+
+    // Special case: Contested Long Ball Tackle
+    if (ctx.mode === 'long_ball_tackle') {
+      const attTwoBonus = ctx.attDeepCount >= 2 ? 2 : 0;
+      const defTwoBonus = ctx.defDeepCount >= 2 ? 2 : 0;
+      const attBonus = attTwoBonus + attMentalityMod + (ctx.step2SkillBonus || 0);
+      const defBonus = defTwoBonus + defMentalityMod + defTacklingMod;
+      const forcedDiff = decision === 'success' ? 1 : (decision === 'fail' ? -1 : null);
+      const duel = resolveDuelWithOverride(ctx.actor.skills.tackling + attBonus, ctx.defender.skills.tackling + defBonus, forcedDiff);
+      const won = duel.diff >= 1;
+      const summary = won
+        ? `✅ ${ctx.actor.name} wins long-ball tackle in [${ctx.secondZone.toUpperCase()}] vs ${ctx.defender.name} (diff +${duel.diff}) ➔ feeds [${ctx.boxZone.toUpperCase()}]!`
+        : `❌ ${ctx.defender.name} wins tackle in [${ctx.secondZone.toUpperCase()}] — ${defTeamName} takes possession! (diff ${duel.diff})`;
+      const step2Record = {
+        phase: 'LONG BALL TACKLE',
+        zone: ctx.secondZone,
+        attacker: ctx.actor.name,
+        attackerPlayer: ctx.actor,
+        attackerSlotId: ctx.actor.slotId || null,
+        defender: ctx.defender.name,
+        defenderPlayer: ctx.defender,
+        defenderSlotId: ctx.defender.slotId || null,
+        diff: duel.diff,
+        requiredDiff: 1,
+        success: won,
+        summary
+      };
+      if (!won) {
+        return buildNextIdleSession({
+          nextSide: ctx.defendingSide,
+          visualZone: ctx.secondZone,
+          displayPath: [ctx.secondZone],
+          steps: [...current.steps, step2Record],
+          logs: [...current.logs, { text: `${eventMin}' ${summary}`, type: 'save' }],
+          lastStepSummary: summary,
+          turnoverSide: ctx.defendingSide,
+          counterTriggered: ctx.counterTriggered
+        });
+      }
+
+      const isCenterLong = ctx.channel === 'center';
+      const isHighCrossLong = !isCenterLong && ctx.actor.instruction === 'high_cross';
+      const finisher = isCenterLong || ['dribble', 'long_shot'].includes(ctx.actor.instruction)
+        ? ctx.actor
+        : (pickRandom(attRoster.strikers) || ctx.actor);
+      const boxDefMode = isHighCrossLong ? 'high_cross' : 'standard';
+      const boxDef = resolveBoxDefenseHelper(defRoster, boxDefMode);
+      const nextSession = {
+        phase: 'STEP_3',
+        possessionSide: ctx.attackingSide,
+        attackingSide: ctx.attackingSide,
+        ballZone: ctx.boxZone,
+        displayPath: zonePathWithBox,
+        steps: [...current.steps, step2Record],
+        logs: [...current.logs, { text: `${eventMin}' ${summary}`, type: 'chance' }],
+        recycleState: null,
+        isKickoffRestart: false,
+        step2Context: null,
+        step3Context: {
+          attackingSide: ctx.attackingSide,
+          defendingSide: ctx.defendingSide,
+          boxZone: ctx.boxZone,
+          finisher,
+          assister: finisher.name !== ctx.actor.name ? ctx.actor : ctx.initiator,
+          boxDefMode,
+          boxDef,
+          finSkill: isHighCrossLong ? finisher.skills.heading : finisher.skills.finishing,
+          finSkillName: isHighCrossLong ? 'Heading' : 'Finishing',
+          totalFinBonus: attMentalityMod + (ctx.step2SkillBonus || 0) + (isHighCrossLong ? (finisher.instruction === 'target_man' ? 1 : (finisher.instruction === 'poacher' ? -1 : 0)) : (finisher.instruction === 'poacher' ? 1 : 0)),
+          totalDefBonus: defMentalityMod + boxDef.dcInstrBonus + defTacklingMod,
+          is1v1Keeper: false,
+          counterTriggered: ctx.counterTriggered
+        },
+        lastStepSummary: summary,
+        turnoverSide: null,
+        isCompleted: false
+      };
+      return {
+        session: nextSession,
+        zoneResult: {
+          minutesElapsed: 1,
+          attackingSide: ctx.attackingSide,
+          nextAttacker: ctx.attackingSide,
+          counterTriggered: ctx.counterTriggered,
+          startZone: ctx.secondZone,
+          activeZone: ctx.boxZone,
+          zonePath: [ctx.secondZone, ctx.boxZone],
+          steps: nextSession.steps,
+          logs: nextSession.logs,
+          isGoal: false,
+          isShot: false,
+          homeZonePlayers: homeRoster.zonePlayers,
+          awayZonePlayers: awayRoster.zonePlayers
+        }
+      };
+    }
+
+    // Normal Center AMC or Wing Action
+    const activeAction = forceActorInstruction !== 'auto'
+      ? forceActorInstruction
+      : ctx.defaultAction;
+
+    // Long Shot finishes immediately in Step 2 (diff >= 5)
+    if (activeAction === 'long_shot') {
+      const boxDef = resolveBoxDefenseHelper(defRoster, 'standard');
+      const attBonus = (attTactic === 'attack' ? 2 : (attTactic === 'defense' ? -2 : 0)) + (ctx.step2SkillBonus || 0);
+      const forcedDiff = decision === 'goal' ? 5 : (decision === 'save' ? 0 : null);
+      const duel = resolveDuelWithOverride(ctx.actor.skills.longShots + attBonus, boxDef.combinedSkill + defMentalityMod, forcedDiff);
+      const isGoal = duel.diff >= 5;
+      const summary = isGoal
+        ? `⚽ SCREAMER GOAL! ${ctx.actor.name} scores from distance in [${ctx.secondZone.toUpperCase()}]! (diff +${duel.diff} >= 5)`
+        : `🧤 ${boxDef.gk?.name || 'GK'} saves ${ctx.actor.name}'s long shot from [${ctx.secondZone.toUpperCase()}] — ${defTeamName} takes possession! (diff ${duel.diff} < 5)`;
+      const stepRecord = {
+        phase: 'LONG DISTANCE SHOT',
+        zone: isGoal ? ctx.boxZone : ctx.secondZone,
+        attacker: ctx.actor.name,
+        attackerPlayer: ctx.actor,
+        attackerSlotId: ctx.actor.slotId || null,
+        defender: `${boxDef.dc?.name || 'DC'} + ${boxDef.gk?.name || 'GK'}`,
+        defenderPlayer: boxDef.dc || null,
+        diff: duel.diff,
+        requiredDiff: 5,
+        success: isGoal,
+        summary
+      };
+      return buildNextIdleSession({
+        nextSide: ctx.defendingSide,
+        kickoff: isGoal,
+        visualZone: isGoal ? ctx.boxZone : ctx.secondZone,
+        displayPath: isGoal ? [ctx.secondZone, ctx.boxZone] : [ctx.secondZone],
+        steps: [...current.steps, stepRecord],
+        logs: [...current.logs, { text: `${eventMin}' ${summary}`, type: isGoal ? 'goal' : 'save' }],
+        lastStepSummary: summary,
+        turnoverSide: ctx.defendingSide,
+        isGoal,
+        isShot: true,
+        counterTriggered: ctx.counterTriggered
+      });
+    }
+
+    // Center AMC or Wing Dribble / Through Ball / Pass / High Cross / Low Cross -> goes to Step 3 or Turnover!
+    let requiredDiff = 2;
+    let skillName = 'Passing';
+    let attSkill = ctx.actor.skills.passing;
+    let defSkill = ctx.defender.skills.marking;
+    let attBonus = attMentalityMod + (ctx.step2SkillBonus || 0);
+    let defBonus = defMentalityMod + defTacklingMod;
+    let boxDefMode = 'standard';
+    let nextStep3Bonus = 0;
+    let is1v1Keeper = false;
+
+    if (ctx.mode === 'center_amc') {
+      const dmcManMark = ctx.defender?.instruction === 'man_mark' ? 1 : 0;
+      if (attRoster.amcCount >= 2) attBonus += 1;
+      if (defRoster.dmcCount >= 2) defBonus += 1;
+      if (activeAction === 'dribble') {
+        skillName = 'Dribbling';
+        attSkill = ctx.actor.skills.dribbling;
+        defSkill = ctx.defender.skills.tackling;
+        is1v1Keeper = true;
+      } else {
+        defBonus += dmcManMark;
+        if (activeAction === 'through_ball') {
+          requiredDiff = 4;
+          nextStep3Bonus = 3;
+        }
+      }
+    } else {
+      const oppFbTight = ctx.defender?.instruction === 'tight_mark_winger' ? 1 : (ctx.defender?.instruction === 'aggressive_press' ? -1 : 0);
+      const oppFbTack = ctx.defender?.instruction === 'aggressive_press' ? 1 : (ctx.defender?.instruction === 'tight_mark_winger' ? -1 : 0);
+      if (activeAction === 'dribble') {
+        skillName = 'Dribbling';
+        attSkill = ctx.actor.skills.dribbling;
+        defSkill = ctx.defender.skills.tackling;
+        defBonus += oppFbTack;
+        is1v1Keeper = true;
+      } else if (activeAction === 'through_ball') {
+        requiredDiff = 4;
+        nextStep3Bonus = 3;
+        defBonus += oppFbTight;
+        boxDefMode = 'low_cross';
+      } else {
+        skillName = 'Crossing';
+        attSkill = ctx.actor.skills.crossing;
+        defBonus += oppFbTight;
+        boxDefMode = activeAction === 'low_cross' ? 'low_cross' : 'high_cross';
+      }
+    }
+
+    const forcedDiff = decision === 'success' ? requiredDiff : (decision === 'fail' ? 0 : null);
+    const duel = resolveDuelWithOverride(attSkill + attBonus, defSkill + defBonus, forcedDiff);
+    const won = duel.diff >= requiredDiff;
+    const actionLabel = String(activeAction || 'pass').toUpperCase().replace('_', ' ');
+    const s2Disc = evaluateSandboxDiscipline({
+      defSide: ctx.defendingSide,
+      defPlayer: ctx.defender,
+      defDie: duel.defDie,
+      defTeamTactics,
+      isBoxZone: false,
+      attRoster,
+      defRoster
+    });
+    const baseS2Summary = won
+      ? `✅ ${ctx.actor.name} succeeds ${actionLabel} in [${ctx.secondZone.toUpperCase()}] vs ${ctx.defender.name} (diff +${duel.diff} >= ${requiredDiff}) ➔ Ball moves into [${ctx.boxZone.toUpperCase()}]!`
+      : `❌ ${ctx.defender.name} stops ${ctx.actor.name}'s ${actionLabel} in [${ctx.secondZone.toUpperCase()}] — ${defTeamName} takes possession! (diff ${duel.diff} < ${requiredDiff})`;
+    const summary = s2Disc.note ? `${baseS2Summary} | ${s2Disc.note}` : baseS2Summary;
+
+    const step2Record = {
+      phase: `${ctx.mode === 'center_amc' ? 'AMC' : 'WING'} ${actionLabel}`,
+      zone: ctx.secondZone,
+      attacker: ctx.actor.name,
+      attackerPlayer: ctx.actor,
+      attackerSlotId: ctx.actor.slotId || null,
+      defender: ctx.defender.name,
+      defenderPlayer: ctx.defender,
+      defenderSlotId: ctx.defender.slotId || null,
+      attackerSkillName: skillName,
+      attackerDie: duel.attDie,
+      defenderDie: duel.defDie,
+      diff: duel.diff,
+      requiredDiff,
+      success: won,
+      summary
+    };
+
+    if (!won) {
+      return buildNextIdleSession({
+        nextSide: ctx.defendingSide,
+        visualZone: ctx.secondZone,
+        displayPath: [ctx.secondZone],
+        steps: [...current.steps, step2Record],
+        logs: [...current.logs, { text: `${eventMin}' ${summary}`, type: 'save' }],
+        lastStepSummary: summary,
+        turnoverSide: ctx.defendingSide,
+        counterTriggered: ctx.counterTriggered,
+        nextCards: s2Disc.nextCards
+      });
+    }
+
+    const finisher = is1v1Keeper ? ctx.actor : (pickRandom(attRoster.strikers) || ctx.actor);
+    const boxDef = resolveBoxDefenseHelper(defRoster, is1v1Keeper ? 'standard' : boxDefMode);
+    let finSkill = finisher.skills.finishing;
+    let finSkillName = 'Finishing';
+    let instrBonus = 0;
+
+    if (!is1v1Keeper) {
+      if (boxDefMode === 'high_cross') {
+        finSkill = finisher.skills.heading;
+        finSkillName = 'Heading';
+        instrBonus = finisher.instruction === 'target_man' ? 1 : (finisher.instruction === 'poacher' ? -1 : 0);
+      } else {
+        instrBonus = finisher.instruction === 'poacher' ? 1 : (boxDefMode === 'low_cross' && finisher.instruction === 'target_man' ? -1 : 0);
+      }
+    }
+
+    const nextSession = {
+      phase: 'STEP_3',
+      possessionSide: ctx.attackingSide,
+      attackingSide: ctx.attackingSide,
+      ballZone: ctx.boxZone,
+      displayPath: zonePathWithBox,
+      steps: [...current.steps, step2Record],
+      logs: [...current.logs, { text: `${eventMin}' ${summary}`, type: 'chance' }],
+      cards: s2Disc.nextCards,
+      recycleState: null,
+      isKickoffRestart: false,
+      step2Context: null,
+      step3Context: {
+        attackingSide: ctx.attackingSide,
+        defendingSide: ctx.defendingSide,
+        boxZone: ctx.boxZone,
+        finisher,
+        assister: finisher.name !== ctx.actor.name ? ctx.actor : ctx.initiator,
+        boxDefMode,
+        boxDef,
+        finSkill,
+        finSkillName,
+        totalFinBonus: attMentalityMod + (ctx.step2SkillBonus || 0) + nextStep3Bonus + instrBonus,
+        totalDefBonus: defMentalityMod + (is1v1Keeper ? 0 : boxDef.dcInstrBonus + defTacklingMod),
+        is1v1Keeper,
+        counterTriggered: ctx.counterTriggered
+      },
+      lastStepSummary: summary,
+      turnoverSide: null,
+      isCompleted: false
+    };
+    return {
+      session: nextSession,
+      zoneResult: {
+        minutesElapsed: 1,
+        attackingSide: ctx.attackingSide,
+        nextAttacker: ctx.attackingSide,
+        counterTriggered: ctx.counterTriggered,
+        startZone: ctx.secondZone,
+        activeZone: ctx.boxZone,
+        zonePath: [ctx.secondZone, ctx.boxZone],
+        steps: nextSession.steps,
+        logs: nextSession.logs,
+        cards: s2Disc.nextCards,
+        isGoal: false,
+        isShot: false,
+        homeZonePlayers: homeRoster.zonePlayers,
+        awayZonePlayers: awayRoster.zonePlayers
+      }
+    };
+  }
+
+  // ===========================================================================
+  // PHASE 3: PENALTY BOX FINISH (D2 / A2) -> GOAL OR SAVE (OR HARD-FOUL PENALTY!)
+  // ===========================================================================
+  if (current.phase === 'STEP_3' && current.step3Context) {
+    const ctx = current.step3Context;
+    const isHomeAtt = ctx.attackingSide === 'home';
+    const attRoster = isHomeAtt ? homeRoster : awayRoster;
+    const defRoster = isHomeAtt ? awayRoster : homeRoster;
+    const defTeamTactics = isHomeAtt ? awayTeamTactics : homeTeamTactics;
+    const defTeamName = isHomeAtt ? (awayTeam?.name || 'Away XI') : (homeTeam?.name || 'Home XI');
+    const defSkill = ctx.is1v1Keeper ? (ctx.boxDef.gk?.skills?.handling || 6) : ctx.boxDef.combinedSkill;
+    const defLabel = ctx.is1v1Keeper ? (ctx.boxDef.gk?.name || 'GK') : `${ctx.boxDef.dc?.name || 'DC'} + ${ctx.boxDef.gk?.name || 'GK'}`;
+
+    const forcedDiff = decision === 'goal' ? 3 : (decision === 'save' ? 0 : null);
+    const duel = resolveDuelWithOverride(ctx.finSkill + ctx.totalFinBonus, defSkill + ctx.totalDefBonus, forcedDiff);
+    const rawIsGoal = duel.diff >= 3;
+    const s3Disc = evaluateSandboxDiscipline({
+      defSide: ctx.defendingSide,
+      defPlayer: ctx.boxDef.dc,
+      defDie: duel.defDie,
+      defTeamTactics,
+      isBoxZone: !rawIsGoal,
+      boxZone: ctx.boxZone,
+      attRoster,
+      defRoster
+    });
+
+    const isGoal = rawIsGoal || Boolean(s3Disc.penaltyResult?.isGoal);
+    const baseS3Summary = rawIsGoal
+      ? `⚽ GOAL! ${ctx.finisher.name} scores in [${ctx.boxZone.toUpperCase()}]! (${ctx.finSkillName} d10:${duel.attDie}+${ctx.finSkill}${fmtBonus(ctx.totalFinBonus)}=${duel.attTotal} vs ${defLabel} ${duel.defTotal}, diff +${duel.diff} >= 3)`
+      : `🧤 SAVE! ${defLabel} denies ${ctx.finisher.name} in [${ctx.boxZone.toUpperCase()}] — ${defTeamName} restarts from the back! (diff ${duel.diff} < 3)`;
+    const summary = s3Disc.note ? `${baseS3Summary} | ${s3Disc.note}` : baseS3Summary;
+
+    const step3Record = {
+      phase: ctx.is1v1Keeper ? '1v1 vs KEEPER' : (ctx.boxDefMode === 'high_cross' ? 'BOX HEADER' : 'BOX FINISH'),
+      zone: ctx.boxZone,
+      attacker: ctx.finisher.name,
+      attackerPlayer: ctx.finisher,
+      attackerSlotId: ctx.finisher.slotId || null,
+      defender: defLabel,
+      defenderPlayer: ctx.boxDef.dc || null,
+      defenderSlotId: ctx.boxDef.dc?.slotId || null,
+      attackerDie: duel.attDie,
+      defenderDie: duel.defDie,
+      diff: duel.diff,
+      requiredDiff: 3,
+      success: isGoal,
+      summary
+    };
+
+    const nextSteps = s3Disc.penaltyResult
+      ? [...current.steps, step3Record, s3Disc.penaltyResult.step]
+      : [...current.steps, step3Record];
+
+    return buildNextIdleSession({
+      nextSide: ctx.defendingSide,
+      kickoff: isGoal,
+      visualZone: ctx.boxZone,
+      displayPath: [ctx.boxZone],
+      steps: nextSteps,
+      logs: [...current.logs, { text: `${eventMin}' ${summary}`, type: isGoal ? 'goal' : 'save' }],
+      lastStepSummary: summary,
+      turnoverSide: ctx.defendingSide,
+      isGoal,
+      isShot: true,
+      counterTriggered: ctx.counterTriggered,
+      nextCards: s3Disc.nextCards
+    });
+  }
+
+  return { session: current, zoneResult: null };
 }

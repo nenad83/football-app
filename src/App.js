@@ -11,7 +11,7 @@ import TournamentSelect from './components/TournamentSelect';
 import TournamentDashboard from './components/TournamentDashboard';
 import PreMatch from './components/PreMatch';
 import Fixtures from './components/Fixtures';
-import CMRetroHub from './cmRetro/components/CMRetroHub';
+import Zone12EngineTestDemo from './components/Zone12EngineTestDemo';
 import { applyTeamTheme, resetToDefaultTheme } from './utils/themeManager';
 import { cleanStale1To5Rosters } from './data/rosters/rosterRegistry';
 
@@ -38,7 +38,7 @@ function App() {
 
     <Routes>
       <Route exact path="/" element={<Home />} />
-      <Route path="/cm-retro/*" element={<CMRetroHub />} />
+      <Route path="/zone12-demo" element={<Zone12EngineTestDemo />} />
       <Route exact path="/friendly" element={<Friendly />} />
       <Route exact path="/pre-match" element={<PreMatch />} />
       <Route exact path="/match" element={<Match />} />

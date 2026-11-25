@@ -706,6 +706,7 @@ export default function Match() {
   const awayTacticRef = useRef(awayTactic);
   const zone12PendingRef = useRef(null);
   const zone12NextAttackerRef = useRef(null);
+  const zone12RecycleRef = useRef(null);
   const zone12KickoffPendingRef = useRef(null);
   const d10KickoffSideRef = useRef(null);
   const captainRef = useRef(captainName);
@@ -2039,10 +2040,16 @@ export default function Match() {
       const isHalfStart = time === 0 || time === 45 || time === 90;
       const postGoalKickoffSide = isHalfStart ? null : zone12KickoffPendingRef.current;
       const isKickoffRestart = Boolean(isHalfStart || postGoalKickoffSide);
+      const activeRecycleState = (isHalfStart || postGoalKickoffSide) ? null : zone12RecycleRef.current;
       zone12KickoffPendingRef.current = null;
+      zone12RecycleRef.current = null;
       const activeHumanTeamTactics = teamInstructionsRef.current;
-      const homeTeamTactics = (!isHomeDisabled && teamonename === playerTeamId) ? activeHumanTeamTactics : null;
-      const awayTeamTactics = (!isAwayDisabled && teamtwoname === playerTeamId) ? activeHumanTeamTactics : null;
+      const homeTeamTactics = (!isHomeDisabled && teamonename === playerTeamId)
+        ? activeHumanTeamTactics
+        : { mentality: homeTactic, counterAttack: homeCounter, pressing: homePressing, attackingFocus: 'both_flanks', passing: 'short', tackling: 'normal' };
+      const awayTeamTactics = (!isAwayDisabled && teamtwoname === playerTeamId)
+        ? activeHumanTeamTactics
+        : { mentality: awayTactic, counterAttack: awayCounter, pressing: awayPressing, attackingFocus: 'both_flanks', passing: 'short', tackling: 'normal' };
 
       zoneRes = simulateZone12Possession({
         homeLineup: homeLineupData,
@@ -2062,7 +2069,8 @@ export default function Match() {
         minute: time,
         maxMinute: nextMilestone,
         preferredAttacker: isHalfStart ? null : (postGoalKickoffSide || zone12NextAttackerRef.current),
-        isKickoffRestart
+        isKickoffRestart,
+        recycleState: activeRecycleState
       });
     }
 
@@ -2239,23 +2247,34 @@ export default function Match() {
       }) : null;
 
       if (!step1 || (!step1.success && !step1.counterTriggered) || isMilestoneStop) {
-        // Midfield stopped cleanly (turnover) or half/full-time whistle reached
+        // Midfield recycled to hold possession (diff 0..1), stopped cleanly (turnover), or half/full-time whistle reached
         zone12PendingRef.current = null;
         zone12NextAttackerRef.current = isMilestoneStop ? null : (zoneRes.nextAttacker || s1DefSide);
+        zone12RecycleRef.current = isMilestoneStop ? null : (zoneRes.nextRecycleState || null);
+        const endZone = (zoneRes.isHoldPossession && !isMilestoneStop) ? zoneRes.activeZone : zoneRes.startZone;
+        const endPath = (zoneRes.isHoldPossession && !isMilestoneStop && Array.isArray(zoneRes.zonePath) && zoneRes.zonePath.length > 0)
+          ? zoneRes.zonePath
+          : [zoneRes.startZone];
         setLastZone12Result({
           ...zoneRes,
           steps: step1 ? [step1] : [],
-          zonePath: [zoneRes.startZone],
-          activeZone: zoneRes.startZone,
+          zonePath: endPath,
+          activeZone: endZone,
           isGoal: false
         });
         if (!isMilestoneStop && step1?.stepLog) {
-          logDuelWithFouls(step1.stepLog.text, step1.stepLog.type || "normal", "neutral", [s1AttFoul, s1DefFoul]);
+          logDuelWithFouls(
+            step1.stepLog.text,
+            step1.stepLog.type || "normal",
+            zoneRes.isHoldPossession ? zoneRes.attackingSide : "neutral",
+            [s1AttFoul, s1DefFoul]
+          );
         }
         setBallPosition("center");
       } else {
         // Either initiator broke through (diff >= +2) OR defender stole it for instant counter (diff <= -2)
         zone12PendingRef.current = zoneRes;
+        zone12RecycleRef.current = null;
         zone12NextAttackerRef.current = zoneRes.nextAttacker || (zoneRes.attackingSide === 'home' ? 'away' : 'home');
         const secondZone = zoneRes.zonePath[1] || zoneRes.startZone;
         setLastZone12Result({
@@ -2513,10 +2532,17 @@ export default function Match() {
       c => c.type === 'red' || c.type === 'second_yellow'
     ).length;
 
+    const isHumanTeamForFoul =
+      (playerTeamId !== null && teamKey === playerTeamId) ||
+      (teamKey === teamonename && !isHomeDisabled && !cpuLineupsRef.current[teamonename]) ||
+      (teamKey === teamtwoname && !isAwayDisabled && !cpuLineupsRef.current[teamtwoname]);
+    const activeTacklingMode = isHumanTeamForFoul ? (teamInstructionsRef.current?.tackling || 'normal') : 'normal';
+
     const check = resolveFoulCheck({
       rawRoll,
       sides: rollSides,
       isPressing,
+      tackling: activeTacklingMode,
       refereeStrictness: isStrictReferee ? 'strict' : 'normal',
       teamRedCards,
       matchRedCards,
@@ -3001,6 +3027,7 @@ export default function Match() {
     const concededSide = isHomeGoal ? 'away' : 'home';
     // Force clean restart from midfield by the conceding team (opponent kicks off from center)
     zone12PendingRef.current = null;
+    zone12RecycleRef.current = null;
     zone12NextAttackerRef.current = concededSide;
     zone12KickoffPendingRef.current = concededSide;
     setHasHomeChance(false);
@@ -3106,6 +3133,7 @@ export default function Match() {
     } else {
       zone12PendingRef.current = null;
       zone12NextAttackerRef.current = zoneRes.nextAttacker || defSide;
+      zone12RecycleRef.current = zoneRes.nextRecycleState || null;
       setLastZone12Result(zoneRes);
       if (step2.stepLog) {
         logDuelWithFouls(
@@ -3176,10 +3204,13 @@ export default function Match() {
     }
 
     if (zoneRes.isGoal) {
+      zone12RecycleRef.current = null;
       setLastZone12Result(zoneRes);
       applyZone12Goal(zoneRes);
       return;
     }
+
+    zone12RecycleRef.current = zoneRes.nextRecycleState || null;
 
     // Defensive foul inside the penalty box (Step 3) when not already a goal -> Penalty Kick!
     if (defFoul) {

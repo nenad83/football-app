@@ -234,12 +234,20 @@ export function resolveFoulCheck({
   rawRoll,
   sides = 10,
   isPressing = false,
+  tackling = 'normal',
   refereeStrictness = 'normal',
   teamRedCards = 0,
   matchRedCards = 0,
   foulFrequencyScale = 1
 } = {}) {
-  if (rawRoll !== 1) {
+  const tackleMode = String(tackling || 'normal').toLowerCase();
+  const maxTriggerRoll = tackleMode === 'hard' && sides >= 10 ? 2 : 1;
+  if (rawRoll === undefined || rawRoll === null || rawRoll > maxTriggerRoll) {
+    return { foul: false, outcome: 'none', refRoll: null, confirmRoll: null };
+  }
+
+  // Easy tackling avoids diving in and sharply lowers foul frequency
+  if (tackleMode === 'easy' && Math.random() > 0.35) {
     return { foul: false, outcome: 'none', refRoll: null, confirmRoll: null };
   }
 
@@ -260,12 +268,16 @@ export function resolveFoulCheck({
   } else if (isPressing || isStrict) {
     yellowMax = 3;
   }
+  if (tackleMode === 'hard') yellowMax += 2;
+  else if (tackleMode === 'easy') yellowMax = Math.max(1, yellowMax - 1);
 
   const allowDirectRed = teamRedCards === 0 && matchRedCards < 1;
   if (refRoll === 1) {
-    const confirmSides = (isPressing && isStrict) ? 20 : 28;
+    const confirmSides = tackleMode === 'hard'
+      ? ((isPressing && isStrict) ? 10 : 14)
+      : ((isPressing && isStrict) ? 20 : 28);
     const confirmRoll = rollDie(confirmSides);
-    if (allowDirectRed && confirmRoll === 1) {
+    if (allowDirectRed && confirmRoll === 1 && (tackleMode !== 'easy' || isStrict)) {
       return { foul: true, outcome: 'red', refRoll, confirmRoll, sides };
     }
     return { foul: true, outcome: 'yellow', refRoll, confirmRoll, sides };

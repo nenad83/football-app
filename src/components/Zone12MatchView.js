@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const ZONE_COORDS = {
+export const ZONE_COORDS = {
   a1: { left: '12%', top: '18%', col: 0, row: 0 },
   a2: { left: '10%', top: '50%', col: 0, row: 1 },
   a3: { left: '12%', top: '82%', col: 0, row: 2 },
@@ -68,7 +68,13 @@ export function buildBoxStepPath(fromZone, targetZones = [], isLongJump = false)
  * Renders the animated 12-Box football pitch with Home/Away goal orientation,
  * subtle 12-box dividers, and box-by-box (or 1-box-jump on long passes) ball animation.
  */
-export default function Zone12MatchView({ lastZoneResult, homeTeamName = 'Home', awayTeamName = 'Away' }) {
+export default function Zone12MatchView({
+  lastZoneResult,
+  homeTeamName = 'Home',
+  awayTeamName = 'Away',
+  pitchOverlay = null,
+  forcedDisplayZone = null
+}) {
   const [displayZone, setDisplayZone] = useState('b2');
   const displayZoneRef = useRef('b2');
   const timersRef = useRef([]);
@@ -80,6 +86,11 @@ export default function Zone12MatchView({ lastZoneResult, homeTeamName = 'Home',
   useEffect(() => {
     timersRef.current.forEach((t) => clearTimeout(t));
     timersRef.current = [];
+
+    if (forcedDisplayZone && ZONE_COORDS[forcedDisplayZone]) {
+      setDisplayZone(forcedDisplayZone);
+      return;
+    }
 
     if (!lastZoneResult) {
       setDisplayZone('b2');
@@ -120,7 +131,7 @@ export default function Zone12MatchView({ lastZoneResult, homeTeamName = 'Home',
       timersRef.current.forEach((t) => clearTimeout(t));
       timersRef.current = [];
     };
-  }, [lastZoneResult]);
+  }, [lastZoneResult, forcedDisplayZone]);
 
   const ballCoord = ZONE_COORDS[displayZone] || ZONE_COORDS.b2;
   const attSide = lastZoneResult?.attackingSide;
@@ -223,6 +234,8 @@ export default function Zone12MatchView({ lastZoneResult, homeTeamName = 'Home',
         }}>
           {awayTeamName} GK 🥅
         </span>
+
+        {pitchOverlay}
 
         <div
           className="glowing-football"

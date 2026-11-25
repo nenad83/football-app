@@ -215,6 +215,7 @@ function simulateFullZone12Match(homeCfg, awayCfg) {
   let minute = 0;
   let nextAttacker = null;
   let isKickoffRestart = true;
+  let recycleState = null;
   const cards = [];
 
   const stats = {
@@ -300,7 +301,8 @@ function simulateFullZone12Match(homeCfg, awayCfg) {
       minute: Math.max(1, minute),
       maxMinute: maxMin,
       preferredAttacker: nextAttacker,
-      isKickoffRestart
+      isKickoffRestart,
+      recycleState: isKickoffRestart ? null : recycleState
     });
 
     const step1 = zoneRes.steps?.[0] || null;
@@ -343,13 +345,16 @@ function simulateFullZone12Match(homeCfg, awayCfg) {
     if (!step1 || (!step1.success && !step1.counterTriggered) || isMilestoneStop) {
       if (nextMinute === 45 && prevMinute < 45) {
         nextAttacker = null;
+        recycleState = null;
         isKickoffRestart = true;
       } else {
         nextAttacker = isMilestoneStop ? null : (zoneRes.nextAttacker || s1DefSide);
+        recycleState = isMilestoneStop ? null : (zoneRes.nextRecycleState || null);
         isKickoffRestart = false;
       }
       continue;
     }
+    recycleState = null;
 
     // Step 2
     const attSide = zoneRes.attackingSide;
