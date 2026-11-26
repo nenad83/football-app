@@ -300,13 +300,13 @@ async function callGeminiWithRetry(prompt, retries = 5, backoff = 2000) {
 
 async function generateSquadForTeam(team, seasonStr, country) {
   const prompt = `You are a football database expert. 
-Generate a squad of 22 players for the team "${team.name}" in the "${seasonStr}" season. 
+Generate a squad of 25 players for the team "${team.name}" in the "${seasonStr}" season. 
 The team represents the country "${country}" and has game ratings: Attack: ${team.attack}/5, Midfield: ${team.midfield}/5, Defense: ${team.defense}/5.
 
 Requirements:
-1. Provide exactly 22 players.
+1. Provide exactly 25 players.
 2. The players must be real, authentic players who played for "${team.name}" in the ${seasonStr} season.
-3. Group by positions: exactly 2 Goalkeepers, exactly 7 or 8 Defenders, exactly 7 or 8 Midfielders, and exactly 4 to 6 Forwards so that total is exactly 22.
+3. Group by positions: 2 or 3 Goalkeepers, 8 or 9 Defenders, 8 or 9 Midfielders, and 5 or 6 Forwards so that total is exactly 25.
 4. For each player provide:
    - "name": Full real name
    - "position": Primary position tag (one of: GK, DL, DR, DC, DMC, MC, ML, MR, AMC, AML, AMR, ST, CF, LW, RW)

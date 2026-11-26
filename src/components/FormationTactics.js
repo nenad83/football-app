@@ -949,16 +949,16 @@ export const generateProceduralSquad = (teamName, country, stats) => {
 const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY || "";
 const GEMINI_MODEL = "gemini-3.1-flash-lite";
 
-// Generates a squad of 22 authentic players for the specific team/season using Gemini API with detailed positions
+// Generates a squad of 25 authentic players for the specific team/season using Gemini API with detailed positions
 export const fetchGeminiSquad = async (teamName, season, country, stats) => {
   const prompt = `You are a football database expert. 
-Generate a squad of 22 players for the team "${teamName}" in the "${season}" season. 
+Generate a squad of 25 players for the team "${teamName}" in the "${season}" season. 
 The team represents the country "${country}" and has game ratings: Attack: ${stats.attack}/5, Midfield: ${stats.midfield}/5, Defense: ${stats.defense}/5.
 
 Requirements:
-1. Provide exactly 22 players.
+1. Provide exactly 25 players.
 2. The players must be real, authentic players who played for "${teamName}" in the ${season} season. If this is a national team (like Germany, Brazil, England), provide the squad representing them during that tournament/year.
-3. The players must be grouped by positions: exactly 2 Goalkeepers, exactly 7 or 8 Defenders, exactly 7 or 8 Midfielders, and exactly 4 to 6 Forwards so that the total is exactly 22.
+3. The players must be grouped by positions: 2 or 3 Goalkeepers, 8 or 9 Defenders, 8 or 9 Midfielders, and 5 or 6 Forwards so that the total is exactly 25.
 4. For each player, provide:
    - "name": Full name of the player.
    - "position": Specify their primary playing position. It MUST be one of these exact tags: "GK" (Goalkeeper), "DL" (Left Back/Defender), "DR" (Right Back/Defender), "DC" (Centre Back/Defender), "DMC" (Defensive Midfielder), "MC" (Centre Midfielder), "ML" (Left Midfielder), "MR" (Right Midfielder), "AMC" (Attacking Midfielder), "AML" (Attacking Midfielder Left), "AMR" (Attacking Midfielder Right), "ST" (Striker), "CF" (Centre Forward), "LW" (Left Winger), "RW" (Right Winger).

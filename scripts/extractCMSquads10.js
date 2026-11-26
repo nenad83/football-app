@@ -1303,14 +1303,14 @@ function findBestMatchingClub(teamName, cmClubs, playersByClubId) {
 }
 
 // ---------------------------------------------------------------------------
-// 7. SQUAD SYNTHESIZER & 22-MAN ROSTER BALANCER (1-10 SCALE)
+// 7. SQUAD SYNTHESIZER & 25-MAN ROSTER BALANCER (1-10 SCALE)
 // ---------------------------------------------------------------------------
 function synthesizeSquadFiller10(existingPlayers, team, seasonYear, region = "") {
   const squad = [...existingPlayers];
   const neededPositions = [
-    'GK', 'GK',
-    'DC', 'DC', 'DC', 'DC', 'DL', 'DR', 'DL', 'DR',
-    'MC', 'MC', 'MC', 'MC', 'ML', 'MR', 'AMC', 'DMC',
+    'GK', 'GK', 'GK',
+    'DC', 'DC', 'DC', 'DC', 'DC', 'DL', 'DR', 'DL', 'DR',
+    'MC', 'MC', 'MC', 'MC', 'MC', 'ML', 'MR', 'AMC', 'DMC',
     'ST', 'ST', 'ST', 'CF'
   ];
 
@@ -1370,7 +1370,7 @@ function synthesizeSquadFiller10(existingPlayers, team, seasonYear, region = "")
   ]))));
 
   let fillerIdx = 0;
-  while (squad.length < 22) {
+  while (squad.length < 25) {
     const pos = remainingNeeded.shift() || 'MC';
     const dept = getGeneralPosition(pos);
     let baseRating5 = 3;
@@ -1455,14 +1455,14 @@ function selectBalancedSquad10(players) {
   mfs.slice(0, 8).forEach(addPlayer);
   fws.slice(0, 4).forEach(addPlayer);
 
-  if (squad.length < 22) {
+  if (squad.length < 25) {
     for (const p of players) {
       addPlayer(p);
-      if (squad.length >= 22) break;
+      if (squad.length >= 25) break;
     }
   }
 
-  return squad.slice(0, 22);
+  return squad.slice(0, 25);
 }
 
 // ---------------------------------------------------------------------------
@@ -1710,7 +1710,7 @@ async function main() {
       const budgetM = parseFloat(((baseCash * eraMult) / 1000000).toFixed(1));
       const wageCapW = Math.round(baseWageCap * eraMult);
       const avgWageW = Math.round(baseAvgWage * eraMult);
-      const weeklyPayroll = Math.round(avgWageW * 22);
+      const weeklyPayroll = Math.round(avgWageW * 25);
 
       teamDetailsMap[team.name] = {
         manager,
