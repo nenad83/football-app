@@ -1324,13 +1324,13 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
     ];
   }
 
-  // 4. Wingers & Wide Midfielders (AMR, AML, ML, MR, LW, RW)
-  const isWingerSlot = ['AMR', 'AML', 'ML', 'MR', 'LW', 'RW', 'DML', 'DMR'].includes(idealPos) ||
-    ['AMR', 'AML', 'ML', 'MR', 'LW', 'RW'].includes(labelPos);
+  // 4. Wingers & Wide Midfielders (AMR, AML, FL, FR, ML, MR, LW, RW)
+  const isWingerSlot = ['AMR', 'AML', 'FL', 'FR', 'ML', 'MR', 'LW', 'RW', 'DML', 'DMR'].includes(idealPos) ||
+    ['AMR', 'AML', 'FL', 'FR', 'ML', 'MR', 'LW', 'RW'].includes(labelPos);
   if (isWingerSlot) {
     const isAttackingWideRole =
-      ['AMR', 'AML', 'LW', 'RW'].includes(idealPos) ||
-      ['AMR', 'AML', 'LW', 'RW'].includes(labelPos) ||
+      ['AMR', 'AML', 'FL', 'FR', 'LW', 'RW'].includes(idealPos) ||
+      ['AMR', 'AML', 'FL', 'FR', 'LW', 'RW'].includes(labelPos) ||
       roleId === 'support_att';
     const wingList = [
       {
@@ -1351,11 +1351,19 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
       },
       {
         id: 'dribble',
-        label: 'Cut Inside & Dribble (1v1)',
+        label: 'Flank Dribble (1v1 vs FB)',
         shortLabel: 'DRIBBLE',
         icon: '🔥',
         color: '#ff4500',
         desc: 'Dribbling vs FB Tackling (diff >= 2) → Winger goes straight into a 1-on-1 shooting chance against the Keeper!'
+      },
+      {
+        id: 'cut_inside',
+        label: 'Cut Inside (Move to Box d2/a2)',
+        shortLabel: 'CUT INSIDE',
+        icon: '🔪',
+        color: '#ff2e93',
+        desc: 'Moves inside into the penalty box (d2/a2) as an extra forward (like Salah): boosts box numerical advantage & joins finishers while Wing-Backs hold width!'
       }
     ];
     if (isAttackingWideRole) {
@@ -1399,6 +1407,14 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
         icon: '🔥',
         color: '#ff4500',
         desc: 'Takes on opponent DMC or DC (Dribbling vs Tackling, diff >= 2). If successful, AMC shoots 1-on-1 against the Keeper!'
+      },
+      {
+        id: 'shadow_striker',
+        label: 'Shadow Striker (Crash Box d2/a2)',
+        shortLabel: 'SHADOW ST',
+        icon: '🔪',
+        color: '#ff2e93',
+        desc: 'Pushes forward from c2/b2 into d2/a2 as a second striker (overloads opposing DCs & joins box finishers).'
       },
       {
         id: 'long_shot',

@@ -8,6 +8,7 @@ import { clibRules } from '../data/clib/clibRules';
 import { csudRules } from '../data/csud/csudRules';
 import { concacafRules } from '../data/concacaf/concacafRules';
 import { TacticsPanel } from './MatchTactics';
+import NationFlag from './NationFlag';
 import {
   getSavedFormation,
   FORMATIONS,
@@ -525,7 +526,19 @@ export default function PreMatch() {
     return "";
   };
 
+  const getPlayerCustomNationality = () => {
+    try {
+      const profRaw = localStorage.getItem('retro_manager_profile');
+      if (profRaw) {
+        const p = JSON.parse(profRaw);
+        if (p?.nationality && p.nationality.trim()) return p.nationality.trim();
+      }
+    } catch (e) {}
+    return leagueState?.managerNationality || tournamentState?.managerNationality || "";
+  };
+
   const customManager = getPlayerCustomManager();
+  const customNationality = getPlayerCustomNationality();
 
   const homeManagerName = isHomePlayer
     ? (customManager || homeDetails?.manager?.name || "")
@@ -534,6 +547,14 @@ export default function PreMatch() {
   const awayManagerName = isAwayPlayer
     ? (customManager || awayDetails?.manager?.name || "")
     : (awayDetails?.manager?.name || "");
+
+  const homeManagerNationality = isHomePlayer
+    ? (customNationality || homeDetails?.manager?.nationality || "")
+    : (homeDetails?.manager?.nationality || "");
+
+  const awayManagerNationality = isAwayPlayer
+    ? (customNationality || awayDetails?.manager?.nationality || "")
+    : (awayDetails?.manager?.nationality || "");
 
   const stadiumName = homeDetails?.stadium?.name || "";
 
@@ -1004,6 +1025,7 @@ export default function PreMatch() {
               gap: '4px'
             }}>
               <span>👔</span>
+              {homeManagerNationality && <NationFlag nation={homeManagerNationality} size={14} />}
               <span>Manager: <strong>{homeManagerName}</strong></span>
             </div>
           )}
@@ -1315,6 +1337,7 @@ export default function PreMatch() {
               gap: '4px'
             }}>
               <span>👔</span>
+              {awayManagerNationality && <NationFlag nation={awayManagerNationality} size={14} />}
               <span>Manager: <strong>{awayManagerName}</strong></span>
             </div>
           )}

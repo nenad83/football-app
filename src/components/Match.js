@@ -12,6 +12,8 @@ import PlayerInfoModal, { PlayerInfoButton } from './PlayerInfoModal';
 import PlayerRoleInstructionsModal from './PlayerRoleInstructionsModal';
 import TeamInstructionsModal from './TeamInstructionsModal';
 import { getSubstitutionLimit, getStoppageLimit } from '../utils/matchRules';
+import { recordLiveUserMatchToProfile } from '../utils/managerProgression';
+import NationFlag from './NationFlag';
 import { getSavedFormation, getCPUFormation, updateTeamStatsInStorage, getFormationSlots, getIdealSlotPosition, getPositionPenalty, generateDefaultLineup, getSavedCaptain, resolveValidCaptain } from './FormationTactics';
 import { getPrebuiltRoster, getTeamDetails, getTeamDetailsSync, calculateMatchAttendance } from '../data/rosters/rosterRegistry';
 import { getCPUMatchLineupAndStats } from '../utils/cpuSquadManager';
@@ -1767,7 +1769,19 @@ export default function Match() {
     return "";
   };
 
+  const getPlayerCustomNationality = () => {
+    try {
+      const profRaw = localStorage.getItem("retro_manager_profile");
+      if (profRaw) {
+        const p = JSON.parse(profRaw);
+        if (p?.nationality && p.nationality.trim()) return p.nationality.trim();
+      }
+    } catch (e) { }
+    return leagueState?.managerNationality || tournamentState?.managerNationality || "";
+  };
+
   const customManager = getPlayerCustomManager();
+  const customNationality = getPlayerCustomNationality();
 
   const homeManagerName = isHomePlayer
     ? (customManager || homeDetails?.manager?.name || "")
@@ -1776,6 +1790,14 @@ export default function Match() {
   const awayManagerName = isAwayPlayer
     ? (customManager || awayDetails?.manager?.name || "")
     : (awayDetails?.manager?.name || "");
+
+  const homeManagerNationality = isHomePlayer
+    ? (customNationality || homeDetails?.manager?.nationality || "")
+    : (homeDetails?.manager?.nationality || "");
+
+  const awayManagerNationality = isAwayPlayer
+    ? (customNationality || awayDetails?.manager?.nationality || "")
+    : (awayDetails?.manager?.nationality || "");
 
   const stadium = homeDetails?.stadium;
   const stadiumName = stadium?.name || "";
@@ -4080,6 +4102,28 @@ export default function Match() {
       const opponentGoals = isPlayerHome ? scoreaway : scorehome;
       leagueState.fanConfidence = updateFanConfidence(leagueState.fanConfidence, playerTeam, opponentTeam, playerGoals, opponentGoals);
 
+      const calIdxPlayed = leagueState.calendar ? Math.max(0, (leagueState.calendarIndex || 1) - 1) : (leagueState.currentRound || 2) - 2;
+      const isDomCupPlayed = roundTitle && !roundTitle.includes("RESULTS") && !roundTitle.includes("QUALIFYING");
+      const isQualPlayed = roundTitle && roundTitle.includes("QUALIFYING");
+      const wonPens = (isDomCupPlayed || isQualPlayed) && playerGoals === opponentGoals && (
+        penaltyWinner === playerTeamId ||
+        (isPlayerHome ? homepenalty > awaypenalty : awaypenalty > homepenalty)
+      );
+      recordLiveUserMatchToProfile({
+        matchKey: `${leagueState.season}:live:${calIdxPlayed}:${teamonename}-${teamtwoname}`,
+        playerGoals,
+        opponentGoals,
+        isHome: isPlayerHome,
+        playerTeam,
+        opponentTeam,
+        wonOnPenalties: Boolean(wonPens),
+        season: leagueState.season,
+        country: leagueState.country,
+        division: leagueState.division || 1,
+        competitionLabel: isQualPlayed ? "European Qualifier" : (isDomCupPlayed ? (leagueState.domesticCupState?.cupName || "Domestic Cup") : "League"),
+        fallbackManagerName: leagueState.managerName
+      });
+
       // Save the advanced league state to localStorage first so that updateTeamStatsInStorage works on the updated state
       localStorage.setItem("retro_league_career", JSON.stringify(leagueState));
 
@@ -5073,6 +5117,33 @@ export default function Match() {
 
       stateCopy.calendarIndex += 1;
 
+      {
+        const isEuroHome = teamonename === pId;
+        const euroOppId = isEuroHome ? teamtwoname : teamonename;
+        const euroPlayerTeam = stateCopy.teams?.find(t => t.idnum === stateCopy.playerTeamId) || cupState.teams.find(t => t.idnum === pId);
+        const euroOppTeam = cupState.teams.find(t => t.idnum === euroOppId);
+        const euroPlayerGoals = isEuroHome ? scorehome : scoreaway;
+        const euroOppGoals = isEuroHome ? scoreaway : scorehome;
+        const wonEuroPens = Boolean(
+          euroPlayerGoals === euroOppGoals &&
+          (penaltyWinner === pId || (isEuroHome ? homepenalty > awaypenalty : awaypenalty > homepenalty))
+        );
+        recordLiveUserMatchToProfile({
+          matchKey: `${stateCopy.season}:europe:${stateCopy.calendarIndex - 1}:${teamonename}-${teamtwoname}`,
+          playerGoals: euroPlayerGoals,
+          opponentGoals: euroOppGoals,
+          isHome: isEuroHome,
+          playerTeam: euroPlayerTeam,
+          opponentTeam: euroOppTeam,
+          wonOnPenalties: wonEuroPens,
+          season: stateCopy.season,
+          country: stateCopy.country,
+          division: stateCopy.division || 1,
+          competitionLabel: stateCopy.europeanCup === "cl" ? "Champions Cup" : (stateCopy.europeanCup === "uefa" ? "Europa/UEFA Cup" : "Conference League"),
+          fallbackManagerName: stateCopy.managerName
+        });
+      }
+
       // Save the advanced career state to localStorage first so that updateTeamStatsInStorage works on the updated state
       localStorage.setItem("retro_league_career", JSON.stringify(stateCopy));
 
@@ -5803,6 +5874,7 @@ export default function Match() {
               gap: '4px'
             }}>
               <span>👔</span>
+              {homeManagerNationality && <NationFlag nation={homeManagerNationality} size={13} />}
               <span>{homeManagerName}</span>
             </div>
           )}
@@ -6285,6 +6357,7 @@ export default function Match() {
               gap: '4px'
             }}>
               <span>👔</span>
+              {awayManagerNationality && <NationFlag nation={awayManagerNationality} size={13} />}
               <span>{awayManagerName}</span>
             </div>
           )}
@@ -6847,7 +6920,9 @@ export default function Match() {
                       {oppTeam?.name}
                     </h2>
                     {(() => {
-                      const oppMgr = showOpponentModal === teamonename ? homeManagerName : awayManagerName;
+                      const isHomeOpp = showOpponentModal === teamonename;
+                      const oppMgr = isHomeOpp ? homeManagerName : awayManagerName;
+                      const oppNat = isHomeOpp ? homeManagerNationality : awayManagerNationality;
                       return oppMgr ? (
                         <span style={{
                           fontSize: '10px',
@@ -6856,9 +6931,14 @@ export default function Match() {
                           background: 'rgba(255, 215, 0, 0.1)',
                           border: '1px solid rgba(255, 215, 0, 0.25)',
                           borderRadius: '10px',
-                          padding: '2px 8px'
+                          padding: '2px 8px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px'
                         }}>
-                          👔 {oppMgr}
+                          <span>👔</span>
+                          {oppNat && <NationFlag nation={oppNat} size={13} />}
+                          <span>{oppMgr}</span>
                         </span>
                       ) : null;
                     })()}

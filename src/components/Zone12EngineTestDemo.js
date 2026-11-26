@@ -919,6 +919,8 @@ export default function Zone12EngineTestDemo() {
                   <option value="high_cross">High Cross</option>
                   <option value="low_cross">Low Cross</option>
                   <option value="dribble">Dribble (1v1)</option>
+                  <option value="cut_inside">Cut Inside (Box d2/a2)</option>
+                  <option value="shadow_striker">Shadow Striker Surge</option>
                   <option value="long_shot">Long Shot</option>
                 </select>
               </label>

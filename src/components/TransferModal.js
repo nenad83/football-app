@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { updateTeamStatsInStorage } from './FormationTactics';
+import PlayerInfoModal, { PlayerInfoButton } from './PlayerInfoModal';
 import {
   calculatePlayerWage,
   findSquadForTeam,
@@ -18,6 +19,7 @@ import {
   generateTransferRejectedNews,
   generateTransferRumorNews
 } from '../utils/newsGenerator';
+import { getManagerRating5 } from '../utils/managerProgression';
 
 // Exchange rate between Transfer Budget ($M) and Weekly Payroll Budget ($/wk)
 // 1 Season = ~50 financial weeks => $1.0M Transfer Budget = $20,000/wk Payroll Budget
@@ -267,18 +269,14 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
   // Contract Negotiation Popup Modal State
   // { player, bidAmount, fromClub, isRival, rivalryName, isFirst11, currentWage, demandedWage, preferredYears, offeredWage, offeredYears, attempt, agentMessage }
   const [contractNegotiation, setContractNegotiation] = useState(null);
+  const [infoPlayer, setInfoPlayer] = useState(null);
 
   const { season = "", teams = [], playerTeamId = null, currentRound = 1, budget = 10.0 } = leagueState || {};
   const playerTeamObj = teams.find ? teams.find(t => t.idnum === playerTeamId) : null;
   const playerTeamName = playerTeamObj ? playerTeamObj.name : "";
 
-  // Manager Rating (1-5 stars)
-  const seasonsPlayed = managerProfile?.seasons || 0;
-  const leagueTitles = managerProfile?.leagueTitles || 0;
-  const cupTitles = managerProfile?.cupTitles || 0;
-  const totalPoints = managerProfile?.points || 0;
-  const managerPrestige = Math.round((seasonsPlayed * 25) + (leagueTitles * 100) + (cupTitles * 120) + (totalPoints * 0.5));
-  const managerRating = Math.min(5, Math.max(1, parseFloat((1.5 + (managerPrestige / 500)).toFixed(1))));
+  // Manager Rating (1-5 stars) aligned with unified 0-4000+ Manager Prestige scale
+  const managerRating = getManagerRating5(managerProfile);
 
   // Club Rating (1-10 scale)
   const clubRating = playerTeamObj
@@ -635,6 +633,10 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
                     position: cp.position,
                     positions: getPlayerPositionsList(cp),
                     rating: cp.rating,
+                    skills: cp.skills,
+                    nationality: cp.nationality,
+                    foot: cp.foot,
+                    currentAbility: cp.currentAbility,
                     age: cp.age,
                     wage: calculatePlayerWage(cp, season),
                     currentClub: cName,
@@ -664,6 +666,10 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
           position: p.position,
           positions: getPlayerPositionsList(p),
           rating: p.rating,
+          ...(p.skills ? { skills: p.skills } : {}),
+          ...(p.nationality ? { nationality: p.nationality } : {}),
+          ...(p.foot ? { foot: p.foot } : {}),
+          ...(p.currentAbility ? { currentAbility: p.currentAbility } : {}),
           age: p.age,
           wage: calculatePlayerWage(p, season),
           currentClub: p.currentClub || (p.onLoan ? p.loanClub : "Free Agent"),
@@ -822,6 +828,10 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
               position: p.position,
               positions: getPlayerPositionsList(p),
               rating: p.rating,
+              ...(p.skills ? { skills: p.skills } : {}),
+              ...(p.nationality ? { nationality: p.nationality } : {}),
+              ...(p.foot ? { foot: p.foot } : {}),
+              ...(p.currentAbility ? { currentAbility: p.currentAbility } : {}),
               age: p.age,
               wage: calculatePlayerWage(p, season),
               currentClub: p.currentClub || (p.onLoan ? p.loanClub : "Free Agent"),
@@ -849,6 +859,10 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
                     position: cp.position,
                     positions: getPlayerPositionsList(cp),
                     rating: cp.rating,
+                    skills: cp.skills,
+                    nationality: cp.nationality,
+                    foot: cp.foot,
+                    currentAbility: cp.currentAbility,
                     age: cp.age,
                     wage: calculatePlayerWage(cp, season),
                     currentClub: cName,
@@ -1211,13 +1225,17 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
       const newBudget = parseFloat((budget - bidAmount).toFixed(2));
       const currentRoster = getRoster();
 
+      const detailedSource = resolvePlayerDetails(player, fromClub);
       const squadPlayer = {
         name: player.name,
         position: player.position,
         positions: getPlayerPositionsList(player),
         rating: player.rating,
+        ...(detailedSource?.skills ? { skills: detailedSource.skills } : {}),
+        ...(detailedSource?.nationality ? { nationality: detailedSource.nationality } : {}),
+        ...(detailedSource?.foot ? { foot: detailedSource.foot } : {}),
         age: player.age,
-        currentAbility: player.currentAbility,
+        currentAbility: detailedSource?.currentAbility || player.currentAbility,
         wage: numWage,
         contractYears: offeredYears,
         value: player.value || calculatePlayerValue(player, season),
@@ -1570,6 +1588,50 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
     );
   };
 
+  // Enrich transfer target / shortlist entries with full extracted skills & profile from seasonRostersData
+  const resolvePlayerDetails = (player, clubName = '') => {
+    if (!player) return player;
+    if (player.skills && player.nationality && player.foot && player.currentAbility) {
+      return player;
+    }
+    const targetNameLower = String(player.name || '').toLowerCase().trim();
+    let rosterMatch = null;
+    if (targetNameLower && seasonRostersData) {
+      const clubSquad = getClubSquadForPlayer(clubName);
+      if (Array.isArray(clubSquad)) {
+        rosterMatch = clubSquad.find(p => String(p.name || '').toLowerCase().trim() === targetNameLower) || null;
+      }
+      if (!rosterMatch) {
+        for (const sq of Object.values(seasonRostersData)) {
+          if (!Array.isArray(sq)) continue;
+          const hit = sq.find(p => String(p.name || '').toLowerCase().trim() === targetNameLower);
+          if (hit && (hit.skills || !rosterMatch)) {
+            rosterMatch = hit;
+            if (hit.skills) break;
+          }
+        }
+      }
+    }
+    if (!rosterMatch) return player;
+    return {
+      ...rosterMatch,
+      ...player,
+      skills: player.skills || rosterMatch.skills,
+      nationality: player.nationality || rosterMatch.nationality,
+      foot: player.foot || rosterMatch.foot,
+      currentAbility: player.currentAbility || rosterMatch.currentAbility,
+      squadNumber: player.squadNumber || rosterMatch.squadNumber
+    };
+  };
+
+  const handleOpenPlayerInfo = (player, clubName = '') => {
+    if (!player) return;
+    setInfoPlayer({
+      player: resolvePlayerDetails(player, clubName),
+      teamName: clubName || player.currentClub || player.club || ''
+    });
+  };
+
   // Shared Player Row Card
   const renderPlayerCard = (player, context = "buy") => {
     const sellerClub = player.currentClub || player.club || "Free Agent";
@@ -1611,6 +1673,7 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
         <div style={{ flex: '1 1 220px', textAlign: 'left', minWidth: '180px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 'bold', fontSize: '13.5px', color: '#fff' }}>{player.name}</span>
+            <PlayerInfoButton player={player} onOpen={(pl) => handleOpenPlayerInfo(pl, sellerClub)} size="sm" />
             <span
               title={`Positions: ${formatPlayerPositions(player)}`}
               style={{
@@ -2420,6 +2483,7 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
                         <div style={{ textAlign: 'left' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#fff' }}>{player.name}</span>
+                            <PlayerInfoButton player={player} onOpen={(pl) => handleOpenPlayerInfo(pl, playerTeamName)} size="sm" />
                             <span
                               title={`Positions: ${formatPlayerPositions(player)}`}
                               style={{
@@ -2540,6 +2604,11 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
                             <div style={{ textAlign: 'left' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                 <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#fff' }}>{offer.playerName}</span>
+                                <PlayerInfoButton
+                                  player={squadMatch || { name: offer.playerName, position: offer.position, rating: offer.rating, age: offer.age }}
+                                  onOpen={(pl) => handleOpenPlayerInfo(pl, playerTeamName)}
+                                  size="sm"
+                                />
                                 <span
                                   title={`Positions: ${formatPlayerPositions(squadMatch || offer)}`}
                                   style={{
@@ -2693,6 +2762,11 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <strong style={{ fontSize: '15px', color: '#fff' }}>{contractNegotiation.player.name}</strong>
+                      <PlayerInfoButton
+                        player={contractNegotiation.player}
+                        onOpen={(pl) => handleOpenPlayerInfo(pl, contractNegotiation.fromClub)}
+                        size="sm"
+                      />
                       <span
                         title={`Positions: ${formatPlayerPositions(contractNegotiation.player)}`}
                         style={{ fontSize: '10px', background: 'rgba(255,215,0,0.15)', color: '#ffd700', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}
@@ -2888,6 +2962,15 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
         })()}
 
       </div>
+
+      {/* Player Profile & 1-10 Skills Modal */}
+      {infoPlayer && (
+        <PlayerInfoModal
+          player={infoPlayer.player}
+          teamName={infoPlayer.teamName || ''}
+          onClose={() => setInfoPlayer(null)}
+        />
+      )}
 
       {/* Dynamic keyframe animation style block */}
       <style dangerouslySetInnerHTML={{

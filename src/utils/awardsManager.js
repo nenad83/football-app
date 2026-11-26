@@ -530,10 +530,18 @@ export const awardManagerTitle = (awardType, details) => {
     const saved = localStorage.getItem("retro_manager_profile");
     if (!saved) return;
     const profile = JSON.parse(saved);
+    const norm = (v) => String(v || "").trim().toLowerCase();
 
     if (awardType === "motm") {
+      profile.monthlyAwardsList = Array.isArray(profile.monthlyAwardsList) ? profile.monthlyAwardsList : [];
+      const alreadyRecorded = profile.monthlyAwardsList.some((item) =>
+        norm(item?.season) === norm(details?.season) &&
+        norm(item?.month) === norm(details?.monthName) &&
+        norm(item?.team) === norm(details?.teamName)
+      );
+      if (alreadyRecorded) return profile;
+
       profile.monthlyAwards = (profile.monthlyAwards || 0) + 1;
-      profile.monthlyAwardsList = profile.monthlyAwardsList || [];
       profile.monthlyAwardsList.push({
         type: "motm",
         month: details.monthName,
@@ -543,8 +551,14 @@ export const awardManagerTitle = (awardType, details) => {
         record: `${details.won}W-${details.drawn}D-${details.lost}L`
       });
     } else if (awardType === "moty") {
+      profile.motyList = Array.isArray(profile.motyList) ? profile.motyList : [];
+      const alreadyRecorded = profile.motyList.some((item) =>
+        norm(item?.season) === norm(details?.season) &&
+        norm(item?.team) === norm(details?.teamName)
+      );
+      if (alreadyRecorded) return profile;
+
       profile.managerOfTheYear = (profile.managerOfTheYear || 0) + 1;
-      profile.motyList = profile.motyList || [];
       profile.motyList.push({
         type: "moty",
         season: details.season,

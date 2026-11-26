@@ -248,8 +248,11 @@ export function buildTeamZoneRoster(
   const dmcs = nonGkPool.filter(p => ['DMC', 'DM'].includes(p.effectivePos));
   const mcs = nonGkPool.filter(p => ['MC', 'CM'].includes(p.effectivePos));
   const amcs = nonGkPool.filter(p => ['AMC', 'AM'].includes(p.effectivePos));
-  const pureLeftWings = nonGkPool.filter(p => ['ML', 'LM', 'AML', 'LW', 'FL', 'DML'].includes(p.effectivePos));
-  const pureRightWings = nonGkPool.filter(p => ['MR', 'RM', 'AMR', 'RW', 'FR', 'DMR'].includes(p.effectivePos));
+  const allLeftWings = nonGkPool.filter(p => ['ML', 'LM', 'AML', 'LW', 'FL', 'DML'].includes(p.effectivePos));
+  const allRightWings = nonGkPool.filter(p => ['MR', 'RM', 'AMR', 'RW', 'FR', 'DMR'].includes(p.effectivePos));
+  const cutInsideWingers = [...allLeftWings, ...allRightWings].filter(p => p.instruction === 'cut_inside');
+  const pureLeftWings = allLeftWings.filter(p => p.instruction !== 'cut_inside');
+  const pureRightWings = allRightWings.filter(p => p.instruction !== 'cut_inside');
   const strikers = nonGkPool.filter(p => ['ST', 'CF', 'SC', 'FW'].includes(p.effectivePos));
 
   // Overlapping Full-Backs / Wing-Backs (DL / DR):
@@ -270,9 +273,12 @@ export function buildTeamZoneRoster(
   }
 
   // Tactical role groupings:
-  // 1) In Possession: An MC with Attacking duty ('attack') acts as an AMC in c2 (b2 for Away).
+  // 1) In Possession: An MC with Attacking duty ('attack') acts as an AMC in c2 (b2 for Away),
+  //    unless instructed as a 'shadow_striker' which surges forward into d2/a2 as a box attacker.
   const attackingMCs = mcs.filter(p => p.duty === 'attack');
   const effectiveAmcs = [...amcs, ...attackingMCs];
+  const shadowStrikers = effectiveAmcs.filter(p => p.instruction === 'shadow_striker');
+  const holdingAmcs = effectiveAmcs.filter(p => p.instruction !== 'shadow_striker');
 
   // 2) Out of Possession:
   //    - Step 1 (pressing opponent's b2/c2 build-up): AMC (or ATT-duty MC) marks first; if none, MC.
@@ -308,9 +314,12 @@ export function buildTeamZoneRoster(
 
   players.forEach(p => {
     const ep = p.effectivePos;
+    const isCutInsideWinger = ['ML', 'LM', 'DML', 'AML', 'LW', 'FL', 'MR', 'RM', 'DMR', 'AMR', 'RW', 'FR'].includes(ep) && p.instruction === 'cut_inside';
+    const isShadowStrikerAmc = (['AMC', 'AM'].includes(ep) || (['MC', 'CM', 'DMC', 'DM'].includes(ep) && p.duty === 'attack')) && p.instruction === 'shadow_striker';
     let box = side === 'home' ? 'b2' : 'c2';
     if (side === 'home') {
       if (ep === 'GK' || p === gk) box = 'a2';
+      else if (isCutInsideWinger || isShadowStrikerAmc) box = 'd2';
       else if (['DC', 'CB', 'SW'].includes(ep)) box = p.duty === 'support' ? 'b2' : 'a2';
       else if (['DL', 'LB', 'LWB', 'WBL'].includes(ep)) {
         box = p.duty === 'attack' ? 'd1' : (p.duty === 'support' ? 'c1' : 'a1');
@@ -329,6 +338,7 @@ export function buildTeamZoneRoster(
       else if (['ST', 'CF', 'SC', 'FW'].includes(ep)) box = 'd2';
     } else {
       if (ep === 'GK' || p === gk) box = 'd2';
+      else if (isCutInsideWinger || isShadowStrikerAmc) box = 'a2';
       else if (['DC', 'CB', 'SW'].includes(ep)) box = p.duty === 'support' ? 'c2' : 'd2';
       else if (['DR', 'RB', 'RWB', 'WBR'].includes(ep)) {
         box = p.duty === 'attack' ? 'a1' : (p.duty === 'support' ? 'b1' : 'd1');
@@ -351,6 +361,7 @@ export function buildTeamZoneRoster(
 
   const centralMids = [...mcs, ...dmcs, ...amcs];
   const effectiveDcs = [...dcs, ...defendDutyDmcs];
+  const boxFinishers = [...strikers, ...cutInsideWingers, ...shadowStrikers];
   return {
     all: nonGkPool,
     gk,
@@ -367,6 +378,10 @@ export function buildTeamZoneRoster(
     mcs,
     amcs,
     effectiveAmcs,
+    holdingAmcs,
+    shadowStrikers,
+    cutInsideWingers,
+    pureStrikers: strikers,
     defensiveMids,
     step1PressMids,
     buildUpMids,
@@ -374,9 +389,62 @@ export function buildTeamZoneRoster(
     pureRightWings,
     leftWings,
     rightWings,
-    strikers: strikers.length > 0 ? strikers : (effectiveAmcs.length > 0 ? effectiveAmcs : (mcs.length > 0 ? mcs : [nonGkPool[nonGkPool.length - 1]])),
+    strikers: boxFinishers.length > 0 ? boxFinishers : (effectiveAmcs.length > 0 ? effectiveAmcs : (mcs.length > 0 ? mcs : [nonGkPool[nonGkPool.length - 1]])),
     centralMids: centralMids.length > 0 ? centralMids : nonGkPool,
     zonePlayers
+  };
+}
+
+/**
+ * Count outfield players (excluding GK) stationed across one or more pitch boxes.
+ */
+function countOutfieldInBoxes(roster, boxes) {
+  if (!roster?.zonePlayers) return 0;
+  const boxList = Array.isArray(boxes) ? boxes : [boxes];
+  return boxList.reduce((sum, box) => {
+    const list = roster.zonePlayers[box] || [];
+    return sum + list.filter(p => p && p.effectivePos !== 'GK' && p !== roster.gk).length;
+  }, 0);
+}
+
+/**
+ * Compute numerical advantage bonuses for any contested box on the 12-box pitch.
+ * - Exclude GK so 1 ST vs 2 DCs + GK = +1 Def and 1 ST vs 3 DCs + GK = +2 Def.
+ * - Flank lanes compare overlapping wingers/WBs (c/d or b/a) vs defending FB + tracking-back wide mid.
+ * - Step 1 midfield falls back to opp mirror midfield box (c2/b2) when no opp presser sits inside startZone.
+ */
+function getBoxNumericalModifiers(attRoster, defRoster, zone, options = {}) {
+  const { mode = 'exact', isHomeAtt = true, minAttCount = 0 } = options;
+  if (!attRoster?.zonePlayers || !defRoster?.zonePlayers || !zone) {
+    return { attCount: 0, defCount: 0, diff: 0, attBonus: 0, defBonus: 0 };
+  }
+
+  let attCount = 0;
+  let defCount = 0;
+
+  if (mode === 'flank' || zone.endsWith('1') || zone.endsWith('3')) {
+    const col = zone.slice(-1);
+    const attFlankBoxes = isHomeAtt ? [`c${col}`, `d${col}`] : [`b${col}`, `a${col}`];
+    const defFlankBoxes = isHomeAtt ? [`d${col}`, `c${col}`] : [`a${col}`, `b${col}`];
+    attCount = Math.max(minAttCount, countOutfieldInBoxes(attRoster, attFlankBoxes));
+    defCount = countOutfieldInBoxes(defRoster, defFlankBoxes);
+  } else if (mode === 'midfield_step1' && (zone === 'b2' || zone === 'c2')) {
+    attCount = Math.max(minAttCount, countOutfieldInBoxes(attRoster, zone));
+    const directPressCount = countOutfieldInBoxes(defRoster, zone);
+    const mirrorMidZone = zone === 'b2' ? 'c2' : 'b2';
+    defCount = directPressCount > 0 ? directPressCount : countOutfieldInBoxes(defRoster, mirrorMidZone);
+  } else {
+    attCount = Math.max(minAttCount, countOutfieldInBoxes(attRoster, zone));
+    defCount = countOutfieldInBoxes(defRoster, zone);
+  }
+
+  const diff = attCount - defCount;
+  return {
+    attCount,
+    defCount,
+    diff,
+    attBonus: diff > 0 ? diff : 0,
+    defBonus: diff < 0 ? Math.abs(diff) : 0
   };
 }
 
@@ -980,8 +1048,13 @@ function runZone12PossessionCore({
     const requiredMidDiff = isMidThroughBall ? 4 : 2;
     const ballPlayDcBonus = (['DC', 'CB', 'SW'].includes(midPasser.effectivePos) && midPasser.instruction === 'direct_pass') ? 1 : 0;
 
-    const attNumBonus = initAttRoster.centralMids.length > initDefRoster.centralMids.length ? 1 : 0;
-    const defNumBonus = initDefRoster.centralMids.length > initAttRoster.centralMids.length ? 1 : 0;
+    const step1Num = getBoxNumericalModifiers(initAttRoster, initDefRoster, startZone, {
+      mode: (startZone === 'b2' || startZone === 'c2') ? 'midfield_step1' : 'exact',
+      isHomeAtt: initIsHome,
+      minAttCount: 1
+    });
+    const attNumBonus = step1Num.attBonus;
+    const defNumBonus = step1Num.defBonus;
     const doublePivotPassBonus = initAttRoster.dmcCount >= 2 ? 1 : 0;
     const mentalityPassBonus = initAttTactic === 'attack' ? 1 : (initAttTactic === 'defense' ? -2 : 0);
     const gkPassProtectionBonus = (midPasser.effectivePos === 'GK' || midPasser.name === initGk?.name) ? 5 : 0;
@@ -1547,12 +1620,17 @@ function runZone12PossessionCore({
 
     if (defDeepPlayers.length > 0) {
       const defTarget = pickRandom(defDeepPlayers);
-      const attTwoBonus = attDeepPlayers.length >= 2 ? 2 : 0;
-      const defTwoBonus = defDeepPlayers.length >= 2 ? 2 : 0;
+      const deepNum = getBoxNumericalModifiers(attRoster, defRoster, deepTargetZone, {
+        mode: deepTargetZone.endsWith('2') ? 'exact' : 'flank',
+        isHomeAtt,
+        minAttCount: 1
+      });
+      const attNumBonus = deepNum.attBonus;
+      const defNumBonus = deepNum.defBonus;
       const attTackSkill = attTarget.skills.tackling;
       const defTackSkill = defTarget.skills.tackling;
-      const attBonus = attTwoBonus + attMentalityMod + step2SkillBonus;
-      const defBonus = defTwoBonus + defMentalityMod + defTacklingMod;
+      const attBonus = attNumBonus + attMentalityMod + step2SkillBonus;
+      const defBonus = defNumBonus + defMentalityMod + defTacklingMod;
       const forcedLongTackleDiff = testOverrides?.forceStep2Outcome === 'success'
         ? 1
         : (testOverrides?.forceStep2Outcome === 'fail' ? -1 : null);
@@ -1566,16 +1644,16 @@ function runZone12PossessionCore({
 
       const longTackleLog = tackleWon
         ? {
-          text: `${midEventMin}' 🚀 ${attTarget.name} (${attTeamName}) battles ${defTarget.name} for the long ball in [${deepTargetZone.toUpperCase()}]${attTwoBonus ? ' (+2 teammate support)' : ''} and wins the tackle to set up a huge chance!`,
+          text: `${midEventMin}' 🚀 ${attTarget.name} (${attTeamName}) battles ${defTarget.name} for the long ball in [${deepTargetZone.toUpperCase()}]${attNumBonus ? ` (+${attNumBonus} teammate support)` : ''} and wins the tackle to set up a huge chance!`,
           type: 'chance'
         }
         : {
-          text: `${midEventMin}' ${defTarget.name} (${defTeamName})${defTwoBonus ? ' (+2 defensive cover)' : ''} out-muscles ${attTarget.name} in [${deepTargetZone.toUpperCase()}] to win the long-ball tackle and clear the danger!`,
+          text: `${midEventMin}' ${defTarget.name} (${defTeamName})${defNumBonus ? ` (+${defNumBonus} defensive cover)` : ''} out-muscles ${attTarget.name} in [${deepTargetZone.toUpperCase()}] to win the long-ball tackle and clear the danger!`,
           type: 'save'
         };
 
       steps.push({
-        phase: `LONG BALL TACKLE${attTwoBonus ? ' (ATT +2)' : ''}${defTwoBonus ? ' (DEF +2)' : ''}`,
+        phase: `LONG BALL TACKLE${attNumBonus ? ` (ATT +${attNumBonus})` : ''}${defNumBonus ? ` (DEF +${defNumBonus})` : ''}`,
         zone: deepTargetZone,
         attacker: attTarget.name,
         attackerPlayer: attTarget,
@@ -1676,13 +1754,18 @@ function runZone12PossessionCore({
       ? attTarget
       : (pickRandom(attRoster.strikers) || attTarget);
     const boxDef = getBoxDefenseTarget(isHighCrossLong ? 'high_cross' : 'standard');
+    const boxNum = getBoxNumericalModifiers(attRoster, defRoster, boxZone, {
+      mode: 'exact',
+      isHomeAtt,
+      minAttCount: 1
+    });
     const finSkill = isHighCrossLong ? finisher.skills.heading : finisher.skills.finishing;
     const finSkillName = isHighCrossLong ? 'Heading' : 'Finishing';
     const finInstrBonus = isHighCrossLong
       ? (finisher.instruction === 'target_man' ? 1 : (finisher.instruction === 'poacher' ? -1 : 0))
       : (finisher.instruction === 'poacher' ? 1 : 0);
-    const totalFinBonus = attMentalityMod + finInstrBonus;
-    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod;
+    const totalFinBonus = attMentalityMod + finInstrBonus + boxNum.attBonus;
+    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod + boxNum.defBonus;
     const forcedLongFinDiff = testOverrides?.forceStep3Outcome === 'goal'
       ? 3
       : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
@@ -1781,7 +1864,7 @@ function runZone12PossessionCore({
     }
 
     const amcPool = hasAMCInCenter
-      ? attRoster.effectiveAmcs
+      ? ((attRoster.holdingAmcs && attRoster.holdingAmcs.length > 0) ? attRoster.holdingAmcs : attRoster.effectiveAmcs)
       : attRoster.mcs;
     const nonPasserAmcs = (counterTriggered || isGkLongDistribution)
       ? amcPool
@@ -1798,11 +1881,21 @@ function runZone12PossessionCore({
       : (defRoster.dcs.length > 0 ? pickRandom(defRoster.dcs) : midMarker);
 
     const rawAmcInstr = amcPlayer.instruction || 'pass';
-    const amcInstr = (testOverrides?.forceActorInstruction && ['long_shot', 'dribble', 'through_ball', 'pass'].includes(testOverrides.forceActorInstruction))
+    const amcInstr = (testOverrides?.forceActorInstruction && ['long_shot', 'dribble', 'through_ball', 'pass', 'shadow_striker'].includes(testOverrides.forceActorInstruction))
       ? testOverrides.forceActorInstruction
       : rawAmcInstr;
     const dmcManMarkBonus = oppCentralDef?.instruction === 'man_mark' ? 1 : 0;
     const boxZone = isHomeAtt ? 'd2' : 'a2';
+    const c2Num = getBoxNumericalModifiers(attRoster, defRoster, secondZone, {
+      mode: 'exact',
+      isHomeAtt,
+      minAttCount: 1
+    });
+    const boxNum = getBoxNumericalModifiers(attRoster, defRoster, boxZone, {
+      mode: 'exact',
+      isHomeAtt,
+      minAttCount: 1
+    });
 
     // 1. AMC (or Attacking MC) Instruction: LONG SHOT ('long_shot')
     if (amcInstr === 'long_shot') {
@@ -1810,18 +1903,21 @@ function runZone12PossessionCore({
         shooter: amcPlayer,
         shotZone: secondZone,
         targetBoxZone: boxZone,
-        extraAttBonus: (attRoster.amcCount >= 2 && defRoster.dmcCount === 0) ? 1 : 0,
-        extraDefBonus: defRoster.dmcCount >= 2 ? 1 : 0,
+        extraAttBonus: c2Num.attBonus,
+        extraDefBonus: c2Num.defBonus,
         isFlank: false
       });
     }
 
-    // 2. AMC Instruction: DRIBBLE ('dribble') -> Beats DMC or DC tackling -> shoots 1-on-1 with the keeper!
-    if (amcInstr === 'dribble') {
+    // 2. AMC Instruction: DRIBBLE ('dribble') or SHADOW STRIKER ('shadow_striker')
+    //    - 'dribble': beats DMC/DC tackling -> 1v1 vs Keeper!
+    //    - 'shadow_striker': beats DMC/DC tackling -> crashes box d2/a2 to finish vs DC+GK with box numerical overload!
+    if (amcInstr === 'dribble' || amcInstr === 'shadow_striker') {
+      const isShadowSurge = amcInstr === 'shadow_striker';
       const dribSkill = amcPlayer.skills.dribbling;
       const tackSkill = oppCentralDef.skills.tackling;
-      const dribAttBonus = (attRoster.amcCount >= 2 ? 1 : 0) + attMentalityMod + step2SkillBonus;
-      const dribDefBonus = (defRoster.dmcCount >= 2 ? 1 : 0) + defMentalityMod + defTacklingMod;
+      const dribAttBonus = c2Num.attBonus + attMentalityMod + step2SkillBonus;
+      const dribDefBonus = c2Num.defBonus + defMentalityMod + defTacklingMod;
       const forcedDribDiff = testOverrides?.forceStep2Outcome === 'success'
         ? 2
         : (testOverrides?.forceStep2Outcome === 'fail' ? 0 : null);
@@ -1835,16 +1931,18 @@ function runZone12PossessionCore({
 
       const dribLog = dribSuccess
         ? {
-          text: `${midEventMin}' 🔥 ${amcPlayer.name} (${attTeamName}) drops a shoulder and glides past ${oppCentralDef.name}'s challenge, racing clean through 1-on-1 with the keeper!`,
+          text: isShadowSurge
+            ? `${midEventMin}' ⚡ ${amcPlayer.name} (${attTeamName}) bursts from deep past ${oppCentralDef.name} as a Shadow Striker, crashing into the penalty box!`
+            : `${midEventMin}' 🔥 ${amcPlayer.name} (${attTeamName}) drops a shoulder and glides past ${oppCentralDef.name}'s challenge, racing clean through 1-on-1 with the keeper!`,
           type: 'chance'
         }
         : {
-          text: `${midEventMin}' ${amcPlayer.name} (${attTeamName}) tries to dribble through the middle, but ${oppCentralDef.name} (${defTeamName}) times a sharp tackle to win the ball back!`,
+          text: `${midEventMin}' ${amcPlayer.name} (${attTeamName}) tries to ${isShadowSurge ? 'surge into the box' : 'dribble through the middle'}, but ${oppCentralDef.name} (${defTeamName}) times a sharp tackle to win the ball back!`,
           type: 'save'
         };
 
       steps.push({
-        phase: 'AMC CENTRAL DRIBBLE',
+        phase: isShadowSurge ? 'SHADOW STRIKER SURGE' : 'AMC CENTRAL DRIBBLE',
         zone: secondZone,
         attacker: amcPlayer.name,
         attackerPlayer: amcPlayer,
@@ -1869,7 +1967,7 @@ function runZone12PossessionCore({
         success: dribSuccess,
         stepLog: dribLog,
         summary: dribSuccess
-          ? `🔥 ${amcPlayer.name} dribbles past ${oppCentralDef.name} in [${secondZone.toUpperCase()}] to go 1v1 with the Keeper! (d10:${dribDie}+Drib:${dribSkill}${fmtBonus(dribAttBonus)}=${dribTotal} vs d10:${tackDie}+Tack:${tackSkill}${fmtBonus(dribDefBonus)}=${tackTotal}, diff +${dribDiff} >= 2)`
+          ? `🔥 ${amcPlayer.name} ${isShadowSurge ? 'surges past' : 'dribbles past'} ${oppCentralDef.name} in [${secondZone.toUpperCase()}]! (d10:${dribDie}+Drib:${dribSkill}${fmtBonus(dribAttBonus)}=${dribTotal} vs d10:${tackDie}+Tack:${tackSkill}${fmtBonus(dribDefBonus)}=${tackTotal}, diff +${dribDiff} >= 2)`
           : `${oppCentralDef.name} tackles ${amcPlayer.name} in [${secondZone.toUpperCase()}] (d10:${dribDie}+Drib:${dribSkill}${fmtBonus(dribAttBonus)}=${dribTotal} vs d10:${tackDie}+Tack:${tackSkill}${fmtBonus(dribDefBonus)}=${tackTotal}, diff ${dribDiff >= 0 ? `+${dribDiff}` : dribDiff} < 2)`
       });
 
@@ -1901,35 +1999,43 @@ function runZone12PossessionCore({
         };
       }
 
-      // Step 3: AMC shoots 1-on-1 with the keeper!
+      // Step 3: Shadow Striker finishes vs DC+GK with box numerical modifiers; pure Dribble shoots 1v1 vs GK
       zonePath.push(boxZone);
       const gk = defRoster.gk;
-      const dcForFoul = pickRandom(defRoster.dcs);
+      const boxDef = isShadowSurge ? getBoxDefenseTarget('standard') : null;
+      const dcForFoul = isShadowSurge ? boxDef.dc : pickRandom(defRoster.dcs);
       const finSkill = amcPlayer.skills.finishing;
-      const gkHand = gk ? gk.skills.handling : 6;
+      const defTargetSkill = isShadowSurge ? boxDef.combinedSkill : (gk ? gk.skills.handling : 6);
+      const totalFinBonus = attMentalityMod + (isShadowSurge ? boxNum.attBonus : 0);
+      const totalDefBonus = defMentalityMod + (isShadowSurge ? (boxDef.dcInstrBonus + defTacklingMod + boxNum.defBonus) : 0);
       const forcedAmcDribFin = testOverrides?.forceStep3Outcome === 'goal'
         ? 3
         : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
-      const amcFinDuel = resolveDuelWithOverride(finSkill + attMentalityMod, gkHand + defMentalityMod, forcedAmcDribFin);
+      const amcFinDuel = resolveDuelWithOverride(finSkill + totalFinBonus, defTargetSkill + totalDefBonus, forcedAmcDribFin);
       const finDie = amcFinDuel.attDie;
       const gkDie = amcFinDuel.defDie;
       const finTotal = amcFinDuel.attTotal;
       const gkTotal = amcFinDuel.defTotal;
       const finDiff = amcFinDuel.diff;
       const isGoal = finDiff >= 3;
+      const defLabel = isShadowSurge ? `${boxDef.dc?.name || 'DC'} + ${boxDef.gk?.name || 'GK'}` : (gk?.name || 'GK');
 
       const finLog = isGoal
         ? {
-          text: `${midEventMin}' ⚽ GOAL! After dancing past ${oppCentralDef.name}, ${amcPlayer.name} bursts into the box and slots a clinical finish 1-on-1 past ${gk?.name || 'the keeper'}!`,
+          text: isShadowSurge
+            ? `${midEventMin}' ⚽ GOAL! Shadow Striker ${amcPlayer.name} crashes the box after beating ${oppCentralDef.name} and drills a fierce finish past ${boxDef.gk?.name || 'the keeper'}!`
+            : `${midEventMin}' ⚽ GOAL! After dancing past ${oppCentralDef.name}, ${amcPlayer.name} bursts into the box and slots a clinical finish 1-on-1 past ${gk?.name || 'the keeper'}!`,
           type: 'goal'
         }
         : {
-          text: `${midEventMin}' 🧤 BIG 1v1 SAVE! ${amcPlayer.name} is clean through on goal, but ${gk?.name || 'the keeper'} spreads himself brilliantly to block the shot! ${defTeamName} clears!`,
+          text: isShadowSurge
+            ? `${midEventMin}' 🧤 SAVE! ${amcPlayer.name} bursts into the box, but ${boxDef.dc?.name || 'the defense'} closes down and ${boxDef.gk?.name || 'the keeper'} keeps out the shot!`
+            : `${midEventMin}' 🧤 BIG 1v1 SAVE! ${amcPlayer.name} is clean through on goal, but ${gk?.name || 'the keeper'} spreads himself brilliantly to block the shot! ${defTeamName} clears!`,
           type: 'save'
         };
 
       steps.push({
-        phase: 'AMC 1v1 vs KEEPER',
+        phase: isShadowSurge ? 'SHADOW STRIKER BOX FINISH' : 'AMC 1v1 vs KEEPER',
         zone: boxZone,
         attacker: amcPlayer.name,
         attackerPlayer: amcPlayer,
@@ -1937,16 +2043,16 @@ function runZone12PossessionCore({
         attackerPos: amcPlayer.effectivePos,
         attackerSkillName: 'Finishing',
         attackerSkill: finSkill,
-        attackerBonus: attMentalityMod,
+        attackerBonus: totalFinBonus,
         attackerDie: finDie,
         attackerTotal: finTotal,
-        defender: gk?.name || 'GK',
+        defender: defLabel,
         defenderPlayer: dcForFoul || null,
         defenderSlotId: dcForFoul?.slotId || null,
-        defenderPos: 'GK',
-        defenderSkillName: 'Handling',
-        defenderSkill: gkHand,
-        defenderBonus: defMentalityMod,
+        defenderPos: isShadowSurge ? 'DC+GK' : 'GK',
+        defenderSkillName: isShadowSurge ? boxDef.formulaName : 'Handling',
+        defenderSkill: defTargetSkill,
+        defenderBonus: totalDefBonus,
         defenderDie: gkDie,
         defenderTotal: gkTotal,
         diff: finDiff,
@@ -1954,8 +2060,8 @@ function runZone12PossessionCore({
         success: isGoal,
         stepLog: finLog,
         summary: isGoal
-          ? `⚽ 1v1 GOAL! ${amcPlayer.name} beats ${gk?.name || 'GK'} in [${boxZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(attMentalityMod)}=${finTotal} vs d10:${gkDie}+Hand:${gkHand}${fmtBonus(defMentalityMod)}=${gkTotal}, diff +${finDiff} >= 3)`
-          : `${gk?.name || 'GK'} wins the 1-on-1 against ${amcPlayer.name} in [${boxZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(attMentalityMod)}=${finTotal} vs d10:${gkDie}+Hand:${gkHand}${fmtBonus(defMentalityMod)}=${gkTotal}, diff ${finDiff >= 0 ? `+${finDiff}` : finDiff} < 3)`
+          ? `⚽ ${isShadowSurge ? 'SHADOW STRIKER' : '1v1'} GOAL! ${amcPlayer.name} beats ${defLabel} in [${boxZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+${isShadowSurge ? boxDef.formulaName : 'Hand'}:${defTargetSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff +${finDiff} >= 3)`
+          : `${defLabel} denies ${amcPlayer.name} in [${boxZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+${isShadowSurge ? boxDef.formulaName : 'Hand'}:${defTargetSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff ${finDiff >= 0 ? `+${finDiff}` : finDiff} < 3)`
       });
 
       logs.push(finLog);
@@ -1992,8 +2098,8 @@ function runZone12PossessionCore({
 
     const tbPassSkill = amcPlayer.skills.passing;
     const tbMarkSkill = oppCentralDef.skills.marking;
-    const tbAttBonus = (attRoster.amcCount >= 2 ? 1 : 0) + attMentalityMod + step2SkillBonus;
-    const tbDefBonus = (defRoster.dmcCount >= 2 ? 1 : 0) + defMentalityMod + dmcManMarkBonus + defTacklingMod;
+    const tbAttBonus = c2Num.attBonus + attMentalityMod + step2SkillBonus;
+    const tbDefBonus = c2Num.defBonus + defMentalityMod + dmcManMarkBonus + defTacklingMod;
     const forcedTbDiff = testOverrides?.forceStep2Outcome === 'success'
       ? requiredAmcDiff
       : (testOverrides?.forceStep2Outcome === 'fail' ? 0 : null);
@@ -2073,14 +2179,14 @@ function runZone12PossessionCore({
       };
     }
 
-    // Striker finishes in d2 (Home) / a2 (Away) (50% chance which Striker if 2 Strikers)
+    // Striker finishes in d2 (Home) / a2 (Away) (includes cut_inside wingers & shadow_strikers!)
     zonePath.push(boxZone);
     const striker = pickRandom(attRoster.strikers);
     const boxDef = getBoxDefenseTarget('standard');
     const finSkill = striker.skills.finishing;
     const poacherBonus = striker.instruction === 'poacher' ? 1 : 0;
-    const totalFinBonus = attMentalityMod + strikerThroughBallBonus + poacherBonus;
-    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod;
+    const totalFinBonus = attMentalityMod + strikerThroughBallBonus + poacherBonus + boxNum.attBonus;
+    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod + boxNum.defBonus;
     const forcedFinDiff = testOverrides?.forceStep3Outcome === 'goal'
       ? 3
       : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
@@ -2221,15 +2327,26 @@ function runZone12PossessionCore({
   const rawWingInstr = winger?.instruction;
   const wingAction = (
     testOverrides?.forceActorInstruction &&
-    ['high_cross', 'low_cross', 'dribble', 'through_ball', 'long_shot'].includes(testOverrides.forceActorInstruction)
+    ['high_cross', 'low_cross', 'dribble', 'through_ball', 'long_shot', 'cut_inside'].includes(testOverrides.forceActorInstruction)
   )
     ? testOverrides.forceActorInstruction
     : ((
-      ['high_cross', 'low_cross', 'dribble', 'through_ball'].includes(rawWingInstr) ||
+      ['high_cross', 'low_cross', 'dribble', 'through_ball', 'cut_inside'].includes(rawWingInstr) ||
       (rawWingInstr === 'long_shot' && canWingLongShot)
     )
       ? rawWingInstr
       : (winger?.duty === 'attack' ? 'dribble' : 'high_cross'));
+
+  const flankNum = getBoxNumericalModifiers(attRoster, defRoster, actionZone, {
+    mode: 'flank',
+    isHomeAtt,
+    minAttCount: 1
+  });
+  const boxNum = getBoxNumericalModifiers(attRoster, defRoster, boxZone, {
+    mode: 'exact',
+    isHomeAtt,
+    minAttCount: 1
+  });
 
   // 0. Attacking Winger / Attacking Wide Mid Instruction: LONG SHOT ('long_shot')
   if (wingAction === 'long_shot') {
@@ -2237,8 +2354,8 @@ function runZone12PossessionCore({
       shooter: winger,
       shotZone: actionZone,
       targetBoxZone: boxZone,
-      extraAttBonus: 0,
-      extraDefBonus: 0,
+      extraAttBonus: flankNum.attBonus,
+      extraDefBonus: flankNum.defBonus,
       isFlank: true
     });
   }
@@ -2247,8 +2364,8 @@ function runZone12PossessionCore({
   if (wingAction === 'through_ball') {
     const tbSkill = winger.skills.passing;
     const fbSkill = oppFullback.skills.marking;
-    const tbAttBonus = attMentalityMod + step2SkillBonus;
-    const tbDefBonus = defMentalityMod + oppFbTightMarkMod + defTacklingMod;
+    const tbAttBonus = flankNum.attBonus + attMentalityMod + step2SkillBonus;
+    const tbDefBonus = flankNum.defBonus + defMentalityMod + oppFbTightMarkMod + defTacklingMod;
     const forcedWingTb = testOverrides?.forceStep2Outcome === 'success'
       ? 4
       : (testOverrides?.forceStep2Outcome === 'fail' ? 0 : null);
@@ -2332,8 +2449,8 @@ function runZone12PossessionCore({
     const boxDef = getBoxDefenseTarget('low_cross');
     const finSkill = striker.skills.finishing;
     const poacherBonus = striker.instruction === 'poacher' ? 1 : 0;
-    const totalFinBonus = attMentalityMod + 3 + poacherBonus;
-    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod;
+    const totalFinBonus = attMentalityMod + 3 + poacherBonus + boxNum.attBonus;
+    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod + boxNum.defBonus;
     const forcedTbFin = testOverrides?.forceStep3Outcome === 'goal'
       ? 3
       : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
@@ -2411,12 +2528,13 @@ function runZone12PossessionCore({
     };
   }
 
-  // 2. Winger / Attacking WB Instruction: DRIBBLE ('dribble') -> Beats opponent tackling -> 1-on-1 with Keeper!
-  if (wingAction === 'dribble') {
+  // 2. Winger / Attacking WB Instruction: DRIBBLE ('dribble') or CUT INSIDE ('cut_inside') -> shoots!
+  if (wingAction === 'dribble' || wingAction === 'cut_inside') {
+    const isCutInsideAction = wingAction === 'cut_inside';
     const dribSkill = winger.skills.dribbling;
     const tackSkill = oppFullback.skills.tackling;
-    const dribAttBonus = attMentalityMod + step2SkillBonus;
-    const dribDefBonus = defMentalityMod + oppFbTackleMod + defTacklingMod;
+    const dribAttBonus = flankNum.attBonus + attMentalityMod + step2SkillBonus;
+    const dribDefBonus = flankNum.defBonus + defMentalityMod + oppFbTackleMod + defTacklingMod;
     const forcedWingDrib = testOverrides?.forceStep2Outcome === 'success'
       ? 2
       : (testOverrides?.forceStep2Outcome === 'fail' ? 0 : null);
@@ -2430,16 +2548,18 @@ function runZone12PossessionCore({
 
     const dribLog = dribSuccess
       ? {
-        text: `${midEventMin}' 🔥 ${winger.name} (${attTeamName}) skins ${oppFullback.name} down the wing and cuts inside, 1-on-1 with the keeper!`,
+        text: isCutInsideAction
+          ? `${midEventMin}' ⚡ ${winger.name} (${attTeamName}) ghosts inside off the flank past ${oppFullback.name} directly into [${boxZone.toUpperCase()}] for a shot!`
+          : `${midEventMin}' 🔥 ${winger.name} (${attTeamName}) skins ${oppFullback.name} down the wing and cuts inside, 1-on-1 with the keeper!`,
         type: 'chance'
       }
       : {
-        text: `${midEventMin}' ${winger.name} (${attTeamName}) tries to take on ${oppFullback.name} down the flank, but ${oppFullback.name} wins a crunching tackle to reclaim possession!`,
+        text: `${midEventMin}' ${winger.name} (${attTeamName}) tries to ${isCutInsideAction ? 'cut inside off the flank' : 'take on ' + oppFullback.name + ' down the flank'}, but ${oppFullback.name} wins a crunching tackle to reclaim possession!`,
         type: 'save'
       };
 
     steps.push({
-      phase: isAttackingWingBack ? 'WB OVERLAP DRIBBLE (1v1)' : 'WING DRIBBLE (1v1)',
+      phase: isCutInsideAction ? 'WINGER CUT INSIDE' : (isAttackingWingBack ? 'WB OVERLAP DRIBBLE (1v1)' : 'WING DRIBBLE (1v1)'),
       zone: actionZone,
       attacker: winger.name,
       attackerPlayer: winger,
@@ -2464,7 +2584,7 @@ function runZone12PossessionCore({
       success: dribSuccess,
       stepLog: dribLog,
       summary: dribSuccess
-        ? `${winger.name} dribbles past ${oppFullback.name} in [${actionZone.toUpperCase()}]! (d10:${dribDie}+Drib:${dribSkill}${fmtBonus(dribAttBonus)}=${dribTotal} vs d10:${tackDie}+Tack:${tackSkill}${fmtBonus(dribDefBonus)}=${tackTotal}, diff +${dribDiff} >= 2)`
+        ? `${winger.name} ${isCutInsideAction ? 'cuts inside past' : 'dribbles past'} ${oppFullback.name} in [${actionZone.toUpperCase()}]! (d10:${dribDie}+Drib:${dribSkill}${fmtBonus(dribAttBonus)}=${dribTotal} vs d10:${tackDie}+Tack:${tackSkill}${fmtBonus(dribDefBonus)}=${tackTotal}, diff +${dribDiff} >= 2)`
         : `${oppFullback.name} tackles ${winger.name} in [${actionZone.toUpperCase()}] (d10:${dribDie}+Drib:${dribSkill}${fmtBonus(dribAttBonus)}=${dribTotal} vs d10:${tackDie}+Tack:${tackSkill}${fmtBonus(dribDefBonus)}=${tackTotal}, diff ${dribDiff >= 0 ? `+${dribDiff}` : dribDiff} < 2)`
     });
 
@@ -2496,15 +2616,15 @@ function runZone12PossessionCore({
       };
     }
 
-    // Dribble succeeded -> Winger / Attacking WB is in a 1-on-1 shooting chance with the keeper!
-    if (zonePath[zonePath.length - 1] !== wingDeepZone) {
-      zonePath.push(wingDeepZone);
+    const finishZone = isCutInsideAction ? boxZone : wingDeepZone;
+    if (zonePath[zonePath.length - 1] !== finishZone) {
+      zonePath.push(finishZone);
     }
 
     const boxDef = getBoxDefenseTarget('standard');
     const finSkill = winger.skills.finishing;
-    const totalFinBonus = attMentalityMod;
-    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod;
+    const totalFinBonus = attMentalityMod + boxNum.attBonus;
+    const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod + boxNum.defBonus;
     const forcedWingDribFin = testOverrides?.forceStep3Outcome === 'goal'
       ? 3
       : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
@@ -2518,17 +2638,17 @@ function runZone12PossessionCore({
 
     const dribFinishLog = isGoal
       ? {
-        text: `${midEventMin}' ⚽ GOAL! ${winger.name} bursts past ${oppFullback.name} into the penalty area and rifles a low shot past ${boxDef.gk?.name || 'the keeper'}!`,
+        text: `${midEventMin}' ⚽ GOAL! ${winger.name} ${isCutInsideAction ? 'cuts inside off the flank' : 'bursts past ' + oppFullback.name} into the penalty area and rifles a low shot past ${boxDef.gk?.name || 'the keeper'}!`,
         type: 'goal'
       }
       : {
-        text: `${midEventMin}' 🧤 ${winger.name} beats ${oppFullback.name} into the box and strikes at goal, but ${boxDef.gk?.name || 'the keeper'} makes a crucial 1-on-1 save! ${defTeamName} clears!`,
+        text: `${midEventMin}' 🧤 ${winger.name} ${isCutInsideAction ? 'cuts inside into the box' : 'beats ' + oppFullback.name + ' into the box'} and strikes at goal, but ${boxDef.gk?.name || 'the keeper'} makes a crucial save! ${defTeamName} clears!`,
         type: 'save'
       };
 
     steps.push({
-      phase: isAttackingWingBack ? 'WB OVERLAP 1v1 SHOT' : 'WINGER 1v1 SHOT',
-      zone: wingDeepZone,
+      phase: isCutInsideAction ? 'CUT INSIDE FINISH' : (isAttackingWingBack ? 'WB OVERLAP 1v1 SHOT' : 'WINGER 1v1 SHOT'),
+      zone: finishZone,
       attacker: winger.name,
       attackerPlayer: winger,
       attackerSlotId: winger.slotId || null,
@@ -2552,8 +2672,8 @@ function runZone12PossessionCore({
       success: isGoal,
       stepLog: dribFinishLog,
       summary: isGoal
-        ? `⚽ GOAL! ${winger.name} scores 1v1 in [${wingDeepZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+Def/GK:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff +${finDiff} >= 3)`
-        : `${boxDef.gk?.name || 'GK'} saves ${winger.name}'s 1v1 shot in [${wingDeepZone.toUpperCase()}] (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+Def/GK:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff ${finDiff >= 0 ? `+${finDiff}` : finDiff} < 3)`
+        ? `⚽ GOAL! ${winger.name} scores in [${finishZone.toUpperCase()}]! (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+Def/GK:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff +${finDiff} >= 3)`
+        : `${boxDef.gk?.name || 'GK'} saves ${winger.name}'s shot in [${finishZone.toUpperCase()}] (d10:${finDie}+Fin:${finSkill}${fmtBonus(totalFinBonus)}=${finTotal} vs d10:${gkDie}+Def/GK:${boxDef.combinedSkill}${fmtBonus(totalDefBonus)}=${gkTotal}, diff ${finDiff >= 0 ? `+${finDiff}` : finDiff} < 3)`
     });
 
     logs.push(dribFinishLog);
@@ -2566,7 +2686,7 @@ function runZone12PossessionCore({
       nextAttacker: defendingSide,
       counterTriggered,
       startZone,
-      activeZone: wingDeepZone,
+      activeZone: finishZone,
       zonePath,
       steps,
       logs,
@@ -2593,8 +2713,8 @@ function runZone12PossessionCore({
   const isLowCross = wingAction === 'low_cross';
   const crossSkill = winger.skills.crossing;
   const fbMarkSkill = oppFullback.skills.marking;
-  const crossAttBonus = attMentalityMod + step2SkillBonus;
-  const crossDefBonus = defMentalityMod + oppFbTightMarkMod + defTacklingMod;
+  const crossAttBonus = flankNum.attBonus + attMentalityMod + step2SkillBonus;
+  const crossDefBonus = flankNum.defBonus + defMentalityMod + oppFbTightMarkMod + defTacklingMod;
   const forcedCrossDiff = testOverrides?.forceStep2Outcome === 'success'
     ? 2
     : (testOverrides?.forceStep2Outcome === 'fail' ? 0 : null);
@@ -2689,8 +2809,8 @@ function runZone12PossessionCore({
     ? (striker.instruction === 'poacher' ? 1 : (striker.instruction === 'target_man' ? -1 : 0))
     : (striker.instruction === 'target_man' ? 1 : (striker.instruction === 'poacher' ? -1 : 0));
 
-  const totalAttBonus = attMentalityMod + strikerInstrMod;
-  const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod;
+  const totalAttBonus = attMentalityMod + strikerInstrMod + boxNum.attBonus;
+  const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod + boxNum.defBonus;
   const forcedCrossFin = testOverrides?.forceStep3Outcome === 'goal'
     ? 3
     : (testOverrides?.forceStep3Outcome === 'save' ? 0 : null);
@@ -3424,13 +3544,18 @@ export function advanceZone12SandboxStep({
       );
       const requiredMidDiff = isMidThroughBall ? 4 : 2;
       const ballPlayDcBonus = (['DC', 'CB', 'SW'].includes(midPasser.effectivePos) && midPasser.instruction === 'direct_pass') ? 1 : 0;
+      const step1Num = getBoxNumericalModifiers(initAttRoster, initDefRoster, startZone, {
+        mode: (startZone === 'b2' || startZone === 'c2') ? 'midfield_step1' : 'exact',
+        isHomeAtt: initIsHome,
+        minAttCount: 1
+      });
       const gkPassProtectionBonus = (midPasser.effectivePos === 'GK' || midPasser.name === initGk?.name) ? 5 : 0;
-      const attStep1Bonus = (initAttRoster.centralMids.length > initDefRoster.centralMids.length ? 1 : 0)
+      const attStep1Bonus = step1Num.attBonus
         + (initAttRoster.dmcCount >= 2 ? 1 : 0)
         + (initAttTactic === 'attack' ? 1 : (initAttTactic === 'defense' ? -2 : 0))
         + ballPlayDcBonus
         + gkPassProtectionBonus;
-      const defStep1Bonus = (initDefRoster.centralMids.length > initAttRoster.centralMids.length ? 1 : 0) + getTacklingMod(initDefTeamTactics);
+      const defStep1Bonus = step1Num.defBonus + getTacklingMod(initDefTeamTactics);
       const baseCounterThreshold = initAttTactic === 'defense' ? -4 : -2;
       const counterThreshold = initDefTeamTactics?.counterAttack === true
         ? (initAttTactic === 'defense' ? -2 : -1)
@@ -3753,7 +3878,9 @@ export function advanceZone12SandboxStep({
         });
       }
 
-      const amcPool = hasAMCInCenter ? attRoster.effectiveAmcs : attRoster.mcs;
+      const amcPool = hasAMCInCenter
+        ? ((attRoster.holdingAmcs && attRoster.holdingAmcs.length > 0) ? attRoster.holdingAmcs : attRoster.effectiveAmcs)
+        : attRoster.mcs;
       const nonPasserAmcs = (counterTriggered || isGkLongDistribution) ? amcPool : amcPool.filter((p) => p.name !== midPasser.name);
       const amcPlayer = isGkLongDistribution && !counterTriggered
         ? midPasser
@@ -3850,7 +3977,7 @@ export function advanceZone12SandboxStep({
     const oppFullback = isLeftChannel ? defRoster.dr : defRoster.dl;
     const rawWingInstr = winger?.instruction;
     const canWingLongShot = Boolean(winger && winger !== attFlankFb && (['AMR', 'AML', 'LW', 'RW', 'FL', 'FR'].includes(winger.effectivePos) || winger.duty === 'attack'));
-    const defaultWingAction = (['high_cross', 'low_cross', 'dribble', 'through_ball'].includes(rawWingInstr) || (rawWingInstr === 'long_shot' && canWingLongShot))
+    const defaultWingAction = (['high_cross', 'low_cross', 'dribble', 'through_ball', 'cut_inside'].includes(rawWingInstr) || (rawWingInstr === 'long_shot' && canWingLongShot))
       ? rawWingInstr
       : (winger?.duty === 'attack' ? 'dribble' : 'high_cross');
 
@@ -3924,6 +4051,11 @@ export function advanceZone12SandboxStep({
     const defMentalityMod = mentalityBonusMap(defTactic);
     const defTeamName = isHomeAtt ? (awayTeam?.name || 'Away XI') : (homeTeam?.name || 'Home XI');
     const zonePathWithBox = [...current.displayPath, ctx.boxZone];
+    const boxNum = getBoxNumericalModifiers(attRoster, defRoster, ctx.boxZone, {
+      mode: 'exact',
+      isHomeAtt,
+      minAttCount: 1
+    });
 
     // Special case: Uncontested Long Ball in d1/d2/d3
     if (ctx.mode === 'long_ball_uncontested') {
@@ -3940,7 +4072,7 @@ export function advanceZone12SandboxStep({
       };
       const isCenterLong = ctx.channel === 'center';
       const isHighCrossLong = !isCenterLong && ctx.actor.instruction === 'high_cross';
-      const finisher = isCenterLong || ['dribble', 'long_shot'].includes(ctx.actor.instruction)
+      const finisher = isCenterLong || ['dribble', 'long_shot', 'cut_inside', 'shadow_striker'].includes(ctx.actor.instruction)
         ? ctx.actor
         : (pickRandom(attRoster.strikers) || ctx.actor);
       const boxDefMode = isHighCrossLong ? 'high_cross' : 'standard';
@@ -3967,8 +4099,8 @@ export function advanceZone12SandboxStep({
           boxDef,
           finSkill: isHighCrossLong ? finisher.skills.heading : finisher.skills.finishing,
           finSkillName: isHighCrossLong ? 'Heading' : 'Finishing',
-          totalFinBonus: attMentalityMod + (ctx.step2SkillBonus || 0) + (isHighCrossLong ? (finisher.instruction === 'target_man' ? 1 : (finisher.instruction === 'poacher' ? -1 : 0)) : (finisher.instruction === 'poacher' ? 1 : 0)),
-          totalDefBonus: defMentalityMod + boxDef.dcInstrBonus + defTacklingMod,
+          totalFinBonus: attMentalityMod + (ctx.step2SkillBonus || 0) + boxNum.attBonus + (isHighCrossLong ? (finisher.instruction === 'target_man' ? 1 : (finisher.instruction === 'poacher' ? -1 : 0)) : (finisher.instruction === 'poacher' ? 1 : 0)),
+          totalDefBonus: defMentalityMod + boxDef.dcInstrBonus + defTacklingMod + boxNum.defBonus,
           is1v1Keeper: false,
           counterTriggered: ctx.counterTriggered
         },
@@ -3998,10 +4130,13 @@ export function advanceZone12SandboxStep({
 
     // Special case: Contested Long Ball Tackle
     if (ctx.mode === 'long_ball_tackle') {
-      const attTwoBonus = ctx.attDeepCount >= 2 ? 2 : 0;
-      const defTwoBonus = ctx.defDeepCount >= 2 ? 2 : 0;
-      const attBonus = attTwoBonus + attMentalityMod + (ctx.step2SkillBonus || 0);
-      const defBonus = defTwoBonus + defMentalityMod + defTacklingMod;
+      const deepNum = getBoxNumericalModifiers(attRoster, defRoster, ctx.secondZone, {
+        mode: ctx.secondZone.endsWith('2') ? 'exact' : 'flank',
+        isHomeAtt,
+        minAttCount: 1
+      });
+      const attBonus = deepNum.attBonus + attMentalityMod + (ctx.step2SkillBonus || 0);
+      const defBonus = deepNum.defBonus + defMentalityMod + defTacklingMod;
       const forcedDiff = decision === 'success' ? 1 : (decision === 'fail' ? -1 : null);
       const duel = resolveDuelWithOverride(ctx.actor.skills.tackling + attBonus, ctx.defender.skills.tackling + defBonus, forcedDiff);
       const won = duel.diff >= 1;
@@ -4037,7 +4172,7 @@ export function advanceZone12SandboxStep({
 
       const isCenterLong = ctx.channel === 'center';
       const isHighCrossLong = !isCenterLong && ctx.actor.instruction === 'high_cross';
-      const finisher = isCenterLong || ['dribble', 'long_shot'].includes(ctx.actor.instruction)
+      const finisher = isCenterLong || ['dribble', 'long_shot', 'cut_inside', 'shadow_striker'].includes(ctx.actor.instruction)
         ? ctx.actor
         : (pickRandom(attRoster.strikers) || ctx.actor);
       const boxDefMode = isHighCrossLong ? 'high_cross' : 'standard';
@@ -4063,8 +4198,8 @@ export function advanceZone12SandboxStep({
           boxDef,
           finSkill: isHighCrossLong ? finisher.skills.heading : finisher.skills.finishing,
           finSkillName: isHighCrossLong ? 'Heading' : 'Finishing',
-          totalFinBonus: attMentalityMod + (ctx.step2SkillBonus || 0) + (isHighCrossLong ? (finisher.instruction === 'target_man' ? 1 : (finisher.instruction === 'poacher' ? -1 : 0)) : (finisher.instruction === 'poacher' ? 1 : 0)),
-          totalDefBonus: defMentalityMod + boxDef.dcInstrBonus + defTacklingMod,
+          totalFinBonus: attMentalityMod + (ctx.step2SkillBonus || 0) + boxNum.attBonus + (isHighCrossLong ? (finisher.instruction === 'target_man' ? 1 : (finisher.instruction === 'poacher' ? -1 : 0)) : (finisher.instruction === 'poacher' ? 1 : 0)),
+          totalDefBonus: defMentalityMod + boxDef.dcInstrBonus + defTacklingMod + boxNum.defBonus,
           is1v1Keeper: false,
           counterTriggered: ctx.counterTriggered
         },
@@ -4096,13 +4231,18 @@ export function advanceZone12SandboxStep({
     const activeAction = forceActorInstruction !== 'auto'
       ? forceActorInstruction
       : ctx.defaultAction;
+    const s2Num = getBoxNumericalModifiers(attRoster, defRoster, ctx.secondZone, {
+      mode: ctx.mode === 'center_amc' ? 'exact' : 'flank',
+      isHomeAtt,
+      minAttCount: 1
+    });
 
     // Long Shot finishes immediately in Step 2 (diff >= 5)
     if (activeAction === 'long_shot') {
       const boxDef = resolveBoxDefenseHelper(defRoster, 'standard');
-      const attBonus = (attTactic === 'attack' ? 2 : (attTactic === 'defense' ? -2 : 0)) + (ctx.step2SkillBonus || 0);
+      const attBonus = s2Num.attBonus + (attTactic === 'attack' ? 2 : (attTactic === 'defense' ? -2 : 0)) + (ctx.step2SkillBonus || 0);
       const forcedDiff = decision === 'goal' ? 5 : (decision === 'save' ? 0 : null);
-      const duel = resolveDuelWithOverride(ctx.actor.skills.longShots + attBonus, boxDef.combinedSkill + defMentalityMod, forcedDiff);
+      const duel = resolveDuelWithOverride(ctx.actor.skills.longShots + attBonus, boxDef.combinedSkill + defMentalityMod + s2Num.defBonus, forcedDiff);
       const isGoal = duel.diff >= 5;
       const summary = isGoal
         ? `⚽ SCREAMER GOAL! ${ctx.actor.name} scores from distance in [${ctx.secondZone.toUpperCase()}]! (diff +${duel.diff} >= 5)`
@@ -4135,26 +4275,26 @@ export function advanceZone12SandboxStep({
       });
     }
 
-    // Center AMC or Wing Dribble / Through Ball / Pass / High Cross / Low Cross -> goes to Step 3 or Turnover!
+    // Center AMC or Wing Dribble / Cut Inside / Shadow Striker / Through Ball / Pass / High Cross / Low Cross -> goes to Step 3 or Turnover!
     let requiredDiff = 2;
     let skillName = 'Passing';
     let attSkill = ctx.actor.skills.passing;
     let defSkill = ctx.defender.skills.marking;
-    let attBonus = attMentalityMod + (ctx.step2SkillBonus || 0);
-    let defBonus = defMentalityMod + defTacklingMod;
+    let attBonus = s2Num.attBonus + attMentalityMod + (ctx.step2SkillBonus || 0);
+    let defBonus = s2Num.defBonus + defMentalityMod + defTacklingMod;
     let boxDefMode = 'standard';
     let nextStep3Bonus = 0;
     let is1v1Keeper = false;
+    let isSelfFinisher = false;
 
     if (ctx.mode === 'center_amc') {
       const dmcManMark = ctx.defender?.instruction === 'man_mark' ? 1 : 0;
-      if (attRoster.amcCount >= 2) attBonus += 1;
-      if (defRoster.dmcCount >= 2) defBonus += 1;
-      if (activeAction === 'dribble') {
+      if (activeAction === 'dribble' || activeAction === 'shadow_striker') {
         skillName = 'Dribbling';
         attSkill = ctx.actor.skills.dribbling;
         defSkill = ctx.defender.skills.tackling;
-        is1v1Keeper = true;
+        is1v1Keeper = activeAction === 'dribble';
+        isSelfFinisher = true;
       } else {
         defBonus += dmcManMark;
         if (activeAction === 'through_ball') {
@@ -4165,12 +4305,13 @@ export function advanceZone12SandboxStep({
     } else {
       const oppFbTight = ctx.defender?.instruction === 'tight_mark_winger' ? 1 : (ctx.defender?.instruction === 'aggressive_press' ? -1 : 0);
       const oppFbTack = ctx.defender?.instruction === 'aggressive_press' ? 1 : (ctx.defender?.instruction === 'tight_mark_winger' ? -1 : 0);
-      if (activeAction === 'dribble') {
+      if (activeAction === 'dribble' || activeAction === 'cut_inside') {
         skillName = 'Dribbling';
         attSkill = ctx.actor.skills.dribbling;
         defSkill = ctx.defender.skills.tackling;
         defBonus += oppFbTack;
-        is1v1Keeper = true;
+        is1v1Keeper = activeAction === 'dribble';
+        isSelfFinisher = true;
       } else if (activeAction === 'through_ball') {
         requiredDiff = 4;
         nextStep3Bonus = 3;
@@ -4234,13 +4375,13 @@ export function advanceZone12SandboxStep({
       });
     }
 
-    const finisher = is1v1Keeper ? ctx.actor : (pickRandom(attRoster.strikers) || ctx.actor);
+    const finisher = isSelfFinisher ? ctx.actor : (pickRandom(attRoster.strikers) || ctx.actor);
     const boxDef = resolveBoxDefenseHelper(defRoster, is1v1Keeper ? 'standard' : boxDefMode);
     let finSkill = finisher.skills.finishing;
     let finSkillName = 'Finishing';
     let instrBonus = 0;
 
-    if (!is1v1Keeper) {
+    if (!isSelfFinisher) {
       if (boxDefMode === 'high_cross') {
         finSkill = finisher.skills.heading;
         finSkillName = 'Heading';
@@ -4272,8 +4413,8 @@ export function advanceZone12SandboxStep({
         boxDef,
         finSkill,
         finSkillName,
-        totalFinBonus: attMentalityMod + (ctx.step2SkillBonus || 0) + nextStep3Bonus + instrBonus,
-        totalDefBonus: defMentalityMod + (is1v1Keeper ? 0 : boxDef.dcInstrBonus + defTacklingMod),
+        totalFinBonus: attMentalityMod + (ctx.step2SkillBonus || 0) + nextStep3Bonus + instrBonus + (is1v1Keeper ? 0 : boxNum.attBonus),
+        totalDefBonus: defMentalityMod + (is1v1Keeper ? 0 : boxDef.dcInstrBonus + defTacklingMod + boxNum.defBonus),
         is1v1Keeper,
         counterTriggered: ctx.counterTriggered
       },

@@ -14,6 +14,8 @@ import { clibRules } from '../data/clib/clibRules';
 import { csudRules } from '../data/csud/csudRules';
 import { concacafRules } from '../data/concacaf/concacafRules';
 import CountryFlag from './CountryFlag';
+import NationFlag from './NationFlag';
+import { NATIONALITIES } from '../utils/nationalities';
 import { createDomesticCup, getDomesticCupExpectation } from '../utils/domesticCupGenerator';
 import {
   loadSeasonRosters,
@@ -244,6 +246,7 @@ export default function LeagueSelect() {
   const [step, setStep] = useState("season"); // "season" | "league" | "teams"
   const [selectedTeamId, setSelectedTeamId] = useState(null);
   const [managerName, setManagerName] = useState("Sir Alex");
+  const [managerNationality, setManagerNationality] = useState("gb-sct");
   const [division, setDivision] = useState(1); // 1 = D1, 2 = D2
   const [isStarting, setIsStarting] = useState(false);
   const [seasonRosters, setSeasonRosters] = useState(null);
@@ -998,6 +1001,7 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
       region: isSA ? "south_america" : (isNA ? "north_america" : "europe"),
       playerTeamId: selectedTeamId,
       managerName: managerName || "Manager",
+      managerNationality: managerNationality || "",
       boardExpectation: expObj,
       domesticCupExpectation,
       domesticCupState,
@@ -1450,6 +1454,38 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                       }}
                       maxLength={20}
                     />
+                  </div>
+
+                  {/* Manager Nationality Selector */}
+                  <div style={{ width: '90%', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '10px', color: '#00e5ff', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'left' }}>Manager Nationality</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '26px', display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+                        {managerNationality ? <NationFlag nation={managerNationality} size={22} /> : <span style={{ fontSize: '14px' }}>🏳️</span>}
+                      </div>
+                      <select
+                        value={managerNationality}
+                        onChange={(e) => setManagerNationality(e.target.value)}
+                        style={{
+                          flex: 1,
+                          background: 'rgba(0,0,0,0.65)',
+                          border: '1px solid rgba(0,229,255,0.25)',
+                          borderRadius: '6px',
+                          padding: '6px 8px',
+                          color: '#fff',
+                          fontSize: '12px',
+                          outline: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="">-- Select Nationality --</option>
+                        {NATIONALITIES.map((nat) => (
+                          <option key={nat.code} value={nat.code}>
+                            {nat.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   {/* Board Expectation */}

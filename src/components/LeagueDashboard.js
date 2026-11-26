@@ -25,9 +25,29 @@ import { createDomesticCup, advanceDomesticCup, getDomesticCupExpectation, CUP_S
 import { generateInitialNews, generateMatchdayNews, generateDomesticCupDrawNews, generateDomesticCupMatchNews, generateMonthlyAwardsNews, generateYearlyAwardsNews, generateRetirementNews, getQualitativeRating } from '../utils/newsGenerator';
 import { checkMonthConclusion, generateMatchEvents, recordMatchEventsInStats, calculateMonthlyAwards, calculateYearlyAwards, awardManagerTitle, repairCareerAwardManagerNames } from '../utils/awardsManager';
 import { loadSeasonRosters, cleanStale1To5Rosters, scaleStatTo10, getTeamDetailsSync, getPrebuiltRoster, getTransferMarketPool, advancePlayerSquadForNextSeason, calculateSquadTacticalAverages, clearCareerTransferLedger } from '../data/rosters/rosterRegistry';
-import { applyTeamTheme } from '../utils/themeManager';
+import { applyTeamTheme, resetToDefaultTheme } from '../utils/themeManager';
 import { simulateFixture as simulateFixtureEngine } from '../utils/matchEngine';
 import { calculateBoardExpectation } from '../utils/boardExpectationEngine';
+import WorldTablesPanel from './WorldTablesPanel';
+import WorldJobsPanel from './WorldJobsPanel';
+import ManagerProfilePanel from './ManagerProfilePanel';
+import NationFlag from './NationFlag';
+import { NATIONALITIES } from '../utils/nationalities';
+import {
+  calculateManagerPrestige,
+  getManagerLevelProgress,
+  loadManagerProfileFromStorage,
+  recordLiveUserMatchToProfile,
+  finalizeStintAndSeasonToProfile
+} from '../utils/managerProgression';
+import {
+  syncWorldProgressAndJobs,
+  carryoverWorldForNextSeason,
+  prepareMidSeasonTakeover,
+  applyForVacancy,
+  enterUnemployedMode,
+  simulateUnemployedWeek
+} from '../utils/worldCareerManager';
 import {
   isUefaCountryBanned,
   determineEuropeanQualifier,
@@ -347,18 +367,6 @@ const STAGE_ORDER = {
   "semi_finals": 5,
   "final": 6,
   "winner": 7
-};
-
-const calculateManagerPrestige = (profile) => {
-  if (!profile) return 0;
-  return Math.round(
-    ((profile.seasons || 0) * 25) +
-    ((profile.leagueTitles || 0) * 100) +
-    ((profile.cupTitles || 0) * 120) +
-    ((profile.points || 0) * 0.5) +
-    ((profile.monthlyAwards || 0) * 15) +
-    ((profile.managerOfTheYear || 0) * 50)
-  );
 };
 
 const getRulesGlobal = (cup, yr, isSouthAmerica, isNorthAmerica = false) => {
@@ -864,26 +872,7 @@ export default function LeagueDashboard() {
   }, [leagueState, subStandingsTab]);
 
   // Manager Profile States
-  const [managerProfile, setManagerProfile] = useState(() => {
-    try {
-      const saved = localStorage.getItem("retro_manager_profile");
-      if (saved) return JSON.parse(saved);
-    } catch (e) { }
-    return {
-      name: "Sir Alex",
-      photo: null,
-      seasons: 0,
-      wins: 0,
-      draws: 0,
-      losses: 0,
-      points: 0,
-      gf: 0,
-      ga: 0,
-      leagueTitles: 0,
-      cupTitles: 0,
-      history: []
-    };
-  });
+  const [managerProfile, setManagerProfile] = useState(() => loadManagerProfileFromStorage("Sir Alex"));
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editName, setEditName] = useState(() => {
     try {
@@ -899,10 +888,18 @@ export default function LeagueDashboard() {
     } catch (e) { }
     return null;
   });
+  const [editNationality, setEditNationality] = useState(() => {
+    try {
+      const saved = localStorage.getItem("retro_manager_profile");
+      if (saved) return JSON.parse(saved).nationality || "";
+    } catch (e) { }
+    return "";
+  });
   const [nextSeasonTeams, setNextSeasonTeams] = useState([]);
   const [jobOffers, setJobOffers] = useState([]);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showFormationModal, setShowFormationModal] = useState(false);
+  const [isJobBusy, setIsJobBusy] = useState(false);
 
   const reloadLeagueState = () => {
     const raw = localStorage.getItem("retro_league_career");
@@ -915,12 +912,14 @@ export default function LeagueDashboard() {
   const handleOpenProfileModal = () => {
     setEditName(managerProfile.name || "Sir Alex");
     setEditPhoto(managerProfile.photo || null);
+    setEditNationality(managerProfile.nationality || leagueState?.managerNationality || "");
     setShowProfileModal(true);
   };
 
   const handleCancelProfile = () => {
     setEditName(managerProfile.name || "Sir Alex");
     setEditPhoto(managerProfile.photo || null);
+    setEditNationality(managerProfile.nationality || leagueState?.managerNationality || "");
     setShowProfileModal(false);
   };
 
@@ -1152,7 +1151,15 @@ export default function LeagueDashboard() {
       }
 
       if (lastCompletedRound >= 1) {
-        processRoundStatsAndAwards(parsedCareer, lastCompletedRound);
+        const prevAwardsCount = (parsedCareer.monthlyAwards || []).length;
+        const prevYearly = Boolean(parsedCareer.hasGeneratedYearlyAwards);
+        const processedCareer = processRoundStatsAndAwards(parsedCareer, lastCompletedRound);
+        if (
+          (processedCareer.monthlyAwards || []).length !== prevAwardsCount ||
+          Boolean(processedCareer.hasGeneratedYearlyAwards) !== prevYearly
+        ) {
+          localStorage.setItem("retro_league_career", JSON.stringify(processedCareer));
+        }
       }
     }
 
@@ -1214,40 +1221,27 @@ export default function LeagueDashboard() {
 
     setLeagueState(parsedCareer);
 
-    // Sync or Seed Manager Profile
-    const savedProfile = localStorage.getItem("retro_manager_profile");
-    if (savedProfile) {
-      const parsedProfile = JSON.parse(savedProfile);
-      setManagerProfile(parsedProfile);
-      setEditName(parsedProfile.name || parsedCareer.managerName || "Sir Alex");
-      setEditPhoto(parsedProfile.photo || null);
-    } else {
-      const initialProfile = {
-        name: parsedCareer.managerName || "Sir Alex",
-        photo: null,
-        seasons: 0,
-        wins: 0,
-        draws: 0,
-        losses: 0,
-        points: 0,
-        gf: 0,
-        ga: 0,
-        leagueTitles: 0,
-        cupTitles: 0,
-        history: []
-      };
-      localStorage.setItem("retro_manager_profile", JSON.stringify(initialProfile));
-      setManagerProfile(initialProfile);
-      setEditName(initialProfile.name);
-      setEditPhoto(null);
+    // Sync or Seed Manager Profile (normalized with new fields & live matchXp)
+    const normalizedProf = loadManagerProfileFromStorage(
+      parsedCareer.managerName || "Sir Alex",
+      parsedCareer.managerNationality || ""
+    );
+    if (!localStorage.getItem("retro_manager_profile")) {
+      localStorage.setItem("retro_manager_profile", JSON.stringify(normalizedProf));
     }
+    setManagerProfile(normalizedProf);
+    setEditName(normalizedProf.name || parsedCareer.managerName || "Sir Alex");
+    setEditPhoto(normalizedProf.photo || null);
+    setEditNationality(normalizedProf.nationality || parsedCareer.managerNationality || "");
   }, [navigate]);
 
   const handleSaveProfile = () => {
     const photoToSave = editPhoto || managerProfile.photo || null;
+    const nationalityToSave = editNationality || "";
     const updated = {
       ...managerProfile,
       name: editName,
+      nationality: nationalityToSave,
       photo: photoToSave
     };
     try {
@@ -1257,10 +1251,11 @@ export default function LeagueDashboard() {
     }
     setManagerProfile(updated);
     setEditPhoto(photoToSave);
+    setEditNationality(nationalityToSave);
 
-    // Sync current active career's manager name
+    // Sync current active career's manager name & nationality
     if (leagueState) {
-      const stateCopy = { ...leagueState, managerName: editName };
+      const stateCopy = { ...leagueState, managerName: editName, managerNationality: nationalityToSave };
       localStorage.setItem("retro_league_career", JSON.stringify(stateCopy));
       setLeagueState(stateCopy);
     }
@@ -1333,14 +1328,16 @@ export default function LeagueDashboard() {
     // Calculate manager prestige based on experience and stats
     const prestige = calculateManagerPrestige(managerProfile);
 
-    // Limit the maximum rating of offering clubs based on prestige
+    // Limit the maximum rating of offering clubs based on unified 0-4000+ Manager Prestige
     let maxRating = 5.0;
-    if (prestige < 50) {
+    if (prestige < 500) {
       maxRating = 3.1;
-    } else if (prestige < 150) {
-      maxRating = 3.7;
-    } else if (prestige < 300) {
-      maxRating = 4.3;
+    } else if (prestige < 1000) {
+      maxRating = 3.6;
+    } else if (prestige < 2000) {
+      maxRating = 4.2;
+    } else if (prestige < 4000) {
+      maxRating = 4.7;
     }
 
     const nextStartYrStr = String(nextStartYr);
@@ -1676,8 +1673,41 @@ export default function LeagueDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueState, nextSeasonTeams.length]);
 
+  // Sync tracked world leagues, persistent AI managers, and live job vacancies on career progress
   useEffect(() => {
-    if (!leagueState || leagueState.isSacked) return;
+    if (!leagueState) return;
+    const teamsList = leagueState.teams || [];
+    const sorted = [...teamsList].sort((a, b) => (b.points || 0) - (a.points || 0));
+    const pPos = !leagueState.isUnemployed && leagueState.playerTeamId !== null
+      ? (sorted.findIndex((t) => t.idnum === leagueState.playerTeamId) + 1)
+      : 10;
+    const isSA = leagueState.region === "south_america" || SA_COUNTRIES.has(leagueState.country);
+    const liveConf = (!leagueState.isUnemployed && leagueState.playerTeamId !== null)
+      ? getBoardConfidence(leagueState, sorted, pPos, isSA)
+      : 50;
+
+    const synced = syncWorldProgressAndJobs({
+      leagueState,
+      managerPrestige: calculateManagerPrestige(managerProfile),
+      boardConfidence: liveConf
+    });
+
+    if (synced.changed && synced.worldState) {
+      const updatedCareer = {
+        ...leagueState,
+        worldState: synced.worldState,
+        newsFeed: synced.newsItems.length > 0
+          ? [...synced.newsItems, ...(leagueState.newsFeed || [])]
+          : leagueState.newsFeed
+      };
+      localStorage.setItem("retro_league_career", JSON.stringify(updatedCareer));
+      setLeagueState(updatedCareer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leagueState?.season, leagueState?.country, leagueState?.division, leagueState?.calendarIndex, leagueState?.currentRound, leagueState?.isUnemployed]);
+
+  useEffect(() => {
+    if (!leagueState || leagueState.isSacked || leagueState.isUnemployed) return;
     const { calendar, calendarIndex, currentRound, teams, playerTeamId, region, country } = leagueState;
     const totalRounds = getTotalLeagueRounds(teams, country, leagueState.fixtures);
     const isSeasonOverCalculated = calendar
@@ -1699,18 +1729,121 @@ export default function LeagueDashboard() {
     const confidence = getBoardConfidence(leagueState, standingsList, playerPos, isSA);
     const fanConfidence = leagueState.fanConfidence !== undefined ? leagueState.fanConfidence : 50;
 
-    if (confidence <= 0 && currentRound >= 10) {
-      const stateCopy = { ...leagueState, isSacked: true };
-      localStorage.setItem("retro_league_career", JSON.stringify(stateCopy));
-      setLeagueState(stateCopy);
-      alert("🚨 BREAKING NEWS: The board has terminated your contract due to confidence reaching 0%!");
-    } else if (fanConfidence <= 0 && currentRound >= 10) {
-      const stateCopy = { ...leagueState, isSacked: true };
-      localStorage.setItem("retro_league_career", JSON.stringify(stateCopy));
-      setLeagueState(stateCopy);
-      alert("🚨 BREAKING NEWS: The board has terminated your contract because the fans have completely revolted!");
+    if ((confidence <= 0 || fanConfidence <= 0) && currentRound >= 10) {
+      const reason = fanConfidence <= 0
+        ? "Sacked by the board after supporter revolt"
+        : "Contract terminated after board confidence dropped to 0%";
+      const { nextLeagueState, updatedProfile } = enterUnemployedMode({
+        leagueState,
+        managerProfile,
+        reason
+      });
+      localStorage.setItem("retro_manager_profile", JSON.stringify(updatedProfile));
+      localStorage.setItem("retro_league_career", JSON.stringify(nextLeagueState));
+      resetToDefaultTheme();
+      setManagerProfile(updatedProfile);
+      setLeagueState(nextLeagueState);
+      setOfficeTab("jobs");
+      alert(`🚨 BREAKING NEWS: ${reason}!\n\nYou are now an Unemployed Manager — track world leagues and apply for open jobs in the 💼 JOBS tab.`);
     }
-  }, [leagueState]);
+  }, [leagueState, managerProfile]);
+
+  const handleMidSeasonTakeover = async (targetJob) => {
+    if (!leagueState || !targetJob || isJobBusy) return;
+    setIsJobBusy(true);
+    try {
+      const { nextLeagueState, updatedProfile, newTeamObj } = await prepareMidSeasonTakeover({
+        leagueState,
+        targetJob,
+        managerProfile,
+        editName
+      });
+      const startYr = String(nextLeagueState.season || "2001").split("/")[0];
+      const nextDetails = getTeamDetailsSync(newTeamObj.name, startYr);
+      const prefFormation = getPreferredTeamFormation(newTeamObj.name, startYr, nextDetails);
+      localStorage.setItem("retro_player_formation", prefFormation);
+      localStorage.setItem(`retro_formation_${newTeamObj.name}_${nextLeagueState.season}`, prefFormation);
+      localStorage.setItem("retro_manager_profile", JSON.stringify(updatedProfile));
+      localStorage.setItem("retro_league_career", JSON.stringify(nextLeagueState));
+      applyTeamTheme(newTeamObj);
+      setManagerProfile(updatedProfile);
+      setLeagueState(nextLeagueState);
+      setSubStandingsTab(null);
+      setActiveTab("league");
+      setOfficeTab("home");
+      alert(`✅ SIGNED WITH ${newTeamObj.name.toUpperCase()}!\nImmediate takeover complete for the ${nextLeagueState.season} campaign.`);
+    } catch (err) {
+      console.error("[Jobs] Mid-season takeover failed:", err);
+      alert("Could not finalize takeover right now. Please try again.");
+    } finally {
+      setIsJobBusy(false);
+    }
+  };
+
+  const handleApplyVacancy = async (vacancy) => {
+    if (!leagueState || !vacancy || isJobBusy) return;
+    const res = applyForVacancy({ leagueState, managerProfile, vacancy });
+    if (res.accepted) {
+      await handleMidSeasonTakeover(vacancy);
+    } else {
+      const updatedCareer = { ...leagueState, worldState: res.updatedWorldState };
+      localStorage.setItem("retro_league_career", JSON.stringify(updatedCareer));
+      setLeagueState(updatedCareer);
+      alert(`❌ APPLICATION REJECTED\n\n${res.reason}`);
+    }
+  };
+
+  const handleDeclineDirectOffer = (offerId) => {
+    if (!leagueState?.worldState) return;
+    const updatedWorld = {
+      ...leagueState.worldState,
+      directOffers: (leagueState.worldState.directOffers || []).filter((o) => o.id !== offerId)
+    };
+    const updatedCareer = { ...leagueState, worldState: updatedWorld };
+    localStorage.setItem("retro_league_career", JSON.stringify(updatedCareer));
+    setLeagueState(updatedCareer);
+  };
+
+  const handleResignFromClub = () => {
+    if (!leagueState || leagueState.isUnemployed) return;
+    const clubName = leagueState.teams?.find((t) => t.idnum === leagueState.playerTeamId)?.name || "your club";
+    if (!window.confirm(`Resign immediately from ${clubName} and enter the live job market as an Unemployed Manager?`)) {
+      return;
+    }
+    const { nextLeagueState, updatedProfile } = enterUnemployedMode({
+      leagueState,
+      managerProfile,
+      reason: `Voluntarily resigned from ${clubName}`
+    });
+    localStorage.setItem("retro_manager_profile", JSON.stringify(updatedProfile));
+    localStorage.setItem("retro_league_career", JSON.stringify(nextLeagueState));
+    resetToDefaultTheme();
+    setManagerProfile(updatedProfile);
+    setLeagueState(nextLeagueState);
+    setOfficeTab("jobs");
+  };
+
+  const handleAdvanceUnemployedWeek = () => {
+    if (!leagueState || !leagueState.isUnemployed) return;
+    const cal = leagueState.calendar;
+    const idx = leagueState.calendarIndex || 0;
+    const ev = cal && idx < cal.length ? cal[idx] : null;
+    if (ev && (ev.type === "europe" || ev.type === "europe_qualifier")) {
+      // Let existing rest-week/europe simulator advance midweek European competition cleanly
+      simulateRestWeek();
+      return;
+    }
+    const res = simulateUnemployedWeek(leagueState, calculateManagerPrestige(managerProfile));
+    if (!res) return;
+    localStorage.setItem("retro_league_career", JSON.stringify(res.nextLeagueState));
+    setLeagueState(res.nextLeagueState);
+    if (res.simulatedFixtures && res.simulatedFixtures.length > 0) {
+      setResultsModalFixtures(res.simulatedFixtures);
+      setResultsModalTitle(res.simulatedType === "domestic_cup" ? "DOMESTIC CUP RESULTS" : `WORLD & LEAGUE ROUND ${Math.max(1, (res.nextLeagueState.currentRound || 2) - 1)}`);
+      setResultsModalTheme(res.simulatedType === "domestic_cup" ? "#ff0055" : "#00e5ff");
+      setResultsModalOpen(true);
+    }
+  };
 
   const handleSignContract = async (selectedTeamId, customPlayerTeam = null) => {
     if (!leagueState || nextSeasonTeams.length === 0) return;
@@ -1724,13 +1857,12 @@ export default function LeagueDashboard() {
       return b.gf - a.gf;
     });
 
-    const playerTeamStats = currentStandings.find(t => t.idnum === playerTeamId);
-    const pPos = currentStandings.findIndex(t => t.idnum === playerTeamId) + 1;
+    const playerTeamStats = !leagueState.isUnemployed ? currentStandings.find(t => t.idnum === playerTeamId) : null;
+    const pPos = playerTeamStats ? currentStandings.findIndex(t => t.idnum === playerTeamId) + 1 : 0;
 
-    // Check if player won the European cup final
     // Check if player won European or Domestic cup
     let isEuroCupWinner = false;
-    if (europeanCupState && europeanCupState.knockoutState && europeanCupState.knockoutState.final) {
+    if (playerTeamStats && europeanCupState && europeanCupState.knockoutState && europeanCupState.knockoutState.final) {
       const finalMatch = europeanCupState.knockoutState.final[0];
       if (finalMatch && finalMatch.played) {
         const pId = europeanCupState.europeanPlayerTeamId;
@@ -1745,47 +1877,59 @@ export default function LeagueDashboard() {
     }
 
     let isDomesticCupWinner = false;
-    if (leagueState.domesticCupState && leagueState.domesticCupState.isCompleted && leagueState.domesticCupState.winnerId === playerTeamId) {
+    if (playerTeamStats && leagueState.domesticCupState && leagueState.domesticCupState.isCompleted && leagueState.domesticCupState.winnerId === playerTeamId) {
       isDomesticCupWinner = true;
     }
 
     const totalCupTitlesWon = (isEuroCupWinner ? 1 : 0) + (isDomesticCupWinner ? 1 : 0);
 
-    // 2. Aggregate stats to the lifetime Manager Profile
+    // 2. Aggregate stats to the lifetime Manager Profile (respecting partial mid-season stintBaseline)
     const isSA = region === "south_america" || country === "argentina" || country === "colombia";
     const isAperturaClausura = country === "argentina" || country === "colombia" || country === "mexico";
-    const wonApertura = isAperturaClausura && (leagueState.aperturaChampion === playerTeamStats.name);
-    const wonClausura = isAperturaClausura && (leagueState.clausuraChampion === playerTeamStats.name);
-    const titlesWonCount = isAperturaClausura
-      ? ((wonApertura ? 1 : 0) + (wonClausura ? 1 : 0))
-      : (pPos === 1 ? 1 : 0);
+    const wonApertura = Boolean(playerTeamStats) && isAperturaClausura && (leagueState.aperturaChampion === playerTeamStats.name);
+    const wonClausura = Boolean(playerTeamStats) && isAperturaClausura && (leagueState.clausuraChampion === playerTeamStats.name);
+    const titlesWonCount = playerTeamStats
+      ? (isAperturaClausura ? ((wonApertura ? 1 : 0) + (wonClausura ? 1 : 0)) : (pPos === 1 ? 1 : 0))
+      : 0;
 
-    const newHistoryEntry = {
-      season: season,
-      team: playerTeamStats.name,
-      played: playerTeamStats.played,
-      won: playerTeamStats.won,
-      drawn: playerTeamStats.drawn,
-      lost: playerTeamStats.lost,
-      points: playerTeamStats.points,
-      leagueTitle: titlesWonCount,
-      cupTitle: totalCupTitlesWon,
+    const trophyNames = [];
+    if (titlesWonCount > 0) {
+      if (isAperturaClausura) {
+        if (wonApertura) trophyNames.push(`${cap(country)} Apertura Title`);
+        if (wonClausura) trophyNames.push(`${cap(country)} Clausura Title`);
+      } else {
+        trophyNames.push(`${cap(country)} Division ${leagueState.division || 1} Champion`);
+      }
+    }
+    if (isDomesticCupWinner) {
+      trophyNames.push(leagueState.domesticCupState?.cupName || "Domestic Cup");
+    }
+    if (isEuroCupWinner) {
+      const euroLabel = isNorthAmerica
+        ? "CONCACAF Champions Cup"
+        : isSouthAmerica
+          ? (europeanCup === "cl" ? "Copa Libertadores" : "Copa Sudamericana")
+          : (europeanCup === "cl" ? "Champions Cup / UCL" : (europeanCup === "uefa" ? "UEFA Cup / Europa League" : "Conference League"));
+      trophyNames.push(euroLabel);
+    }
+
+    const updatedProfile = finalizeStintAndSeasonToProfile({
+      profile: managerProfile,
+      season,
+      clubName: playerTeamStats ? playerTeamStats.name : null,
+      country,
+      division: leagueState.division || 1,
+      teamStats: playerTeamStats,
+      stintBaseline: leagueState.stintBaseline,
+      isSeasonComplete: true,
+      leaguePos: pPos > 0 ? pPos : null,
+      leagueTitleCount: titlesWonCount,
+      cupTitleCount: totalCupTitlesWon,
+      trophyNames,
       monthlyAwardsWon: (leagueState.monthlyAwards || []).filter(m => m.motm?.winner?.isUser).length,
-      managerOfTheYearWon: leagueState.yearlyAwards?.moty?.winner?.isUser ? 1 : 0
-    };
-    const updatedProfile = {
-      ...managerProfile,
-      seasons: managerProfile.seasons + 1,
-      wins: managerProfile.wins + playerTeamStats.won,
-      draws: managerProfile.draws + playerTeamStats.drawn,
-      losses: managerProfile.losses + playerTeamStats.lost,
-      points: managerProfile.points + playerTeamStats.points,
-      gf: managerProfile.gf + playerTeamStats.gf,
-      ga: managerProfile.ga + playerTeamStats.ga,
-      leagueTitles: managerProfile.leagueTitles + titlesWonCount,
-      cupTitles: managerProfile.cupTitles + totalCupTitlesWon,
-      history: [...(managerProfile.history || []), newHistoryEntry]
-    };
+      motyWon: leagueState.yearlyAwards?.moty?.winner?.isUser ? 1 : 0,
+      exitNote: pPos > 0 ? `Finished ${formatOrdinal(pPos)}` : "Unemployed Season"
+    });
     localStorage.setItem("retro_manager_profile", JSON.stringify(updatedProfile));
     setManagerProfile(updatedProfile);
 
@@ -2281,7 +2425,7 @@ export default function LeagueDashboard() {
     const newClubBaseBudget = (nextDetails && nextDetails.finances && typeof nextDetails.finances.transferBudget === 'number')
       ? nextDetails.finances.transferBudget
       : Math.max(0.5, parseFloat((Math.pow(normRating5, 2.2) * divisionMultiplier * eraMultiplier).toFixed(1)));
-    const isPlayerRenewing = selectedTeamId === playerTeamId || selectedTeamObj.name.toLowerCase() === playerTeamObj.name.toLowerCase();
+    const isPlayerRenewing = Boolean(playerTeamObj && (selectedTeamId === playerTeamId || selectedTeamObj.name.toLowerCase() === playerTeamObj.name.toLowerCase()));
 
     let nextBudget = newClubBaseBudget;
     let nextPayrollBudget = (nextDetails && nextDetails.finances && typeof nextDetails.finances.estimatedWeeklyPayroll === 'number')
@@ -2396,13 +2540,27 @@ export default function LeagueDashboard() {
     });
     const initialNextNewsFeed = [...retirementNews, ...(Array.isArray(openerNews) ? openerNews : [])];
 
+    const nextRegionStr = isSAFinalCountry ? "south_america" : (isNAFinalCountry ? "north_america" : "europe");
+    const carriedWorldState = carryoverWorldForNextSeason({
+      prevWorldState: leagueState.worldState,
+      nextSeasonStr,
+      nextRegion: nextRegionStr,
+      nextCountry: finalCountry,
+      nextDivision,
+      nextTeams: teamsForNextState,
+      playerTeamId: selectedTeamId
+    });
+
     // 8. Construct final new season object
     const nextLeagueState = {
       season: nextSeasonStr,
       country: finalCountry,
-      region: isSAFinalCountry ? "south_america" : (isNAFinalCountry ? "north_america" : "europe"),
+      region: nextRegionStr,
       playerTeamId: selectedTeamId,
       managerName: editName || managerProfile.name,
+      isUnemployed: false,
+      isSacked: false,
+      stintBaseline: null,
       boardExpectation: newBoardExpectation || { text: "Avoid Relegation", rank: 17, desc: "Avoid Relegation" },
       domesticCupExpectation: nextDomesticCupExpectation,
       domesticCupState: nextDomesticCupState,
@@ -2421,6 +2579,7 @@ export default function LeagueDashboard() {
       statScale: "1-10",
       budget: nextBudget,
       payrollBudget: nextPayrollBudget,
+      worldState: carriedWorldState,
       newsFeed: initialNextNewsFeed,
       lastTransferWindow: ""
     };
@@ -2432,6 +2591,7 @@ export default function LeagueDashboard() {
     localStorage.setItem(`retro_formation_${selectedTeamName}_${nextSeasonStr}`, nextClubPreferredFormation);
 
     localStorage.setItem("retro_league_career", JSON.stringify(nextLeagueState));
+    applyTeamTheme(selectedTeamObj);
     setLeagueState(nextLeagueState);
     setSubStandingsTab(null);
     setNextSeasonTeams([]);
@@ -2640,10 +2800,12 @@ export default function LeagueDashboard() {
           setManagerProfile(profileData);
           setEditName(profileData.name || careerData.managerName || "Sir Alex");
           setEditPhoto(profileData.photo || null);
+          setEditNationality(profileData.nationality || careerData.managerNationality || "");
         } else {
           localStorage.removeItem("retro_manager_profile");
           const initialProfile = {
             name: careerData.managerName || "Sir Alex",
+            nationality: careerData.managerNationality || "",
             photo: null,
             seasons: 0,
             wins: 0,
@@ -2659,6 +2821,7 @@ export default function LeagueDashboard() {
           setManagerProfile(initialProfile);
           setEditName(initialProfile.name);
           setEditPhoto(null);
+          setEditNationality(initialProfile.nationality);
         }
 
         alert("Career save and manager profile successfully imported!");
@@ -2915,6 +3078,15 @@ export default function LeagueDashboard() {
   };
   const getBoardVerdict = (position, expectation, customState = null) => {
     const activeState = customState || leagueState;
+    if (activeState?.isUnemployed) {
+      return {
+        status: "FREE AGENT",
+        tier: "decent_sacked",
+        title: "OFF-SEASON FREE AGENT",
+        color: "#00e5ff",
+        verdict: `The ${activeState.season || ''} season has concluded while you are unattached. Sign a contract with one of the interested clubs below for next season!`
+      };
+    }
     if (activeState?.isSacked) {
       if (activeState.fanConfidence !== undefined && activeState.fanConfidence <= 0) {
         return {
@@ -2966,7 +3138,7 @@ export default function LeagueDashboard() {
         title: "TERMINATED - DISGRACED!",
         color: "#ff3333",
         verdict: isRelegated
-          ? `Disastrous season, Manager ${finalManagerName}! You finished in Pos ${position} and relegated ${playerTeamObj.name}. With board confidence at a low ${confidence}%, your contract is terminated immediately.`
+          ? `Disastrous season, Manager ${finalManagerName}! You finished in Pos ${position} and relegated ${playerTeamObj?.name || 'the club'}. With board confidence at a low ${confidence}%, your contract is terminated immediately.`
           : `Disastrous season, Manager ${finalManagerName}! You finished in Pos ${position}, falling far short of our targets. With board confidence at a low ${confidence}%, your contract is terminated immediately.`
       };
     } else if (confidence >= 40 && confidence < 55) {
@@ -2991,7 +3163,7 @@ export default function LeagueDashboard() {
         tier: "outstanding",
         title: "CONTRACT RENEWED!",
         color: "#00ff64",
-        verdict: `Outstanding work, Manager ${finalManagerName}! You guided ${playerTeamObj.name} to Pos ${position} with a strong board confidence of ${confidence}%. The board and fans are absolutely thrilled. Your contract has been extended!`
+        verdict: `Outstanding work, Manager ${finalManagerName}! You guided ${playerTeamObj?.name || 'the club'} to Pos ${position} with a strong board confidence of ${confidence}%. The board and fans are absolutely thrilled. Your contract has been extended!`
       };
     }
   };
@@ -3871,6 +4043,28 @@ export default function LeagueDashboard() {
         const playerGoals = isPlayerHome ? playerMatch.homeScore : playerMatch.awayScore;
         const opponentGoals = isPlayerHome ? playerMatch.awayScore : playerMatch.homeScore;
         stateCopy.fanConfidence = updateFanConfidence(stateCopy.fanConfidence, playerTeam, opponentTeam, playerGoals, opponentGoals);
+
+        if (!stateCopy.isUnemployed) {
+          const wonPens = playerMatch.homeScore === playerMatch.awayScore &&
+            ((isPlayerHome && (playerMatch.penaltyHomeScore || 0) > (playerMatch.penaltyAwayScore || 0)) ||
+              (!isPlayerHome && (playerMatch.penaltyAwayScore || 0) > (playerMatch.penaltyHomeScore || 0)));
+          const domesticPlayerTeam = stateCopy.teams.find(t => t.idnum === stateCopy.playerTeamId) || playerTeam;
+          const profUpdated = recordLiveUserMatchToProfile({
+            matchKey: `${stateCopy.season}:euro:${stateCopy.europeanCup || 'euro'}:${stage}_leg${matchday || 1}:${playerMatch.homeId}-${playerMatch.awayId}`,
+            playerGoals,
+            opponentGoals,
+            isHome: isPlayerHome,
+            playerTeam: domesticPlayerTeam,
+            opponentTeam,
+            wonOnPenalties: wonPens,
+            season: stateCopy.season,
+            country: stateCopy.country,
+            division: stateCopy.division || 1,
+            competitionLabel: (stateCopy.europeanCup || 'Europe').toUpperCase(),
+            fallbackManagerName: stateCopy.managerName
+          });
+          if (profUpdated) setManagerProfile(profUpdated);
+        }
       }
 
       if (stage !== "final" && matchday === 2) {
@@ -3916,6 +4110,24 @@ export default function LeagueDashboard() {
           const playerGoals = isPlayerHome ? playerFixture.homeScore : playerFixture.awayScore;
           const opponentGoals = isPlayerHome ? playerFixture.awayScore : playerFixture.homeScore;
           stateCopy.fanConfidence = updateFanConfidence(stateCopy.fanConfidence, playerTeam, opponentTeam, playerGoals, opponentGoals);
+
+          if (!stateCopy.isUnemployed) {
+            const domesticPlayerTeam = stateCopy.teams.find(t => t.idnum === stateCopy.playerTeamId) || playerTeam;
+            const profUpdated = recordLiveUserMatchToProfile({
+              matchKey: `${stateCopy.season}:euro:${stateCopy.europeanCup || 'euro'}:${currentEvent.stage}_md${currentEvent.matchday}:${playerFixture.homeId}-${playerFixture.awayId}`,
+              playerGoals,
+              opponentGoals,
+              isHome: isPlayerHome,
+              playerTeam: domesticPlayerTeam,
+              opponentTeam,
+              season: stateCopy.season,
+              country: stateCopy.country,
+              division: stateCopy.division || 1,
+              competitionLabel: (stateCopy.europeanCup || 'Europe').toUpperCase(),
+              fallbackManagerName: stateCopy.managerName
+            });
+            if (profUpdated) setManagerProfile(profUpdated);
+          }
         }
 
         const totalGroupMatchdays = rules.calendarSchedules.filter(s => s.stage === "group_stage" || s.stage === "league_stage").length;
@@ -4129,6 +4341,25 @@ export default function LeagueDashboard() {
         stateCopy.newsFeed = [...newMatchNews, ...(stateCopy.newsFeed || [])];
         stateCopy = processRoundStatsAndAwards(stateCopy, currentEvent.index);
         localStorage.setItem("retro_league_career", JSON.stringify(stateCopy));
+
+        if (playerFixture && !stateCopy.isUnemployed) {
+          const pGoals = isPlayerHome ? playerFixture.homeScore : playerFixture.awayScore;
+          const oGoals = isPlayerHome ? playerFixture.awayScore : playerFixture.homeScore;
+          const profUpdated = recordLiveUserMatchToProfile({
+            matchKey: `${stateCopy.season}:league:r${currentEvent.index}:${playerFixture.homeId}-${playerFixture.awayId}`,
+            playerGoals: pGoals,
+            opponentGoals: oGoals,
+            isHome: isPlayerHome,
+            playerTeam,
+            opponentTeam,
+            season: stateCopy.season,
+            country: stateCopy.country,
+            division: stateCopy.division || 1,
+            competitionLabel: 'League',
+            fallbackManagerName: finalManagerName
+          });
+          if (profUpdated) setManagerProfile(profUpdated);
+        }
       }
 
       setLeagueState(stateCopy);
@@ -4218,6 +4449,29 @@ export default function LeagueDashboard() {
       });
 
       stateCopy.newsFeed = [cupStory, ...(stateCopy.newsFeed || [])];
+
+      if (!stateCopy.isUnemployed) {
+        const pGoals90 = isHome ? userMatch.homeScore : userMatch.awayScore;
+        const oGoals90 = isHome ? userMatch.awayScore : userMatch.homeScore;
+        const oppId = isHome ? userMatch.awayId : userMatch.homeId;
+        const oppTeamCup = domCup.participatingTeams?.find(t => t.idnum === oppId) || stateCopy.teams.find(t => t.idnum === oppId);
+        const wonPens = (userMatch.homeScore === userMatch.awayScore) && isWinner;
+        const profUpdated = recordLiveUserMatchToProfile({
+          matchKey: `${stateCopy.season}:cup:${stage}:${userMatch.homeId}-${userMatch.awayId}`,
+          playerGoals: pGoals90,
+          opponentGoals: oGoals90,
+          isHome,
+          playerTeam,
+          opponentTeam: oppTeamCup,
+          wonOnPenalties: wonPens,
+          season: stateCopy.season,
+          country: stateCopy.country,
+          division: stateCopy.division || 1,
+          competitionLabel: updatedCup.cupName || 'Domestic Cup',
+          fallbackManagerName: stateCopy.managerName
+        });
+        if (profUpdated) setManagerProfile(profUpdated);
+      }
     }
 
     if (stateCopy.calendar) {
@@ -4379,6 +4633,30 @@ export default function LeagueDashboard() {
           timestamp: Date.now()
         }, ...(stateCopy.newsFeed || [])];
       }
+    }
+
+    if (!stateCopy.isUnemployed && legResultFixture) {
+      const pGoalsQual = isLeg1 ? legResultFixture.homeScore : legResultFixture.awayScore;
+      const oGoalsQual = isLeg1 ? legResultFixture.awayScore : legResultFixture.homeScore;
+      const wonPensQual = !isLeg1 &&
+        legResultFixture.penaltyHomeScore != null &&
+        legResultFixture.penaltyAwayScore != null &&
+        legResultFixture.penaltyAwayScore > legResultFixture.penaltyHomeScore;
+      const profUpdated = recordLiveUserMatchToProfile({
+        matchKey: `${stateCopy.season}:qual:${qualState.competition || 'euro'}_leg${ev.leg}:${legResultFixture.homeId}-${legResultFixture.awayId}`,
+        playerGoals: pGoalsQual,
+        opponentGoals: oGoalsQual,
+        isHome: isLeg1,
+        playerTeam: pTeam,
+        opponentTeam: opp,
+        wonOnPenalties: wonPensQual,
+        season: stateCopy.season,
+        country: stateCopy.country,
+        division: stateCopy.division || 1,
+        competitionLabel: `${qualState.competitionLabel || 'Europe'} Qual`,
+        fallbackManagerName: stateCopy.managerName
+      });
+      if (profUpdated) setManagerProfile(profUpdated);
     }
 
     stateCopy.calendarIndex += 1;
@@ -4662,6 +4940,15 @@ export default function LeagueDashboard() {
             )}
             {" "} - {cap(country)} {division === 2 ? "Division 2" : "Division 1"}
           </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginTop: '4px', fontSize: '11.5px', color: '#e2e8f0' }}>
+            <span style={{ color: '#94a3b8' }}>👔 Manager:</span>
+            {(managerProfile?.nationality || leagueState?.managerNationality) && (
+              <NationFlag nation={managerProfile?.nationality || leagueState?.managerNationality} size={16} />
+            )}
+            <strong style={{ color: '#ffd700', fontFamily: 'Orbitron', letterSpacing: '0.5px' }}>
+              {managerProfile?.name || finalManagerName}
+            </strong>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
@@ -4745,10 +5032,22 @@ export default function LeagueDashboard() {
             color: '#00e5ff'
           },
           { id: 'home', label: '🏠 HOME', color: '#00ff64' },
-          { id: 'tactics', label: '📋 FORMATIONS & TACTICS', color: '#ffd700' },
+          ...(!leagueState?.isUnemployed ? [
+            { id: 'tactics', label: '📋 FORMATIONS & TACTICS', color: '#ffd700' }
+          ] : []),
           { id: 'matches', label: '⚽ MATCHES', color: '#00e5ff' },
-          { id: 'transfers', label: '🔄 TRANSFERS', color: '#ff4500' },
-          { id: 'board', label: '📊 BOARD', color: '#e040fb' },
+          ...(!leagueState?.isUnemployed ? [
+            { id: 'transfers', label: '🔄 TRANSFERS', color: '#ff4500' },
+            { id: 'board', label: '📊 BOARD', color: '#e040fb' }
+          ] : []),
+          {
+            id: 'jobs',
+            label: (() => {
+              const openCount = (leagueState?.worldState?.vacancies?.length || 0) + (leagueState?.worldState?.directOffers?.length || 0);
+              return openCount > 0 ? `💼 JOBS (${openCount})` : '💼 JOBS';
+            })(),
+            color: '#38bdf8'
+          },
           { id: 'manager', label: '👔 MANAGER', color: '#00e676' }
         ].map(tab => {
           const isActive = officeTab === tab.id;
@@ -4785,6 +5084,19 @@ export default function LeagueDashboard() {
           );
         })}
       </div>
+
+      {officeTab === "jobs" && (
+        <WorldJobsPanel
+          leagueState={leagueState}
+          managerPrestige={calculateManagerPrestige(managerProfile)}
+          boardConfidence={confidence}
+          onApplyVacancy={handleApplyVacancy}
+          onAcceptDirectOffer={handleMidSeasonTakeover}
+          onDeclineDirectOffer={handleDeclineDirectOffer}
+          onAdvanceUnemployedWeek={handleAdvanceUnemployedWeek}
+          isBusy={isJobBusy}
+        />
+      )}
 
       {officeTab === "news" && (
         <NewsFeed
@@ -4956,6 +5268,19 @@ export default function LeagueDashboard() {
             </div>
           </div>
 
+          {!isSeasonOver && !leagueState?.isUnemployed && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="play-match-btn"
+                style={{ fontSize: '11px', padding: '8px 16px', borderColor: '#ff6b6b', color: '#ff6b6b', background: 'rgba(255, 51, 81, 0.06)' }}
+                onClick={handleResignFromClub}
+              >
+                🚪 RESIGN & ENTER JOB MARKET
+              </button>
+            </div>
+          )}
+
           {isSeasonOver && (
             <div style={{ marginTop: '10px' }}>
               {(() => {
@@ -4986,152 +5311,17 @@ export default function LeagueDashboard() {
       )}
 
       {officeTab === "manager" && (
-        <div className="glass-card animated-slide-in" style={{ width: '100%', maxWidth: '650px', margin: '0 auto', padding: '25px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', border: '1.5px solid rgba(255, 215, 0, 0.25)', borderRadius: '16px' }}>
-          <h2 className="glowing-header-text" style={{ fontSize: '20px', margin: 0, color: '#ffd700', fontFamily: 'Orbitron', letterSpacing: '2px' }}>
-            👔 MANAGER'S PERSONAL PROFILE
-          </h2>
-
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '110px', height: '110px', borderRadius: '50%',
-              border: '2.5px solid #00ff64', overflow: 'hidden',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(0,0,0,0.5)', boxShadow: '0 0 15px rgba(0,255,100,0.2)'
-            }}>
-              {(editPhoto || managerProfile?.photo) ? (
-                <img src={editPhoto || managerProfile?.photo} alt="Manager Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span style={{ fontSize: '48px' }}>👔</span>
-              )}
-            </div>
-
-            <label className="glowing-btn" style={{
-              padding: '4px 12px', fontSize: '10px', cursor: 'pointer',
-              borderColor: '#00ff64', color: '#00ff64', background: 'rgba(0, 255, 100, 0.05)',
-              borderRadius: '4px', fontWeight: 'bold'
-            }}>
-              📷 UPLOAD PHOTO
-              <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
-            </label>
-          </div>
-
-          <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            background: 'rgba(255,215,0,0.04)', border: '1px solid rgba(255,215,0,0.25)',
-            borderRadius: '10px', padding: '8px 15px', width: '90%', textAlign: 'center'
-          }}>
-            <span style={{ fontSize: '9px', color: '#ffd700', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>Manager Reputation</span>
-            <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#fff', fontFamily: 'Orbitron', marginTop: '2px' }}>
-              {calculateManagerPrestige(managerProfile)} PTS
-            </span>
-            <span style={{
-              fontSize: '10px', fontWeight: 'bold', marginTop: '2px',
-              color: (() => {
-                const p = calculateManagerPrestige(managerProfile);
-                if (p < 50) return '#00ff64';
-                if (p < 150) return '#00e5ff';
-                if (p < 300) return '#a020f0';
-                return '#ffd700';
-              })()
-            }}>
-              {(() => {
-                const p = calculateManagerPrestige(managerProfile);
-                if (p < 50) return '🟢 LOCAL AMATEUR';
-                if (p < 150) return '🔵 REGIONAL PROFESSIONAL';
-                if (p < 300) return '🟣 ELITE COACH';
-                return '🟡 LEGENDARY BOSS';
-              })()}
-            </span>
-          </div>
-
-          <div style={{ width: '90%', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-            <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Edit Name</label>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <input
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                style={{
-                  flex: 1, background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0,255,100,0.3)',
-                  borderRadius: '8px', padding: '8px 12px', color: '#fff', fontSize: '13px',
-                  outline: 'none', textAlign: 'center', fontWeight: 'bold'
-                }}
-                maxLength={20}
-              />
-              <button
-                type="button"
-                className="glowing-btn"
-                style={{ padding: '8px 15px', fontSize: '11px', borderColor: '#ffd700', color: '#ffd700' }}
-                onClick={handleSaveProfile}
-              >
-                SAVE
-              </button>
-            </div>
-          </div>
-
-          <div style={{ width: '100%', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '15px' }}>
-            <h4 style={{ color: '#00e5ff', margin: '0 0 10px 0', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center', fontFamily: 'Orbitron' }}>
-              👔 CAREER LIFETIME STATISTICS
-            </h4>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', fontSize: '11px', textAlign: 'center' }}>
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.seasons || 0}</span>
-                <span style={{ fontSize: '8.5px', color: '#888' }}>Seasons</span>
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#ffd700', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.leagueTitles || 0}</span>
-                <span style={{ fontSize: '8.5px', color: '#888' }}>League 🏆</span>
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#00e5ff', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.cupTitles || 0}</span>
-                <span style={{ fontSize: '8.5px', color: '#888' }}>Cup ⭐</span>
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#00ff64', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.wins || 0}</span>
-                <span style={{ fontSize: '8.5px', color: '#888' }}>Wins</span>
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#ffd700', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.monthlyAwards || 0}</span>
-                <span style={{ fontSize: '8.5px', color: '#888' }}>Monthly 🎖️</span>
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#ff0055', fontFamily: 'Orbitron', display: 'block' }}>{managerProfile.managerOfTheYear || 0}</span>
-                <span style={{ fontSize: '8.5px', color: '#888' }}>Year MVP 👑</span>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ width: '100%', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '15px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <h4 style={{ color: '#ffd700', margin: '0 0 5px 0', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center', fontFamily: 'Orbitron' }}>
-              📜 CAREER HISTORY
-            </h4>
-            <div style={{ maxHeight: '150px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-              {(!managerProfile.history || managerProfile.history.length === 0) ? (
-                <span style={{ fontSize: '10px', color: '#666', textAlign: 'center', display: 'block', fontStyle: 'italic', padding: '10px 0' }}>
-                  No history recorded yet. Complete seasons to build your legacy!
-                </span>
-              ) : (
-                [...managerProfile.history].reverse().map((h, index) => (
-                  <div key={index} style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', padding: '8px 10px', fontSize: '10.5px', color: '#ccc', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
-                      <span style={{ color: '#00e5ff' }}>📅 {h.season} - {h.team}</span>
-                      <span style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                        {h.leagueTitle > 0 && <span title="League Champion" style={{ color: '#ffd700' }}>🏆</span>}
-                        {h.cupTitle > 0 && <span title="Cup Winner" style={{ color: '#00ff64' }}>⭐</span>}
-                        {h.monthlyAwardsWon > 0 && <span title={`${h.monthlyAwardsWon}x Manager of the Month`} style={{ color: '#ffd700', fontSize: '9px', background: 'rgba(255,215,0,0.15)', padding: '1px 4px', borderRadius: '3px' }}>🎖️x{h.monthlyAwardsWon}</span>}
-                        {h.managerOfTheYearWon > 0 && <span title="Manager of the Year" style={{ color: '#ff0055', fontSize: '9px', background: 'rgba(255,0,85,0.15)', padding: '1px 4px', borderRadius: '3px' }}>👑 MOTY</span>}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#aaa' }}>
-                      Matches: <strong style={{ color: '#fff' }}>{h.played}</strong> | W: <strong style={{ color: '#00ff64' }}>{h.won}</strong> | D: <strong style={{ color: '#ffd700' }}>{h.drawn}</strong> | L: <strong style={{ color: '#ff3333' }}>{h.lost}</strong> | Pts: <strong style={{ color: '#00e5ff' }}>{h.points}</strong>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+        <ManagerProfilePanel
+          managerProfile={managerProfile}
+          leagueState={leagueState}
+          editName={editName}
+          setEditName={setEditName}
+          editNationality={editNationality}
+          setEditNationality={setEditNationality}
+          editPhoto={editPhoto}
+          onPhotoUpload={handlePhotoUpload}
+          onSaveProfile={handleSaveProfile}
+        />
       )}
 
       {officeTab === "home" && (
@@ -5145,55 +5335,68 @@ export default function LeagueDashboard() {
             height: '480px',
             overflowY: 'auto'
           }}>
-            {(europeanCup || leagueState?.domesticCupState) && (
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setActiveTab("league")}
+                className="back-home-btn"
+                style={{
+                  fontSize: '11px',
+                  padding: '6px 12px',
+                  borderColor: activeTab === "league" ? '#ffd700' : 'rgba(255,255,255,0.1)',
+                  background: activeTab === "league" ? 'rgba(255, 215, 0, 0.08)' : 'transparent',
+                  color: activeTab === "league" ? '#ffd700' : '#888'
+                }}
+              >
+                🏆 DOMESTIC LEAGUE
+              </button>
+              {leagueState?.domesticCupState && (
                 <button
-                  onClick={() => setActiveTab("league")}
+                  onClick={() => setActiveTab("cup")}
                   className="back-home-btn"
                   style={{
                     fontSize: '11px',
                     padding: '6px 12px',
-                    borderColor: activeTab === "league" ? '#ffd700' : 'rgba(255,255,255,0.1)',
-                    background: activeTab === "league" ? 'rgba(255, 215, 0, 0.08)' : 'transparent',
-                    color: activeTab === "league" ? '#ffd700' : '#888'
+                    borderColor: activeTab === "cup" ? '#ff0055' : 'rgba(255,255,255,0.1)',
+                    background: activeTab === "cup" ? 'rgba(255, 0, 85, 0.12)' : 'transparent',
+                    color: activeTab === "cup" ? '#ff0055' : '#888'
                   }}
                 >
-                  🏆 DOMESTIC LEAGUE
+                  🥊 {leagueState.domesticCupState.cupName?.toUpperCase() || "DOMESTIC CUP"}
                 </button>
-                {leagueState?.domesticCupState && (
-                  <button
-                    onClick={() => setActiveTab("cup")}
-                    className="back-home-btn"
-                    style={{
-                      fontSize: '11px',
-                      padding: '6px 12px',
-                      borderColor: activeTab === "cup" ? '#ff0055' : 'rgba(255,255,255,0.1)',
-                      background: activeTab === "cup" ? 'rgba(255, 0, 85, 0.12)' : 'transparent',
-                      color: activeTab === "cup" ? '#ff0055' : '#888'
-                    }}
-                  >
-                    🥊 {leagueState.domesticCupState.cupName?.toUpperCase() || "DOMESTIC CUP"}
-                  </button>
-                )}
-                {europeanCup && (
-                  <button
-                    onClick={() => setActiveTab("europe")}
-                    className="back-home-btn"
-                    style={{
-                      fontSize: '11px',
-                      padding: '6px 12px',
-                      borderColor: activeTab === "europe" ? '#00e5ff' : 'rgba(255,255,255,0.1)',
-                      background: activeTab === "europe" ? 'rgba(0, 229, 255, 0.08)' : 'transparent',
-                      color: activeTab === "europe" ? '#00e5ff' : '#888'
-                    }}
-                  >
-                    {isNorthAmerica ? "⭐ NORTH AMERICAN COMPETITION" : (isSouthAmerica ? "⭐ SOUTH AMERICAN COMPETITION" : "⭐ EUROPEAN COMPETITION")}
-                  </button>
-                )}
-              </div>
-            )}
+              )}
+              {europeanCup && (
+                <button
+                  onClick={() => setActiveTab("europe")}
+                  className="back-home-btn"
+                  style={{
+                    fontSize: '11px',
+                    padding: '6px 12px',
+                    borderColor: activeTab === "europe" ? '#00e5ff' : 'rgba(255,255,255,0.1)',
+                    background: activeTab === "europe" ? 'rgba(0, 229, 255, 0.08)' : 'transparent',
+                    color: activeTab === "europe" ? '#00e5ff' : '#888'
+                  }}
+                >
+                  {isNorthAmerica ? "⭐ NORTH AMERICAN COMPETITION" : (isSouthAmerica ? "⭐ SOUTH AMERICAN COMPETITION" : "⭐ EUROPEAN COMPETITION")}
+                </button>
+              )}
+              <button
+                onClick={() => setActiveTab("world")}
+                className="back-home-btn"
+                style={{
+                  fontSize: '11px',
+                  padding: '6px 12px',
+                  borderColor: activeTab === "world" ? '#38bdf8' : 'rgba(255,255,255,0.1)',
+                  background: activeTab === "world" ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
+                  color: activeTab === "world" ? '#38bdf8' : '#888'
+                }}
+              >
+                🌍 WORLD TABLES
+              </button>
+            </div>
 
-            {activeTab === "league" ? (
+            {activeTab === "world" ? (
+              <WorldTablesPanel leagueState={leagueState} />
+            ) : activeTab === "league" ? (
               <>
                 {/* League View Mode Switcher */}
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '15px', flexWrap: 'wrap' }}>
@@ -5673,12 +5876,12 @@ export default function LeagueDashboard() {
                       {isNorthAmerica
                         ? "CONCACAF CHAMPIONS CUP"
                         : isSouthAmerica
-                        ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA")
-                        : (europeanCup === "cl"
-                          ? "UEFA CHAMPIONS LEAGUE"
-                          : (europeanCup === "uefa"
-                            ? (parseInt(season.split("/")[0]) >= 2009 ? "UEFA EUROPA LEAGUE" : "UEFA CUP")
-                            : "UEFA CONFERENCE LEAGUE"))}{" "}
+                          ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA")
+                          : (europeanCup === "cl"
+                            ? "UEFA CHAMPIONS LEAGUE"
+                            : (europeanCup === "uefa"
+                              ? (parseInt(season.split("/")[0]) >= 2009 ? "UEFA EUROPA LEAGUE" : "UEFA CUP")
+                              : "UEFA CONFERENCE LEAGUE"))}{" "}
                       {isLeagueStageCup ? "- LEAGUE STAGE" : `- GROUP ${clActiveGroup}`}
                     </h3>
                     {!isLeagueStageCup && activeGroupsList.length > 0 && (
@@ -5720,7 +5923,7 @@ export default function LeagueDashboard() {
                     </thead>
                     <tbody>
                       {getCLGroupStandings(clActiveGroup).map((team, index) => {
-                        const isPlayer = team.name === playerTeamObj.name;
+                        const isPlayer = Boolean(playerTeamObj && team.name === playerTeamObj.name);
                         return (
                           <tr
                             key={team.idnum}
@@ -5775,12 +5978,12 @@ export default function LeagueDashboard() {
                     🏆 {isNorthAmerica
                       ? "CONCACAF CHAMPIONS CUP"
                       : isSouthAmerica
-                      ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA")
-                      : (europeanCup === "cl"
-                        ? (parseInt(season.split("/")[0]) >= 1992 ? "CHAMPIONS LEAGUE" : "CHAMPIONS CUP")
-                        : (europeanCup === "uefa"
-                          ? (parseInt(season.split("/")[0]) >= 2009 ? "EUROPA LEAGUE" : "UEFA CUP")
-                          : "CONFERENCE LEAGUE"))} - KNOCKOUT BRACKET
+                        ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA")
+                        : (europeanCup === "cl"
+                          ? (parseInt(season.split("/")[0]) >= 1992 ? "CHAMPIONS LEAGUE" : "CHAMPIONS CUP")
+                          : (europeanCup === "uefa"
+                            ? (parseInt(season.split("/")[0]) >= 2009 ? "EUROPA LEAGUE" : "UEFA CUP")
+                            : "CONFERENCE LEAGUE"))} - KNOCKOUT BRACKET
                   </h3>
 
                   {renderContinentalKnockoutBracket(europeanCupState, rules)}
@@ -5793,258 +5996,298 @@ export default function LeagueDashboard() {
           <div style={{ width: '40%', display: 'flex', flexDirection: 'column', gap: '20px', flexShrink: 0 }}>
 
             {!isSeasonOver ? (
-              <div
-                className="glass-card next-match-panel animated-slide-in"
-                style={{
-                  padding: '20px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '15px',
-                  border: isEuropeanMatchNext ? '1.5px solid #00e5ff' : '1px solid rgba(255,255,255,0.08)',
-                  boxShadow: isEuropeanMatchNext ? '0 0 15px rgba(0, 229, 255, 0.15)' : 'none'
-                }}
-              >
-                {isEuropeanMatchNext ? (
-                  <>
-                    <h3 className="team-card-title" style={{ color: '#00e5ff', fontSize: '14px', letterSpacing: '1px', textShadow: '0 0 8px rgba(0, 229, 255, 0.4)' }}>
-                      ⭐ {isNorthAmerica
-                        ? "CONCACAF CHAMPIONS CUP"
-                        : isSouthAmerica
-                        ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA NIGHT")
-                        : (europeanCup === "cl"
-                          ? "UEFA CHAMPIONS LEAGUE"
-                          : (europeanCup === "uefa"
-                            ? (parseInt(season.split("/")[0]) >= 2009 ? "UEFA EUROPA LEAGUE" : "UEFA CUP NIGHT")
-                            : "UEFA CONFERENCE LEAGUE NIGHT"))}
-                    </h3>
+              leagueState?.isUnemployed ? (
+                <div
+                  className="glass-card next-match-panel animated-slide-in"
+                  style={{
+                    padding: '22px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '14px',
+                    border: '1.5px solid #38bdf8',
+                    boxShadow: '0 0 18px rgba(56, 189, 248, 0.16)'
+                  }}
+                >
+                  <h3 className="team-card-title" style={{ color: '#38bdf8', fontSize: '15px', margin: 0 }}>
+                    👔 UNEMPLOYED MANAGER DESK
+                  </h3>
+                  <p style={{ fontSize: '11.5px', color: '#bbb', textAlign: 'center', margin: 0, lineHeight: '1.45' }}>
+                    You are currently a free agent watching Round {currentEvent?.index || currentRound} of {cap(country)}. Advance weeks to keep tracked world tables moving and watch new clubs sack managers.
+                  </p>
+                  <div className="stats-box" style={{ width: '92%', padding: '10px 14px', fontSize: '11px', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Open Jobs: <strong style={{ color: '#ffd700' }}>{(leagueState?.worldState?.vacancies?.length || 0) + (leagueState?.worldState?.directOffers?.length || 0)}</strong></span>
+                    <span>Prestige: <strong style={{ color: '#00ff64' }}>{calculateManagerPrestige(managerProfile)} PTS</strong></span>
+                  </div>
+                  <button
+                    className="match-control-btn kickoff-theme-btn glowing-btn pulse"
+                    style={{ width: '95%', background: 'linear-gradient(135deg, #0ea5e9, #38bdf8)', borderColor: '#38bdf8', color: '#08121c', fontWeight: 'bold' }}
+                    onClick={handleAdvanceUnemployedWeek}
+                  >
+                    ⏩ ADVANCE 1 WEEK (SIM WORLD)
+                  </button>
+                  <button
+                    className="match-control-btn"
+                    style={{ width: '95%', fontSize: '11px', border: '1px solid rgba(56, 189, 248, 0.4)', background: 'rgba(56, 189, 248, 0.08)', color: '#38bdf8', cursor: 'pointer' }}
+                    onClick={() => setOfficeTab("jobs")}
+                  >
+                    💼 BROWSE LIVE JOBS MARKET ({(leagueState?.worldState?.vacancies?.length || 0) + (leagueState?.worldState?.directOffers?.length || 0)})
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="glass-card next-match-panel animated-slide-in"
+                  style={{
+                    padding: '20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '15px',
+                    border: isEuropeanMatchNext ? '1.5px solid #00e5ff' : '1px solid rgba(255,255,255,0.08)',
+                    boxShadow: isEuropeanMatchNext ? '0 0 15px rgba(0, 229, 255, 0.15)' : 'none'
+                  }}
+                >
+                  {isEuropeanMatchNext ? (
+                    <>
+                      <h3 className="team-card-title" style={{ color: '#00e5ff', fontSize: '14px', letterSpacing: '1px', textShadow: '0 0 8px rgba(0, 229, 255, 0.4)' }}>
+                        ⭐ {isNorthAmerica
+                          ? "CONCACAF CHAMPIONS CUP"
+                          : isSouthAmerica
+                            ? (europeanCup === "cl" ? "COPA LIBERTADORES" : "COPA SUDAMERICANA NIGHT")
+                            : (europeanCup === "cl"
+                              ? "UEFA CHAMPIONS LEAGUE"
+                              : (europeanCup === "uefa"
+                                ? (parseInt(season.split("/")[0]) >= 2009 ? "UEFA EUROPA LEAGUE" : "UEFA CUP NIGHT")
+                                : "UEFA CONFERENCE LEAGUE NIGHT"))}
+                      </h3>
 
-                    {(isRestWeek || !clPlayerFixture || !europeanOpponent) ? (
-                      <div style={{ margin: '15px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {(() => {
-                          const isEuroOut = Boolean(getPlayerCupStatus(leagueState, isSouthAmerica)?.isEliminated);
-                          return (
-                            <>
-                              <span style={{ fontSize: '32px' }}>{isEuroOut ? '❌' : '💤'}</span>
-                              <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>
-                                {isEuroOut ? 'ELIMINATED FROM COMPETITION' : 'REST WEEK - SQUAD RESTED'}
-                              </span>
-                              <span style={{ fontSize: '11px', color: '#aaa', padding: '0 15px', lineHeight: '1.4' }}>
-                                {isEuroOut
-                                  ? 'Your team was eliminated in a previous round. Click below to simulate this stage and view the results.'
-                                  : 'Your team does not have a fixture in this continental stage. Click below to simulate the midweek matches.'}
-                              </span>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    ) : (
-                      <div className="versus-preview" style={{ display: 'flex', width: '100%', justifyContent: 'space-around', alignItems: 'center', margin: '10px 0' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
-                          <TeamFlag primaryColor={europeanIsHome ? playerTeamObj.primaryColor : europeanOpponent.primaryColor} secondaryColor={europeanIsHome ? playerTeamObj.secondaryColor : europeanOpponent.secondaryColor} size={80} />
-                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{europeanIsHome ? playerTeamObj.name : europeanOpponent.name}</span>
-                          <span style={{ fontSize: '9px', color: '#888' }}>{europeanIsHome ? "HOME" : "AWAY"}</span>
-                        </div>
-
-                        <div style={{ fontFamily: 'Orbitron', fontWeight: 'bold', fontSize: '16px', color: '#00e5ff' }}>VS</div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
-                          <TeamFlag primaryColor={europeanIsHome ? europeanOpponent.primaryColor : playerTeamObj.primaryColor} secondaryColor={europeanIsHome ? europeanOpponent.secondaryColor : playerTeamObj.secondaryColor} size={80} />
-                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{europeanIsHome ? europeanOpponent.name : playerTeamObj.name}</span>
-                          <span style={{ fontSize: '9px', color: '#888' }}>{europeanIsHome ? "AWAY" : "HOME"}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {(!isRestWeek && clPlayerFixture && europeanOpponent) && (() => {
-                      const playerCupTeam = europeanCupState?.teams?.find(t => t.idnum === europeanCupState?.europeanPlayerTeamId);
-                      const clGroupStandings = (isEuropeanGroupStageNext && playerCupTeam?.group && typeof getCLGroupStandings === 'function')
-                        ? getCLGroupStandings(playerCupTeam.group)
-                        : (rules?.format === "league_then_knockout" && typeof getCLGroupStandings === 'function' ? getCLGroupStandings(null) : []);
-                      const pCupRank = clGroupStandings?.length ? clGroupStandings.findIndex(t => t.idnum === playerCupTeam?.idnum) + 1 : 0;
-                      const oppCupRank = clGroupStandings?.length ? clGroupStandings.findIndex(t => t.idnum === europeanOpponent?.idnum) + 1 : 0;
-                      const euroHomePos = europeanIsHome ? pCupRank : oppCupRank;
-                      const euroAwayPos = europeanIsHome ? oppCupRank : pCupRank;
-                      const isSwissLeague = rules?.format === "league_then_knockout";
-                      const euroTableLabel = isSwissLeague ? "LEAGUE PHASE" : (playerCupTeam?.group ? `GROUP ${playerCupTeam.group} TABLE` : "TABLE POSITION");
-
-                      return (
-                        <div className="stats-box" style={{ width: '90%', padding: '12px 16px', fontSize: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', alignItems: 'center', textAlign: 'center', width: '100%' }}>
-                            {isEuropeanGroupStageNext && euroHomePos > 0 && euroAwayPos > 0 ? (
+                      {(isRestWeek || !clPlayerFixture || !europeanOpponent) ? (
+                        <div style={{ margin: '15px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {(() => {
+                            const isEuroOut = Boolean(getPlayerCupStatus(leagueState, isSouthAmerica)?.isEliminated);
+                            return (
                               <>
-                                <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#00e5ff', fontSize: '15px', fontFamily: 'Orbitron' }}>
-                                  {`${formatOrdinal(euroHomePos)} Place`}
+                                <span style={{ fontSize: '32px' }}>{isEuroOut ? '❌' : '💤'}</span>
+                                <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>
+                                  {isEuroOut ? 'ELIMINATED FROM COMPETITION' : 'REST WEEK - SQUAD RESTED'}
                                 </span>
-                                <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
-                                  {euroTableLabel}
-                                </span>
-                                <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#00e5ff', fontSize: '15px', fontFamily: 'Orbitron' }}>
-                                  {`${formatOrdinal(euroAwayPos)} Place`}
+                                <span style={{ fontSize: '11px', color: '#aaa', padding: '0 15px', lineHeight: '1.4' }}>
+                                  {isEuroOut
+                                    ? 'Your team was eliminated in a previous round. Click below to simulate this stage and view the results.'
+                                    : 'Your team does not have a fixture in this continental stage. Click below to simulate the midweek matches.'}
                                 </span>
                               </>
-                            ) : (
-                              <>
-                                <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#00e5ff', fontSize: '13px', fontFamily: 'Orbitron' }}>
-                                  KNOCKOUT
-                                </span>
-                                <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
-                                  {currentEvent?.stage ? currentEvent.stage.toUpperCase().replace(/_/g, " ") : "KNOCKOUT MATCH"}
-                                </span>
-                                <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#00e5ff', fontSize: '13px', fontFamily: 'Orbitron' }}>
-                                  KNOCKOUT
-                                </span>
-                              </>
-                            )}
-                          </div>
+                            );
+                          })()}
                         </div>
-                      );
-                    })()}
-
-                    {(isRestWeek || !clPlayerFixture || !europeanOpponent) ? (
-                      <button
-                        className="match-control-btn kickoff-theme-btn glowing-btn pulse"
-                        style={{ width: '95%', background: 'linear-gradient(135deg, #0091ff, #00e5ff)', borderColor: '#00e5ff' }}
-                        onClick={handleSimulateRound}
-                      >
-                        SIMULATE MIDWEEK ROUND ➔
-                      </button>
-                    ) : (
-                      <div style={{ display: 'flex', width: '95%', gap: '10px', justifyContent: 'center' }}>
-                        <button
-                          className="match-control-btn kickoff-theme-btn glowing-btn pulse"
-                          style={{ flex: 1, background: 'linear-gradient(135deg, #0091ff, #00e5ff)', borderColor: '#00e5ff' }}
-                          onClick={handleKickOff}
-                        >
-                          {isSouthAmerica ? "ENTER CONTINENTAL STAGE ➔" : "ENTER EUROPEAN STAGE ➔"}
-                        </button>
-                        <button
-                          className="match-control-btn"
-                          style={{ width: '35%', fontSize: '11px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.02)', color: '#aaa', cursor: 'pointer' }}
-                          onClick={handleSimulateRound}
-                        >
-                          SIM ROUND
-                        </button>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <h3 className="team-card-title" style={{ color: isEuropeanQualifierNext ? '#ffd700' : (isDomesticCupNext ? '#ff0055' : '#00ff64') }}>
-                      {isEuropeanQualifierNext
-                        ? `🏆 ${leagueState?.europeanQualifierState?.competitionLabel || 'UEFA'} 3RD QUALIFYING ROUND (LEG ${currentEvent.leg}/2)`
-                        : (isDomesticCupNext ? `🥊 ${leagueState?.domesticCupState?.cupName?.toUpperCase() || 'DOMESTIC CUP'} MATCH` : "NEXT MATCH FIXTURE")}
-                    </h3>
-
-                    {(!playerFixture || !opponentTeamObj) ? (
-                      <div style={{ margin: '15px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <span style={{ fontSize: '32px' }}>{isDomesticCupEliminated ? '❌' : '🥊'}</span>
-                        <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>
-                          {isDomesticCupNext
-                            ? (isDomesticCupEliminated ? "ELIMINATED FROM CUP" : "REST / NEUTRAL CUP ROUND")
-                            : "NO UPCOMING FIXTURE"}
-                        </span>
-                        <span style={{ fontSize: '11px', color: '#aaa', padding: '0 15px', lineHeight: '1.4' }}>
-                          {isDomesticCupNext
-                            ? (isDomesticCupEliminated
-                              ? "You were eliminated in an earlier round. Click below to simulate this cup round and view the results."
-                              : "Your team has no match in this stage. Click below to simulate the round.")
-                            : "No upcoming match scheduled."}
-                        </span>
-                      </div>
-                    ) : (
-                      <>
+                      ) : (
                         <div className="versus-preview" style={{ display: 'flex', width: '100%', justifyContent: 'space-around', alignItems: 'center', margin: '10px 0' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
-                            <TeamFlag primaryColor={isHome ? playerTeamObj.primaryColor : opponentTeamObj.primaryColor} secondaryColor={isHome ? playerTeamObj.secondaryColor : opponentTeamObj.secondaryColor} size={80} />
-                            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{isHome ? playerTeamObj.name : opponentTeamObj.name}</span>
-                            <span style={{ fontSize: '9px', color: '#888' }}>{isHome ? "HOME" : "AWAY"}</span>
+                            <TeamFlag primaryColor={europeanIsHome ? playerTeamObj.primaryColor : europeanOpponent.primaryColor} secondaryColor={europeanIsHome ? playerTeamObj.secondaryColor : europeanOpponent.secondaryColor} size={80} />
+                            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{europeanIsHome ? playerTeamObj.name : europeanOpponent.name}</span>
+                            <span style={{ fontSize: '9px', color: '#888' }}>{europeanIsHome ? "HOME" : "AWAY"}</span>
                           </div>
 
-                          <div style={{ fontFamily: 'Orbitron', fontWeight: 'bold', fontSize: '16px', color: isEuropeanQualifierNext ? '#ffd700' : (isDomesticCupNext ? '#ff0055' : '#ff4500') }}>VS</div>
+                          <div style={{ fontFamily: 'Orbitron', fontWeight: 'bold', fontSize: '16px', color: '#00e5ff' }}>VS</div>
 
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
-                            <TeamFlag primaryColor={isHome ? opponentTeamObj.primaryColor : playerTeamObj.primaryColor} secondaryColor={isHome ? opponentTeamObj.secondaryColor : playerTeamObj.secondaryColor} size={80} />
-                            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{isHome ? opponentTeamObj.name : playerTeamObj.name}</span>
-                            <span style={{ fontSize: '9px', color: '#888' }}>{isHome ? "AWAY" : "HOME"}</span>
+                            <TeamFlag primaryColor={europeanIsHome ? europeanOpponent.primaryColor : playerTeamObj.primaryColor} secondaryColor={europeanIsHome ? europeanOpponent.secondaryColor : playerTeamObj.secondaryColor} size={80} />
+                            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{europeanIsHome ? europeanOpponent.name : playerTeamObj.name}</span>
+                            <span style={{ fontSize: '9px', color: '#888' }}>{europeanIsHome ? "AWAY" : "HOME"}</span>
                           </div>
                         </div>
+                      )}
 
-                        {isEuropeanQualifierNext ? (
-                          <div className="stats-box" style={{ width: '90%', padding: '10px 14px', fontSize: '11px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ color: '#ffd700', fontWeight: 'bold', fontFamily: 'Orbitron', letterSpacing: '0.5px' }}>
-                              {currentEvent.leg === 2
-                                ? `LEG 1: ${playerTeamObj.name} ${leagueState.europeanQualifierState.leg1HomeScore} - ${leagueState.europeanQualifierState.leg1AwayScore} ${opponentTeamObj.name}`
-                                : `WINNER ENTERS GROUP / LEAGUE STAGE (REPLACES ${opponentTeamObj.name.toUpperCase()})`}
-                            </span>
-                            <span style={{ color: '#9aa', fontSize: '10px' }}>
-                              {parseInt((season || '2001').split('/')[0], 10) < 2021
-                                ? '2-Leg Aggregate (Away Goals Rule Active • ET & Penalties if Tied)'
-                                : '2-Leg Aggregate (No Away Goals • ET & Penalties if Tied)'}
-                            </span>
-                          </div>
-                        ) : (() => {
-                          const oppPosition = opponentTeamObj ? (standings.findIndex(t => t.idnum === opponentTeamObj.idnum || t.name === opponentTeamObj.name) + 1) : 0;
-                          const homeTablePos = isHome ? playerPosition : (oppPosition > 0 ? oppPosition : null);
-                          const awayTablePos = isHome ? (oppPosition > 0 ? oppPosition : null) : playerPosition;
+                      {(!isRestWeek && clPlayerFixture && europeanOpponent) && (() => {
+                        const playerCupTeam = europeanCupState?.teams?.find(t => t.idnum === europeanCupState?.europeanPlayerTeamId);
+                        const clGroupStandings = (isEuropeanGroupStageNext && playerCupTeam?.group && typeof getCLGroupStandings === 'function')
+                          ? getCLGroupStandings(playerCupTeam.group)
+                          : (rules?.format === "league_then_knockout" && typeof getCLGroupStandings === 'function' ? getCLGroupStandings(null) : []);
+                        const pCupRank = clGroupStandings?.length ? clGroupStandings.findIndex(t => t.idnum === playerCupTeam?.idnum) + 1 : 0;
+                        const oppCupRank = clGroupStandings?.length ? clGroupStandings.findIndex(t => t.idnum === europeanOpponent?.idnum) + 1 : 0;
+                        const euroHomePos = europeanIsHome ? pCupRank : oppCupRank;
+                        const euroAwayPos = europeanIsHome ? oppCupRank : pCupRank;
+                        const isSwissLeague = rules?.format === "league_then_knockout";
+                        const euroTableLabel = isSwissLeague ? "LEAGUE PHASE" : (playerCupTeam?.group ? `GROUP ${playerCupTeam.group} TABLE` : "TABLE POSITION");
 
-                          return (
-                            <div className="stats-box" style={{ width: '90%', padding: '12px 16px', fontSize: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', alignItems: 'center', textAlign: 'center', width: '100%' }}>
-                                <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#ffd700', fontSize: '15px', fontFamily: 'Orbitron' }}>
-                                  {homeTablePos ? `${formatOrdinal(homeTablePos)} Place` : "—"}
-                                </span>
-                                <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
-                                  {isDomesticCupNext ? "LEAGUE POSITION" : "TABLE POSITION"}
-                                </span>
-                                <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#ffd700', fontSize: '15px', fontFamily: 'Orbitron' }}>
-                                  {awayTablePos ? `${formatOrdinal(awayTablePos)} Place` : "—"}
-                                </span>
-                              </div>
+                        return (
+                          <div className="stats-box" style={{ width: '90%', padding: '12px 16px', fontSize: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', alignItems: 'center', textAlign: 'center', width: '100%' }}>
+                              {isEuropeanGroupStageNext && euroHomePos > 0 && euroAwayPos > 0 ? (
+                                <>
+                                  <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#00e5ff', fontSize: '15px', fontFamily: 'Orbitron' }}>
+                                    {`${formatOrdinal(euroHomePos)} Place`}
+                                  </span>
+                                  <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                                    {euroTableLabel}
+                                  </span>
+                                  <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#00e5ff', fontSize: '15px', fontFamily: 'Orbitron' }}>
+                                    {`${formatOrdinal(euroAwayPos)} Place`}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#00e5ff', fontSize: '13px', fontFamily: 'Orbitron' }}>
+                                    KNOCKOUT
+                                  </span>
+                                  <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                                    {currentEvent?.stage ? currentEvent.stage.toUpperCase().replace(/_/g, " ") : "KNOCKOUT MATCH"}
+                                  </span>
+                                  <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#00e5ff', fontSize: '13px', fontFamily: 'Orbitron' }}>
+                                    KNOCKOUT
+                                  </span>
+                                </>
+                              )}
                             </div>
-                          );
-                        })()}
-                      </>
-                    )}
+                          </div>
+                        );
+                      })()}
 
-                    {(!playerFixture || !opponentTeamObj) ? (
-                      <button
-                        className="match-control-btn kickoff-theme-btn glowing-btn pulse"
-                        style={{ width: '95%', background: isDomesticCupNext ? 'linear-gradient(135deg, #ff0055, #ff4081)' : undefined, borderColor: isDomesticCupNext ? '#ff0055' : undefined }}
-                        onClick={handleSimulateRound}
-                      >
-                        {isDomesticCupNext ? "SIMULATE CUP ROUND ➔" : "SIMULATE ROUND ➔"}
-                      </button>
-                    ) : (
-                      <div style={{ display: 'flex', width: '95%', gap: '10px', justifyContent: 'center' }}>
+                      {(isRestWeek || !clPlayerFixture || !europeanOpponent) ? (
                         <button
                           className="match-control-btn kickoff-theme-btn glowing-btn pulse"
-                          style={{
-                            flex: 1,
-                            background: isEuropeanQualifierNext
-                              ? 'linear-gradient(135deg, #ffb300, #ffd700)'
-                              : (isDomesticCupNext ? 'linear-gradient(135deg, #ff0055, #ff4081)' : undefined),
-                            borderColor: isEuropeanQualifierNext ? '#ffd700' : (isDomesticCupNext ? '#ff0055' : undefined),
-                            color: isEuropeanQualifierNext ? '#121217' : undefined
-                          }}
-                          onClick={handleKickOff}
-                        >
-                          {isEuropeanQualifierNext
-                            ? `PLAY QUALIFIER LEG ${currentEvent.leg} ➔`
-                            : (isDomesticCupNext ? `PLAY CUP MATCH ➔` : `PLAY ROUND ${currentEvent.index}`)}
-                        </button>
-                        <button
-                          className="match-control-btn"
-                          style={{ width: '35%', fontSize: '11px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.02)', color: '#aaa', cursor: 'pointer' }}
+                          style={{ width: '95%', background: 'linear-gradient(135deg, #0091ff, #00e5ff)', borderColor: '#00e5ff' }}
                           onClick={handleSimulateRound}
                         >
-                          {isEuropeanQualifierNext ? "SIM LEG" : "SIM ROUND"}
+                          SIMULATE MIDWEEK ROUND ➔
                         </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
+                      ) : (
+                        <div style={{ display: 'flex', width: '95%', gap: '10px', justifyContent: 'center' }}>
+                          <button
+                            className="match-control-btn kickoff-theme-btn glowing-btn pulse"
+                            style={{ flex: 1, background: 'linear-gradient(135deg, #0091ff, #00e5ff)', borderColor: '#00e5ff' }}
+                            onClick={handleKickOff}
+                          >
+                            {isSouthAmerica ? "ENTER CONTINENTAL STAGE ➔" : "ENTER EUROPEAN STAGE ➔"}
+                          </button>
+                          <button
+                            className="match-control-btn"
+                            style={{ width: '35%', fontSize: '11px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.02)', color: '#aaa', cursor: 'pointer' }}
+                            onClick={handleSimulateRound}
+                          >
+                            SIM ROUND
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="team-card-title" style={{ color: isEuropeanQualifierNext ? '#ffd700' : (isDomesticCupNext ? '#ff0055' : '#00ff64') }}>
+                        {isEuropeanQualifierNext
+                          ? `🏆 ${leagueState?.europeanQualifierState?.competitionLabel || 'UEFA'} 3RD QUALIFYING ROUND (LEG ${currentEvent.leg}/2)`
+                          : (isDomesticCupNext ? `🥊 ${leagueState?.domesticCupState?.cupName?.toUpperCase() || 'DOMESTIC CUP'} MATCH` : "NEXT MATCH FIXTURE")}
+                      </h3>
+
+                      {(!playerFixture || !opponentTeamObj) ? (
+                        <div style={{ margin: '15px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '32px' }}>{isDomesticCupEliminated ? '❌' : '🥊'}</span>
+                          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>
+                            {isDomesticCupNext
+                              ? (isDomesticCupEliminated ? "ELIMINATED FROM CUP" : "REST / NEUTRAL CUP ROUND")
+                              : "NO UPCOMING FIXTURE"}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#aaa', padding: '0 15px', lineHeight: '1.4' }}>
+                            {isDomesticCupNext
+                              ? (isDomesticCupEliminated
+                                ? "You were eliminated in an earlier round. Click below to simulate this cup round and view the results."
+                                : "Your team has no match in this stage. Click below to simulate the round.")
+                              : "No upcoming match scheduled."}
+                          </span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="versus-preview" style={{ display: 'flex', width: '100%', justifyContent: 'space-around', alignItems: 'center', margin: '10px 0' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
+                              <TeamFlag primaryColor={isHome ? playerTeamObj.primaryColor : opponentTeamObj.primaryColor} secondaryColor={isHome ? playerTeamObj.secondaryColor : opponentTeamObj.secondaryColor} size={80} />
+                              <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{isHome ? playerTeamObj.name : opponentTeamObj.name}</span>
+                              <span style={{ fontSize: '9px', color: '#888' }}>{isHome ? "HOME" : "AWAY"}</span>
+                            </div>
+
+                            <div style={{ fontFamily: 'Orbitron', fontWeight: 'bold', fontSize: '16px', color: isEuropeanQualifierNext ? '#ffd700' : (isDomesticCupNext ? '#ff0055' : '#ff4500') }}>VS</div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '45%' }}>
+                              <TeamFlag primaryColor={isHome ? opponentTeamObj.primaryColor : playerTeamObj.primaryColor} secondaryColor={isHome ? opponentTeamObj.secondaryColor : playerTeamObj.secondaryColor} size={80} />
+                              <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#fff', textAlign: 'center', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>{isHome ? opponentTeamObj.name : playerTeamObj.name}</span>
+                              <span style={{ fontSize: '9px', color: '#888' }}>{isHome ? "AWAY" : "HOME"}</span>
+                            </div>
+                          </div>
+
+                          {isEuropeanQualifierNext ? (
+                            <div className="stats-box" style={{ width: '90%', padding: '10px 14px', fontSize: '11px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ color: '#ffd700', fontWeight: 'bold', fontFamily: 'Orbitron', letterSpacing: '0.5px' }}>
+                                {currentEvent.leg === 2
+                                  ? `LEG 1: ${playerTeamObj.name} ${leagueState.europeanQualifierState.leg1HomeScore} - ${leagueState.europeanQualifierState.leg1AwayScore} ${opponentTeamObj.name}`
+                                  : `WINNER ENTERS GROUP / LEAGUE STAGE (REPLACES ${opponentTeamObj.name.toUpperCase()})`}
+                              </span>
+                              <span style={{ color: '#9aa', fontSize: '10px' }}>
+                                {parseInt((season || '2001').split('/')[0], 10) < 2021
+                                  ? '2-Leg Aggregate (Away Goals Rule Active • ET & Penalties if Tied)'
+                                  : '2-Leg Aggregate (No Away Goals • ET & Penalties if Tied)'}
+                              </span>
+                            </div>
+                          ) : (() => {
+                            const oppPosition = opponentTeamObj ? (standings.findIndex(t => t.idnum === opponentTeamObj.idnum || t.name === opponentTeamObj.name) + 1) : 0;
+                            const homeTablePos = isHome ? playerPosition : (oppPosition > 0 ? oppPosition : null);
+                            const awayTablePos = isHome ? (oppPosition > 0 ? oppPosition : null) : playerPosition;
+
+                            return (
+                              <div className="stats-box" style={{ width: '90%', padding: '12px 16px', fontSize: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', alignItems: 'center', textAlign: 'center', width: '100%' }}>
+                                  <span style={{ textAlign: 'left', fontWeight: 'bold', color: '#ffd700', fontSize: '15px', fontFamily: 'Orbitron' }}>
+                                    {homeTablePos ? `${formatOrdinal(homeTablePos)} Place` : "—"}
+                                  </span>
+                                  <span style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', fontFamily: 'Orbitron' }}>
+                                    {isDomesticCupNext ? "LEAGUE POSITION" : "TABLE POSITION"}
+                                  </span>
+                                  <span style={{ textAlign: 'right', fontWeight: 'bold', color: '#ffd700', fontSize: '15px', fontFamily: 'Orbitron' }}>
+                                    {awayTablePos ? `${formatOrdinal(awayTablePos)} Place` : "—"}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </>
+                      )}
+
+                      {(!playerFixture || !opponentTeamObj) ? (
+                        <button
+                          className="match-control-btn kickoff-theme-btn glowing-btn pulse"
+                          style={{ width: '95%', background: isDomesticCupNext ? 'linear-gradient(135deg, #ff0055, #ff4081)' : undefined, borderColor: isDomesticCupNext ? '#ff0055' : undefined }}
+                          onClick={handleSimulateRound}
+                        >
+                          {isDomesticCupNext ? "SIMULATE CUP ROUND ➔" : "SIMULATE ROUND ➔"}
+                        </button>
+                      ) : (
+                        <div style={{ display: 'flex', width: '95%', gap: '10px', justifyContent: 'center' }}>
+                          <button
+                            className="match-control-btn kickoff-theme-btn glowing-btn pulse"
+                            style={{
+                              flex: 1,
+                              background: isEuropeanQualifierNext
+                                ? 'linear-gradient(135deg, #ffb300, #ffd700)'
+                                : (isDomesticCupNext ? 'linear-gradient(135deg, #ff0055, #ff4081)' : undefined),
+                              borderColor: isEuropeanQualifierNext ? '#ffd700' : (isDomesticCupNext ? '#ff0055' : undefined),
+                              color: isEuropeanQualifierNext ? '#121217' : undefined
+                            }}
+                            onClick={handleKickOff}
+                          >
+                            {isEuropeanQualifierNext
+                              ? `PLAY QUALIFIER LEG ${currentEvent.leg} ➔`
+                              : (isDomesticCupNext ? `PLAY CUP MATCH ➔` : `PLAY ROUND ${currentEvent.index}`)}
+                          </button>
+                          <button
+                            className="match-control-btn"
+                            style={{ width: '35%', fontSize: '11px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.02)', color: '#aaa', cursor: 'pointer' }}
+                            onClick={handleSimulateRound}
+                          >
+                            {isEuropeanQualifierNext ? "SIM LEG" : "SIM ROUND"}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )
             ) : (
               (() => {
                 const verdict = getBoardVerdict(playerPosition, finalExpectation);
@@ -6080,11 +6323,13 @@ export default function LeagueDashboard() {
                       {verdict.verdict}
                     </div>
 
-                    <div className="stats-box" style={{ width: '90%', padding: '8px 12px', gap: '3px', fontSize: '11.5px', textAlign: 'center' }}>
-                      <div style={{ fontWeight: 'bold', color: '#fff' }}>
-                        Pos {playerPosition} | Pts {playerTeamObj.points} | GD {playerTeamObj.gf - playerTeamObj.ga}
+                    {!leagueState?.isUnemployed && playerTeamObj && (
+                      <div className="stats-box" style={{ width: '90%', padding: '8px 12px', gap: '3px', fontSize: '11.5px', textAlign: 'center' }}>
+                        <div style={{ fontWeight: 'bold', color: '#fff' }}>
+                          Pos {playerPosition} | Pts {playerTeamObj.points} | GD {playerTeamObj.gf - playerTeamObj.ga}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {verdict.tier === "disgraced" ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '95%', alignItems: 'center' }}>
@@ -6102,71 +6347,72 @@ export default function LeagueDashboard() {
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', width: '100%', marginTop: '10px' }}>
 
-                        {/* Renewal Option (Stay at current club) */}
-                        <div style={{
-                          background: 'rgba(255,255,255,0.02)',
-                          border: '1px solid rgba(255,255,255,0.06)',
-                          borderRadius: '10px',
-                          padding: '12px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px'
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '11px', color: '#aaa', fontWeight: 'bold' }}>CURRENT CLUB CONTRACT</span>
-                            <span style={{
-                              fontSize: '9px',
-                              padding: '2px 6px',
-                              borderRadius: '3px',
-                              background: verdict.tier !== "decent_sacked" ? 'rgba(0, 255, 100, 0.1)' : 'rgba(255, 51, 81, 0.1)',
-                              color: verdict.tier !== "decent_sacked" ? '#00ff64' : '#ff3333'
-                            }}>
-                              {verdict.tier !== "decent_sacked" ? "OFFERED" : "SACKED"}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <TeamFlag primaryColor={playerTeamObj.primaryColor} secondaryColor={playerTeamObj.secondaryColor} size={30} />
-                            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                              <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#fff' }}>{playerTeamObj.name}</span>
-                              <span style={{ fontSize: '10px', color: '#888' }}>Expectation: {finalExpectation.text}</span>
+                        {!leagueState?.isUnemployed && playerTeamObj && (
+                          <div style={{
+                            background: 'rgba(255,255,255,0.02)',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            borderRadius: '10px',
+                            padding: '12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '11px', color: '#aaa', fontWeight: 'bold' }}>CURRENT CLUB CONTRACT</span>
+                              <span style={{
+                                fontSize: '9px',
+                                padding: '2px 6px',
+                                borderRadius: '3px',
+                                background: verdict.tier !== "decent_sacked" ? 'rgba(0, 255, 100, 0.1)' : 'rgba(255, 51, 81, 0.1)',
+                                color: verdict.tier !== "decent_sacked" ? '#00ff64' : '#ff3333'
+                              }}>
+                                {verdict.tier !== "decent_sacked" ? "OFFERED" : "SACKED"}
+                              </span>
                             </div>
-                          </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <TeamFlag primaryColor={playerTeamObj.primaryColor} secondaryColor={playerTeamObj.secondaryColor} size={30} />
+                              <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                                <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#fff' }}>{playerTeamObj.name}</span>
+                                <span style={{ fontSize: '10px', color: '#888' }}>Expectation: {finalExpectation.text}</span>
+                              </div>
+                            </div>
 
-                          {verdict.tier !== "decent_sacked" ? (
-                            <button
-                              className="play-match-btn glowing-btn pulse"
-                              style={{
-                                fontSize: '11px',
-                                padding: '8px',
-                                width: '100%',
-                                borderColor: '#00ff64',
-                                color: '#00ff64',
-                                background: 'rgba(0, 255, 100, 0.03)'
-                              }}
-                              onClick={() => {
-                                handleSignContract(playerTeamId);
-                              }}
-                            >
-                              ⚽ STAY & RENEW CONTRACT
-                            </button>
-                          ) : (
-                            <button
-                              className="play-match-btn"
-                              disabled
-                              style={{
-                                fontSize: '11px',
-                                padding: '8px',
-                                width: '100%',
-                                borderColor: 'rgba(255,255,255,0.05)',
-                                color: '#666',
-                                background: 'rgba(0,0,0,0.2)',
-                                cursor: 'not-allowed'
-                              }}
-                            >
-                              🔒 CONTRACT TERMINATED
-                            </button>
-                          )}
-                        </div>
+                            {verdict.tier !== "decent_sacked" ? (
+                              <button
+                                className="play-match-btn glowing-btn pulse"
+                                style={{
+                                  fontSize: '11px',
+                                  padding: '8px',
+                                  width: '100%',
+                                  borderColor: '#00ff64',
+                                  color: '#00ff64',
+                                  background: 'rgba(0, 255, 100, 0.03)'
+                                }}
+                                onClick={() => {
+                                  handleSignContract(playerTeamId);
+                                }}
+                              >
+                                ⚽ STAY & RENEW CONTRACT
+                              </button>
+                            ) : (
+                              <button
+                                className="play-match-btn"
+                                disabled
+                                style={{
+                                  fontSize: '11px',
+                                  padding: '8px',
+                                  width: '100%',
+                                  borderColor: 'rgba(255,255,255,0.05)',
+                                  color: '#666',
+                                  background: 'rgba(0,0,0,0.2)',
+                                  cursor: 'not-allowed'
+                                }}
+                              >
+                                🔒 CONTRACT TERMINATED
+                              </button>
+                            )}
+                          </div>
+                        )}
 
                         {/* Job Offers Grid */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -6289,9 +6535,9 @@ export default function LeagueDashboard() {
             {/* Manager Photo Upload & Preview */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
               <div style={{
-                width: '110px',
-                height: '110px',
-                borderRadius: '50%',
+                width: '180px',
+                height: '180px',
+                borderRadius: 0,
                 border: '2.5px solid #00ff64',
                 overflow: 'hidden',
                 display: 'flex',
@@ -6304,7 +6550,7 @@ export default function LeagueDashboard() {
                 {(editPhoto || managerProfile?.photo) ? (
                   <img src={editPhoto || managerProfile?.photo} alt="Manager Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <span style={{ fontSize: '48px' }}>👔</span>
+                  <span style={{ fontSize: '68px' }}>👔</span>
                 )}
               </div>
 
@@ -6337,29 +6583,24 @@ export default function LeagueDashboard() {
               boxShadow: 'inset 0 0 10px rgba(255,215,0,0.05)'
             }}>
               <span style={{ fontSize: '9px', color: '#ffd700', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>Manager Reputation</span>
-              <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', fontFamily: 'Orbitron', marginTop: '2px' }}>
-                {calculateManagerPrestige(managerProfile)} PTS
-              </span>
-              <span style={{
-                fontSize: '9.5px',
-                color: (() => {
-                  const p = calculateManagerPrestige(managerProfile);
-                  if (p < 50) return '#00ff64'; // Local Amateur
-                  if (p < 150) return '#00e5ff'; // Regional Pro
-                  if (p < 300) return '#a020f0'; // Elite Coach
-                  return '#ffd700'; // Legendary Boss
-                })(),
-                fontWeight: 'bold',
-                marginTop: '2px'
-              }}>
-                {(() => {
-                  const p = calculateManagerPrestige(managerProfile);
-                  if (p < 50) return '🟢 LOCAL AMATEUR';
-                  if (p < 150) return '🔵 REGIONAL PROFESSIONAL';
-                  if (p < 300) return '🟣 ELITE COACH';
-                  return '🟡 LEGENDARY BOSS';
-                })()}
-              </span>
+              {(() => {
+                const lvl = getManagerLevelProgress(managerProfile);
+                return (
+                  <>
+                    <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', fontFamily: 'Orbitron', marginTop: '2px' }}>
+                      {lvl.prestige.toLocaleString()} PTS
+                    </span>
+                    <span style={{ fontSize: '9.5px', color: lvl.color, fontWeight: 'bold', marginTop: '2px' }}>
+                      {lvl.icon} {lvl.label}
+                    </span>
+                    {lvl.nextThreshold != null && (
+                      <span style={{ fontSize: '8.5px', color: '#aaa', marginTop: '3px' }}>
+                        {lvl.pointsToNext.toLocaleString()} PTS to next level ({lvl.nextThreshold.toLocaleString()} PTS)
+                      </span>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             {/* Name Editor Box */}
@@ -6383,6 +6624,38 @@ export default function LeagueDashboard() {
                 }}
                 maxLength={20}
               />
+            </div>
+
+            {/* Nationality Editor Box */}
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'left' }}>Nationality</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '26px', display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+                  {editNationality ? <NationFlag nation={editNationality} size={22} /> : <span style={{ fontSize: '14px' }}>🏳️</span>}
+                </div>
+                <select
+                  value={editNationality}
+                  onChange={(e) => setEditNationality(e.target.value)}
+                  style={{
+                    flex: 1,
+                    background: 'rgba(0,0,0,0.65)',
+                    border: '1px solid rgba(0,229,255,0.3)',
+                    borderRadius: '8px',
+                    padding: '8px 10px',
+                    color: '#fff',
+                    fontSize: '12.5px',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">-- Select Nationality --</option>
+                  {NATIONALITIES.map((nat) => (
+                    <option key={nat.code} value={nat.code}>
+                      {nat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Lifetime Statistics Feed */}
@@ -6550,13 +6823,13 @@ export default function LeagueDashboard() {
           ? leagueState?.europeanCupState?.teams
           : resultsModalTheme === "#ff0055"
             ? [
-                ...(leagueState?.domesticCupState?.participatingTeams || []),
-                ...(leagueState?.teams || [])
-              ]
+              ...(leagueState?.domesticCupState?.participatingTeams || []),
+              ...(leagueState?.teams || [])
+            ]
             : [
-                ...(leagueState?.teams || []),
-                ...(leagueState?.europeanQualifierState?.opponent ? [leagueState.europeanQualifierState.opponent] : [])
-              ]}
+              ...(leagueState?.teams || []),
+              ...(leagueState?.europeanQualifierState?.opponent ? [leagueState.europeanQualifierState.opponent] : [])
+            ]}
         playerTeamId={resultsModalTheme === "#00e5ff" ? leagueState?.europeanCupState?.europeanPlayerTeamId : leagueState?.playerTeamId}
         roundTitle={resultsModalTitle}
         themeColor={resultsModalTheme}

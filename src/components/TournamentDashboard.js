@@ -10,6 +10,8 @@ import Fixtures from './Fixtures';
 import { generateInitialNews } from '../utils/newsGenerator';
 import { simulateFixture as simulateFixtureEngine } from '../utils/matchEngine';
 import { scaleStatTo10 } from '../data/rosters/rosterRegistry';
+import NationFlag from './NationFlag';
+import { NATIONALITIES, resolveNationality } from '../utils/nationalities';
 
 // Reuse our TeamFlag component
 const TeamFlag = ({ primaryColor, secondaryColor, size = 32 }) => {
@@ -81,6 +83,7 @@ export default function TournamentDashboard() {
     } catch (e) {}
     return {
       name: "Sir Alex",
+      nationality: "",
       photo: null,
       seasons: 0,
       wins: 0,
@@ -108,6 +111,13 @@ export default function TournamentDashboard() {
       if (saved) return JSON.parse(saved).photo || null;
     } catch (e) {}
     return null;
+  });
+  const [editNationality, setEditNationality] = useState(() => {
+    try {
+      const saved = localStorage.getItem("retro_manager_profile");
+      if (saved) return JSON.parse(saved).nationality || "";
+    } catch (e) {}
+    return "";
   });
   const [showFormationModal, setShowFormationModal] = useState(false);
 
@@ -190,9 +200,11 @@ export default function TournamentDashboard() {
       setManagerProfile(parsedProfile);
       setEditName(parsedProfile.name || parsedState.managerName || "Sir Alex");
       setEditPhoto(parsedProfile.photo || null);
+      setEditNationality(parsedProfile.nationality || parsedState.managerNationality || "");
     } else {
       const initialProfile = {
         name: parsedState.managerName || "Sir Alex",
+        nationality: parsedState.managerNationality || (parsedState.managerName === "Sir Alex" ? "gb-sct" : ""),
         photo: null,
         seasons: 0,
         wins: 0,
@@ -209,6 +221,7 @@ export default function TournamentDashboard() {
       setManagerProfile(initialProfile);
       setEditName(initialProfile.name);
       setEditPhoto(null);
+      setEditNationality(initialProfile.nationality);
     }
   }, [navigate]);
 
@@ -216,20 +229,24 @@ export default function TournamentDashboard() {
   const handleOpenProfileModal = () => {
     setEditName(managerProfile.name || "Sir Alex");
     setEditPhoto(managerProfile.photo || null);
+    setEditNationality(managerProfile.nationality || tournamentState?.managerNationality || "");
     setShowProfileModal(true);
   };
 
   const handleCancelProfile = () => {
     setEditName(managerProfile.name || "Sir Alex");
     setEditPhoto(managerProfile.photo || null);
+    setEditNationality(managerProfile.nationality || tournamentState?.managerNationality || "");
     setShowProfileModal(false);
   };
 
   const handleSaveProfile = () => {
     const photoToSave = editPhoto || managerProfile.photo || null;
+    const nationalityToSave = editNationality || "";
     const updated = {
       ...managerProfile,
       name: editName,
+      nationality: nationalityToSave,
       photo: photoToSave
     };
     try {
@@ -239,10 +256,11 @@ export default function TournamentDashboard() {
     }
     setManagerProfile(updated);
     setEditPhoto(photoToSave);
+    setEditNationality(nationalityToSave);
 
-    // Sync current active tournament's manager name
+    // Sync current active tournament's manager name & nationality
     if (tournamentState) {
-      const stateCopy = { ...tournamentState, managerName: editName };
+      const stateCopy = { ...tournamentState, managerName: editName, managerNationality: nationalityToSave };
       localStorage.setItem("retro_tournament_state", JSON.stringify(stateCopy));
       setTournamentState(stateCopy);
     }
@@ -1238,7 +1256,7 @@ export default function TournamentDashboard() {
 
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              width: '110px', height: '110px', borderRadius: '50%',
+              width: '180px', height: '180px', borderRadius: 0,
               border: '2.5px solid #00ff64', overflow: 'hidden',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: 'rgba(0,0,0,0.5)', boxShadow: '0 0 15px rgba(0,255,100,0.2)'
@@ -1246,7 +1264,7 @@ export default function TournamentDashboard() {
               {(editPhoto || managerProfile?.photo) ? (
                 <img src={editPhoto || managerProfile?.photo} alt="Manager Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <span style={{ fontSize: '48px' }}>👔</span>
+                <span style={{ fontSize: '68px' }}>👔</span>
               )}
             </div>
 
@@ -1258,6 +1276,20 @@ export default function TournamentDashboard() {
               📷 UPLOAD PHOTO
               <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
             </label>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              {(managerProfile?.nationality || editNationality) && (
+                <NationFlag nation={managerProfile?.nationality || editNationality} size={22} />
+              )}
+              <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#fff', fontFamily: 'Orbitron' }}>
+                {managerProfile?.name || editName || 'Manager'}
+              </span>
+              {resolveNationality(managerProfile?.nationality || editNationality) && (
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  ({resolveNationality(managerProfile?.nationality || editNationality).name})
+                </span>
+              )}
+            </div>
           </div>
 
           <div style={{
@@ -1289,8 +1321,8 @@ export default function TournamentDashboard() {
             </span>
           </div>
 
-          <div style={{ width: '90%', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-            <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Edit Name</label>
+          <div style={{ width: '90%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Edit Name & Nationality</label>
             <div style={{ display: 'flex', gap: '10px' }}>
               <input
                 type="text"
@@ -1311,6 +1343,27 @@ export default function TournamentDashboard() {
               >
                 SAVE
               </button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '26px', display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+                {editNationality ? <NationFlag nation={editNationality} size={22} /> : <span style={{ fontSize: '14px' }}>🏳️</span>}
+              </div>
+              <select
+                value={editNationality}
+                onChange={(e) => setEditNationality(e.target.value)}
+                style={{
+                  flex: 1, background: 'rgba(0,0,0,0.65)', border: '1px solid rgba(0,229,255,0.3)',
+                  borderRadius: '8px', padding: '7px 10px', color: '#fff', fontSize: '12px',
+                  outline: 'none', cursor: 'pointer'
+                }}
+              >
+                <option value="">-- Select Nationality --</option>
+                {NATIONALITIES.map((nat) => (
+                  <option key={nat.code} value={nat.code}>
+                    {nat.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -1784,9 +1837,9 @@ export default function TournamentDashboard() {
             {/* Manager Photo Upload & Preview */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
               <div style={{
-                width: '110px',
-                height: '110px',
-                borderRadius: '50%',
+                width: '180px',
+                height: '180px',
+                borderRadius: 0,
                 border: '2.5px solid #00ff64',
                 overflow: 'hidden',
                 display: 'flex',
@@ -1799,7 +1852,7 @@ export default function TournamentDashboard() {
                 {(editPhoto || managerProfile?.photo) ? (
                   <img src={editPhoto || managerProfile?.photo} alt="Manager Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <span style={{ fontSize: '48px' }}>👔</span>
+                  <span style={{ fontSize: '68px' }}>👔</span>
                 )}
               </div>
 
@@ -1878,6 +1931,38 @@ export default function TournamentDashboard() {
                 }}
                 maxLength={20}
               />
+            </div>
+
+            {/* Nationality Editor Box */}
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <label style={{ fontSize: '10px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'left' }}>Nationality</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '26px', display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+                  {editNationality ? <NationFlag nation={editNationality} size={22} /> : <span style={{ fontSize: '14px' }}>🏳️</span>}
+                </div>
+                <select
+                  value={editNationality}
+                  onChange={(e) => setEditNationality(e.target.value)}
+                  style={{
+                    flex: 1,
+                    background: 'rgba(0,0,0,0.65)',
+                    border: '1px solid rgba(0,229,255,0.3)',
+                    borderRadius: '8px',
+                    padding: '8px 10px',
+                    color: '#fff',
+                    fontSize: '12.5px',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">-- Select Nationality --</option>
+                  {NATIONALITIES.map((nat) => (
+                    <option key={nat.code} value={nat.code}>
+                      {nat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Lifetime Statistics Feed */}
