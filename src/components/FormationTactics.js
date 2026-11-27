@@ -610,6 +610,26 @@ const nameDatabase = {
     first: ["Andriy", "Serhiy", "Oleksandr", "Anatoliy", "Taras", "Ruslan", "Viktor", "Artem", "Vitaliy", "Mykola", "Yevhen", "Dmytro", "Ihor", "Vladyslav", "Roman"],
     last: ["Shevchenko", "Rebrov", "Voronin", "Tymoshchuk", "Yarmolenko", "Konoplyanka", "Zinchenko", "Mudryk", "Shovkovskyi", "Milevskyi", "Stepanenko", "Rotan", "Malinovskyi", "Tsygankov", "Pyatov"]
   },
+  yugoslavia: {
+    first: ["Dragan", "Dejan", "Darko", "Safet", "Robert", "Predrag", "Zvonimir", "Vladimir", "Davor", "Sinisa", "Srecko", "Meho", "Alen", "Slavisa"],
+    last: ["Stojkovic", "Savicevic", "Pancev", "Susic", "Prosinecki", "Mijatovic", "Boban", "Jugovic", "Suker", "Mihajlovic", "Katanec", "Kodro", "Boksic", "Jokanovic"]
+  },
+  fr_yugoslavia: {
+    first: ["Predrag", "Dejan", "Savo", "Sinisa", "Vladimir", "Mateja", "Dragan", "Miroslav", "Albert", "Darko", "Nisa", "Ljubinko", "Ivica", "Zoran"],
+    last: ["Mijatovic", "Stankovic", "Milosevic", "Mihajlovic", "Jugovic", "Kezman", "Ciric", "Djukic", "Nadj", "Kovacevic", "Saveljic", "Drulovic", "Kralj", "Mirkovic"]
+  },
+  serbia: {
+    first: ["Nemanja", "Dusan", "Aleksandar", "Sergej", "Branislav", "Luka", "Filip", "Nikola", "Strahinja", "Marko", "Ivan", "Stefan", "Milos", "Zoran"],
+    last: ["Vidic", "Tadic", "Mitrovic", "Vlahovic", "Ivanovic", "Kolarov", "Kostic", "Milinkovic-Savic", "Pavlovic", "Matic", "Stankovic", "Zigic", "Jovic", "Lukic"]
+  },
+  croatia: {
+    first: ["Davor", "Zvonimir", "Luka", "Ivan", "Mario", "Robert", "Darijo", "Niko", "Vedran", "Marcelo", "Josko", "Mateo", "Andrej", "Bruno"],
+    last: ["Suker", "Boban", "Modric", "Rakitic", "Mandzukic", "Prosinecki", "Srna", "Kovac", "Corluka", "Brozovic", "Gvardiol", "Kovacic", "Kramaric", "Petkovic"]
+  },
+  ussr: {
+    first: ["Rinat", "Oleh", "Ihor", "Oleksiy", "Fedor", "Sergei", "Vasyl", "Volodymyr", "Alexei", "Anatoliy", "Vagiz", "Gennady", "Alexander", "Viktor"],
+    last: ["Dasayev", "Protasov", "Belanov", "Mykhaylychenko", "Cherenkov", "Aleinikov", "Rats", "Bessonov", "Chivadze", "Demyanenko", "Khidiyatullin", "Litovchenko", "Zavarov", "Mostovoi"]
+  },
   mexico: {
     first: ["Hugo", "Cuauhtemoc", "Rafael", "Jared", "Jorge", "Oswaldo", "Carlos", "Guillermo", "Javier", "Andres", "Hirving", "Hector", "Oribe", "Giovani", "Luis"],
     last: ["Sanchez", "Blanco", "Marquez", "Borgetti", "Campos", "Pardo", "Salcido", "Ochoa", "Hernandez", "Guardado", "Lozano", "Herrera", "Peralta", "Dos Santos", "Jimenez"]

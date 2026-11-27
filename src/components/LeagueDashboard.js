@@ -22,7 +22,7 @@ import TransferModal from './TransferModal';
 import NewsFeed from './NewsFeed';
 import Fixtures from './Fixtures';
 import { createDomesticCup, advanceDomesticCup, getDomesticCupExpectation, CUP_STAGE_NAMES } from '../utils/domesticCupGenerator';
-import { generateInitialNews, generateMatchdayNews, generateDomesticCupDrawNews, generateDomesticCupMatchNews, generateMonthlyAwardsNews, generateYearlyAwardsNews, generateRetirementNews, getQualitativeRating } from '../utils/newsGenerator';
+import { generateInitialNews, generateMatchdayNews, generateDomesticCupDrawNews, generateDomesticCupMatchNews, generateMonthlyAwardsNews, generateYearlyAwardsNews, generateRetirementNews, getQualitativeRating, appendAndPruneNews, pruneNewsFeed } from '../utils/newsGenerator';
 import { checkMonthConclusion, generateMatchEvents, recordMatchEventsInStats, calculateMonthlyAwards, calculateYearlyAwards, awardManagerTitle, repairCareerAwardManagerNames } from '../utils/awardsManager';
 import { loadSeasonRosters, cleanStale1To5Rosters, scaleStatTo10, getTeamDetailsSync, getPrebuiltRoster, getTransferMarketPool, advancePlayerSquadForNextSeason, calculateSquadTacticalAverages, clearCareerTransferLedger } from '../data/rosters/rosterRegistry';
 import { applyTeamTheme, resetToDefaultTheme } from '../utils/themeManager';
@@ -56,16 +56,22 @@ import {
   buildEuropeanCupSetup,
   insertEuropeanEventsIntoCalendar,
   resolveTwoLegTie,
-  getQualifierCompetitionTitle
+  getQualifierCompetitionTitle,
+  isSameEuropeanClubName
 } from '../utils/europeanQualifierHelper';
+import {
+  HISTORICAL_FEDERATION_COUNTRIES,
+  buildExYugoslaviaNextSeason,
+  getSuccessorFederation
+} from '../utils/exYugoslaviaRollover';
 
 const SA_COUNTRIES = new Set(["argentina", "brazil", "colombia"]);
 const NA_COUNTRIES = new Set(["usa", "mexico"]);
 
 const getLeagueRoundCycles = (countryKey, teamsCount) => {
   if (countryKey === "usa") return 1;
-  if ((countryKey === "scotland" || countryKey === "denmark") && teamsCount === 12) return 3;
-  if (countryKey === "scotland" && teamsCount === 10) return 4;
+  if ((countryKey === "scotland" || countryKey === "denmark" || countryKey === "croatia" || countryKey === "serbia" || countryKey === "fr_yugoslavia") && teamsCount === 12) return 3;
+  if ((countryKey === "scotland" || countryKey === "croatia") && teamsCount === 10) return 4;
   return 2;
 };
 
@@ -279,6 +285,31 @@ const countryBackupTeams = {
     { name: "Hobro", primaryColor: "#FFD700", secondaryColor: "#0038A8", kit: "mex86/3.png" },
     { name: "Hvidovre", primaryColor: "#D90429", secondaryColor: "#FFFFFF", kit: "ger88/1.png" },
     { name: "Fredericia", primaryColor: "#D90429", secondaryColor: "#111111", kit: "ger88/1.png" }
+  ],
+  yugoslavia: [
+    { name: "Napredak Krusevac", primaryColor: "#D90429", secondaryColor: "#FFFFFF", kit: "ger88/1.png" },
+    { name: "OFK Beograd", primaryColor: "#005EB8", secondaryColor: "#FFFFFF", kit: "swe92/5.png" },
+    { name: "Celik Zenica", primaryColor: "#D90429", secondaryColor: "#000000", kit: "ger88/1.png" }
+  ],
+  fr_yugoslavia: [
+    { name: "Napredak Krusevac", primaryColor: "#D90429", secondaryColor: "#FFFFFF", kit: "ger88/1.png" },
+    { name: "Radnicki Nis", primaryColor: "#D90429", secondaryColor: "#FFFFFF", kit: "ger88/1.png" },
+    { name: "Borac Cacak", primaryColor: "#D90429", secondaryColor: "#FFFFFF", kit: "swe92/3.png" }
+  ],
+  serbia: [
+    { name: "Javor Ivanjica", primaryColor: "#FFFFFF", secondaryColor: "#005EB8", kit: "swe92/0.png" },
+    { name: "Radnik Surdulica", primaryColor: "#005EB8", secondaryColor: "#FFFFFF", kit: "swe92/0.png" },
+    { name: "Metalac Gornji Milanovac", primaryColor: "#005EB8", secondaryColor: "#FFFFFF", kit: "swe92/0.png" }
+  ],
+  croatia: [
+    { name: "Cibalia", primaryColor: "#005EB8", secondaryColor: "#FFFFFF", kit: "swe92/0.png" },
+    { name: "Rudes", primaryColor: "#003399", secondaryColor: "#FFFFFF", kit: "swe92/0.png" },
+    { name: "Orijent", primaryColor: "#D90429", secondaryColor: "#FFFFFF", kit: "ger88/1.png" }
+  ],
+  ussr: [
+    { name: "Neftchi Baku", primaryColor: "#000000", secondaryColor: "#FFFFFF", kit: "swe92/3.png" },
+    { name: "Kairat Almaty", primaryColor: "#FFD700", secondaryColor: "#000000", kit: "mex86/3.png" },
+    { name: "Rotor Volgograd", primaryColor: "#003399", secondaryColor: "#FFFFFF", kit: "swe92/0.png" }
   ]
 };
 
@@ -806,7 +837,7 @@ export default function LeagueDashboard() {
           season: career.season
         });
 
-        career.newsFeed = [...awardStories, ...(career.newsFeed || [])];
+        career.newsFeed = appendAndPruneNews(career.newsFeed, awardStories, roundNumber);
       }
     }
 
@@ -839,7 +870,7 @@ export default function LeagueDashboard() {
         season: career.season
       });
 
-      career.newsFeed = [...yearlyStories, ...(career.newsFeed || [])];
+      career.newsFeed = appendAndPruneNews(career.newsFeed, yearlyStories, roundNumber);
     }
 
     return career;
@@ -896,6 +927,7 @@ export default function LeagueDashboard() {
     return "";
   });
   const [nextSeasonTeams, setNextSeasonTeams] = useState([]);
+  const [seasonRolloverMeta, setSeasonRolloverMeta] = useState(null);
   const [jobOffers, setJobOffers] = useState([]);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showFormationModal, setShowFormationModal] = useState(false);
@@ -1071,6 +1103,11 @@ export default function LeagueDashboard() {
         }
         return item;
       });
+      const prunedLoadedNews = pruneNewsFeed(parsedCareer.newsFeed, parsedCareer.currentRound || 1);
+      if (prunedLoadedNews.length !== parsedCareer.newsFeed.length) {
+        parsedCareer.newsFeed = prunedLoadedNews;
+        newsSanitized = true;
+      }
       if (newsSanitized) {
         localStorage.setItem("retro_league_career", JSON.stringify(parsedCareer));
       }
@@ -1144,7 +1181,7 @@ export default function LeagueDashboard() {
             const otherNews = (parsedCareer.newsFeed || []).filter(
               n => !(n.round === lastCompletedRound && (n.category === "award" || n.category === "yearlyAward"))
             );
-            parsedCareer.newsFeed = [...existingRoundAwards, ...newStories, ...otherNews];
+            parsedCareer.newsFeed = pruneNewsFeed([...existingRoundAwards, ...newStories, ...otherNews], lastCompletedRound);
             localStorage.setItem("retro_league_career", JSON.stringify(parsedCareer));
           }
         }
@@ -1190,10 +1227,11 @@ export default function LeagueDashboard() {
           stageName: CUP_STAGE_NAMES[firstStg] || firstStg,
           teamName: pTeam ? pTeam.name : "Your Team",
           opponentName: oppName,
-          managerName: parsedCareer.managerName || "Sir Alex"
+          managerName: parsedCareer.managerName || "Sir Alex",
+          round: parsedCareer.currentRound || 1
         });
         const newsFiltered = (parsedCareer.newsFeed || []).filter(n => n.category !== "cup" || n.dateStr !== "Cup Draw");
-        parsedCareer.newsFeed = [drawNews, ...newsFiltered];
+        parsedCareer.newsFeed = appendAndPruneNews(newsFiltered, drawNews, parsedCareer.currentRound || 1);
       }
 
       if (!parsedCareer.calendar) {
@@ -1341,39 +1379,46 @@ export default function LeagueDashboard() {
     }
 
     const nextStartYrStr = String(nextStartYr);
-    const hasD2 = leagueDataMapD2[nextStartYrStr] && leagueDataMapD2[nextStartYrStr][currentCountry];
-    const isSACareer = SA_COUNTRIES.has(currentCountry);
-    const isNACareer = NA_COUNTRIES.has(currentCountry);
+    const effectiveDomesticCountry = HISTORICAL_FEDERATION_COUNTRIES.has(currentCountry)
+      ? getSuccessorFederation(currentCountry, nextStartYr)
+      : currentCountry;
+    const hasD2 = leagueDataMapD2[nextStartYrStr] && leagueDataMapD2[nextStartYrStr][effectiveDomesticCountry];
+    const isSACareer = SA_COUNTRIES.has(effectiveDomesticCountry);
+    const isNACareer = NA_COUNTRIES.has(effectiveDomesticCountry);
 
     const activeD1MapCareer = isNACareer ? leagueDataMapNA : (isSACareer ? leagueDataMapSA : leagueDataMap);
-    const d1Teams = (activeD1MapCareer[nextStartYrStr] && activeD1MapCareer[nextStartYrStr][currentCountry])
-      ? activeD1MapCareer[nextStartYrStr][currentCountry].map(t => ({ ...t, division: 1 }))
+    const d1Teams = (activeD1MapCareer[nextStartYrStr] && activeD1MapCareer[nextStartYrStr][effectiveDomesticCountry])
+      ? activeD1MapCareer[nextStartYrStr][effectiveDomesticCountry].map(t => ({ ...t, division: 1 }))
       : [];
     const d2Teams = (hasD2)
-      ? leagueDataMapD2[nextStartYrStr][currentCountry].map(t => ({ ...t, division: 2 }))
+      ? leagueDataMapD2[nextStartYrStr][effectiveDomesticCountry].map(t => ({ ...t, division: 2 }))
       : [];
 
     const allDomesticRoster = [...d1Teams, ...d2Teams];
 
     // Sort other teams in next season's league by overall quality
     const otherDomesticTeams = allDomesticRoster
-      .filter(t => t.idnum !== playerTeamId)
+      .filter(t => effectiveDomesticCountry !== currentCountry || t.idnum !== playerTeamId)
       .map(t => ({
         ...t,
-        country: currentCountry,
+        country: effectiveDomesticCountry,
         rating: (t.attack + t.midfield + t.defense) / 3
       }))
       .sort((a, b) => b.rating - a.rating);
 
     // Filter teams to ensure we only present offers within the manager's prestige ceiling
     const allowedDomesticTeams = otherDomesticTeams.filter(t => t.rating <= maxRating);
-    const domesticPool = allowedDomesticTeams.length > 0 ? allowedDomesticTeams : [otherDomesticTeams[otherDomesticTeams.length - 1]];
+    const domesticPool = allowedDomesticTeams.length > 0
+      ? allowedDomesticTeams
+      : (otherDomesticTeams.length > 0 ? [otherDomesticTeams[otherDomesticTeams.length - 1]] : []);
 
     let domesticOffers = [];
     const highRatingFloor = Math.max(1.5, maxRating - 0.5);
     const midRatingFloor = Math.max(1.0, maxRating - 1.2);
 
-    if (tier === "outstanding") {
+    if (domesticPool.length === 0) {
+      domesticOffers = [];
+    } else if (tier === "outstanding") {
       const highTier = domesticPool.filter(t => t.rating >= highRatingFloor);
       const midTier = domesticPool.filter(t => t.rating >= midRatingFloor && t.rating < highRatingFloor);
 
@@ -1598,6 +1643,26 @@ export default function LeagueDashboard() {
           ...t,
           played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0
         }));
+        setSeasonRolloverMeta(null);
+      } else if (HISTORICAL_FEDERATION_COUNTRIES.has(country)) {
+        const rollover = buildExYugoslaviaNextSeason({
+          country,
+          nextStartYr,
+          teams,
+          playerTeamId,
+          leagueDataMap,
+          scaleStat: scaleStatTo10
+        });
+        updatedTeams = rollover.nextTeams.length > 0 ? rollover.nextTeams : teams.map(t => ({
+          ...t,
+          played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0
+        }));
+        setSeasonRolloverMeta({
+          canRenew: rollover.canRenew,
+          targetCountry: rollover.targetCountry,
+          exitReason: rollover.exitReason,
+          resolvedPlayerTeamName: rollover.resolvedPlayerTeamName
+        });
       } else {
         // Fallback: old relegation/promotion system
         const relegatedTeams = standingsSorted.slice(-3);
@@ -1697,8 +1762,8 @@ export default function LeagueDashboard() {
         ...leagueState,
         worldState: synced.worldState,
         newsFeed: synced.newsItems.length > 0
-          ? [...synced.newsItems, ...(leagueState.newsFeed || [])]
-          : leagueState.newsFeed
+          ? appendAndPruneNews(leagueState.newsFeed, synced.newsItems, leagueState.currentRound || 1)
+          : pruneNewsFeed(leagueState.newsFeed, leagueState.currentRound || 1)
       };
       localStorage.setItem("retro_league_career", JSON.stringify(updatedCareer));
       setLeagueState(updatedCareer);
@@ -2040,8 +2105,28 @@ export default function LeagueDashboard() {
             selectedTeamId = matchInNewRoster.idnum;
           }
         }
+      } else if (HISTORICAL_FEDERATION_COUNTRIES.has(country)) {
+        const rollover = buildExYugoslaviaNextSeason({
+          country,
+          nextStartYr,
+          teams,
+          playerTeamId,
+          leagueDataMap,
+          scaleStat: scaleStatTo10
+        });
+        if (!rollover.canRenew) {
+          return;
+        }
+        finalCountry = rollover.targetCountry;
+        finalNextSeasonTeams = rollover.nextTeams;
+        nextDivision = 1;
+        if (rollover.resolvedPlayerTeamId !== null) {
+          selectedTeamId = rollover.resolvedPlayerTeamId;
+        }
       }
     }
+
+    const playerTeamObjBeforeReset = currentStandings.find(t => t.idnum === playerTeamId) || null;
 
     // Get selected team details
     const selectedTeamObj = finalNextSeasonTeams.find(t => t.idnum === selectedTeamId);
@@ -2125,11 +2210,11 @@ export default function LeagueDashboard() {
             const clQuals = nextQualifiers.cl[finalCountry] || [];
             const uefaQuals = nextQualifiers.uefa[finalCountry] || [];
             const ueclQuals = (nextQualifiers.uecl && nextQualifiers.uecl[finalCountry]) || [];
-            if (clQuals.includes(selectedTeamName) && !isUefaCountryBanned(finalCountry, nextStartYr, 'cl')) {
+          if (clQuals.some(q => isSameEuropeanClubName(q, selectedTeamName)) && !isUefaCountryBanned(finalCountry, nextStartYr, 'cl')) {
               nextEuropeanCup = "cl";
-            } else if (uefaQuals.includes(selectedTeamName)) {
+            } else if (uefaQuals.some(q => isSameEuropeanClubName(q, selectedTeamName))) {
               nextEuropeanCup = "uefa";
-            } else if (ueclQuals.includes(selectedTeamName)) {
+            } else if (ueclQuals.some(q => isSameEuropeanClubName(q, selectedTeamName))) {
               nextEuropeanCup = "uecl";
             }
           }
@@ -2137,7 +2222,8 @@ export default function LeagueDashboard() {
       }
 
       // Check 2-leg UEFA Qualifying Play-Off eligibility when D1 Champion/Runner-up missed direct spots
-      if (!isSAFinalCountry && finalCountry === country && currentDivision === 1) {
+      const isContinuationInSameOrSuccessor = finalCountry === country || (!chosenOffer && HISTORICAL_FEDERATION_COUNTRIES.has(country));
+      if (!isSAFinalCountry && isContinuationInSameOrSuccessor && currentDivision === 1) {
         const qualComp = determineEuropeanQualifier({
           country: finalCountry,
           currentDivision,
@@ -2210,13 +2296,13 @@ export default function LeagueDashboard() {
       const domesticNames = finalNextSeasonTeams.map(t => t.name);
 
       let nextEuropeanPlayerTeamId = null;
-      const existingTeamIndex = euroTeams.findIndex(t => t.name === selectedTeamName);
+      const existingTeamIndex = euroTeams.findIndex(t => isSameEuropeanClubName(t.name, selectedTeamName));
 
       if (existingTeamIndex !== -1) {
         nextEuropeanPlayerTeamId = euroTeams[existingTeamIndex].idnum;
       } else {
         // Find first team in the European Cup from same domestic league and swap with new player team
-        const indexToReplace = euroTeams.findIndex(t => domesticNames.includes(t.name));
+        const indexToReplace = euroTeams.findIndex(t => domesticNames.some(dn => isSameEuropeanClubName(dn, t.name)));
         if (indexToReplace !== -1) {
           euroTeams[indexToReplace].name = selectedTeamObj.name;
           euroTeams[indexToReplace].primaryColor = selectedTeamObj.primaryColor;
@@ -2235,7 +2321,7 @@ export default function LeagueDashboard() {
 
       // Sync stats of domestic teams in the European Cup with their updated domestic stats
       euroTeams.forEach(euroTeam => {
-        const domesticTeam = finalNextSeasonTeams.find(t => t.name === euroTeam.name);
+        const domesticTeam = finalNextSeasonTeams.find(t => isSameEuropeanClubName(t.name, euroTeam.name));
         if (domesticTeam) {
           euroTeam.attack = domesticTeam.attack;
           euroTeam.midfield = domesticTeam.midfield;
@@ -2425,7 +2511,7 @@ export default function LeagueDashboard() {
     const newClubBaseBudget = (nextDetails && nextDetails.finances && typeof nextDetails.finances.transferBudget === 'number')
       ? nextDetails.finances.transferBudget
       : Math.max(0.5, parseFloat((Math.pow(normRating5, 2.2) * divisionMultiplier * eraMultiplier).toFixed(1)));
-    const isPlayerRenewing = Boolean(playerTeamObj && (selectedTeamId === playerTeamId || selectedTeamObj.name.toLowerCase() === playerTeamObj.name.toLowerCase()));
+    const isPlayerRenewing = Boolean(!chosenOffer && playerTeamObjBeforeReset && (selectedTeamId === playerTeamId || selectedTeamObj.name.toLowerCase() === playerTeamObjBeforeReset.name.toLowerCase() || HISTORICAL_FEDERATION_COUNTRIES.has(country)));
 
     let nextBudget = newClubBaseBudget;
     let nextPayrollBudget = (nextDetails && nextDetails.finances && typeof nextDetails.finances.estimatedWeeklyPayroll === 'number')
@@ -2495,6 +2581,7 @@ export default function LeagueDashboard() {
     if (isPlayerRenewing) {
       const continuity = advancePlayerSquadForNextSeason({
         teamName: selectedTeamName,
+        prevTeamName: playerTeamObjBeforeReset ? playerTeamObjBeforeReset.name : selectedTeamName,
         prevSeason: season,
         nextSeason: nextSeasonStr
       });
@@ -2595,6 +2682,7 @@ export default function LeagueDashboard() {
     setLeagueState(nextLeagueState);
     setSubStandingsTab(null);
     setNextSeasonTeams([]);
+    setSeasonRolloverMeta(null);
     setJobOffers([]);
     alert(`Signed a contract with ${selectedTeamName} (${finalCountry.toUpperCase()}) for the ${nextSeasonStr} season!`);
   };
@@ -4338,7 +4426,7 @@ export default function LeagueDashboard() {
           playerTeamId: pId
         });
 
-        stateCopy.newsFeed = [...newMatchNews, ...(stateCopy.newsFeed || [])];
+        stateCopy.newsFeed = appendAndPruneNews(stateCopy.newsFeed, newMatchNews, currentEvent.index);
         stateCopy = processRoundStatsAndAwards(stateCopy, currentEvent.index);
         localStorage.setItem("retro_league_career", JSON.stringify(stateCopy));
 
@@ -4445,10 +4533,11 @@ export default function LeagueDashboard() {
         teamName: playerTeam ? playerTeam.name : "Your Team",
         managerName: stateCopy.managerName || "Sir Alex",
         isWinner,
-        nextStageName: CUP_STAGE_NAMES[updatedCup.stage]
+        nextStageName: CUP_STAGE_NAMES[updatedCup.stage],
+        round: stateCopy.currentRound || 1
       });
 
-      stateCopy.newsFeed = [cupStory, ...(stateCopy.newsFeed || [])];
+      stateCopy.newsFeed = appendAndPruneNews(stateCopy.newsFeed, cupStory, stateCopy.currentRound || 1);
 
       if (!stateCopy.isUnemployed) {
         const pGoals90 = isHome ? userMatch.homeScore : userMatch.awayScore;
@@ -4605,9 +4694,9 @@ export default function LeagueDashboard() {
         stateCopy.europeanCupState = setup.europeanCupState;
         stateCopy.calendar = insertEuropeanEventsIntoCalendar(stateCopy.calendar, setup.dynamicSchedules, 2);
 
-        stateCopy.newsFeed = [{
+        stateCopy.newsFeed = appendAndPruneNews(stateCopy.newsFeed, {
           id: `news_qual_win_${Date.now()}`,
-          round: 1,
+          round: stateCopy.currentRound || 1,
           dateStr: '3rd Qualifying Round',
           category: 'cup',
           categoryLabel: '🏆 QUALIFIED FOR EUROPE',
@@ -4616,13 +4705,13 @@ export default function LeagueDashboard() {
           body: `Celebrations are underway after ${pTeam.name} overcame ${opp.name} across two intense qualifying legs (${tieRes.playerAgg}-${tieRes.oppAgg} on aggregate, winning ${decNote})!\n\n${pTeam.name} have officially taken ${opp.name}'s place in this season's ${qualState.competitionLabel}.`,
           isRead: false,
           timestamp: Date.now()
-        }, ...(stateCopy.newsFeed || [])];
+        }, stateCopy.currentRound || 1);
       } else {
         stateCopy.europeanCup = null;
         stateCopy.europeanCupState = null;
-        stateCopy.newsFeed = [{
+        stateCopy.newsFeed = appendAndPruneNews(stateCopy.newsFeed, {
           id: `news_qual_loss_${Date.now()}`,
-          round: 1,
+          round: stateCopy.currentRound || 1,
           dateStr: '3rd Qualifying Round',
           category: 'cup',
           categoryLabel: '🇪🇺 QUALIFYING EXIT',
@@ -4631,7 +4720,7 @@ export default function LeagueDashboard() {
           body: `Heartbreak in the 3rd Qualifying Round as ${pTeam.name} fell short against ${opp.name} (${tieRes.playerAgg}-${tieRes.oppAgg} on aggregate).\n\nFocus now shifts to the domestic league and cup campaign.`,
           isRead: false,
           timestamp: Date.now()
-        }, ...(stateCopy.newsFeed || [])];
+        }, stateCopy.currentRound || 1);
       }
     }
 
@@ -5293,7 +5382,7 @@ export default function LeagueDashboard() {
                     <p style={{ color: '#ccc', textAlign: 'center', fontSize: '12px', margin: 0 }}>
                       {verdict.verdict}
                     </p>
-                    {verdict.tier !== "disgraced" && (
+                    {verdict.tier !== "disgraced" && seasonRolloverMeta?.canRenew !== false && (
                       <button
                         className="play-match-btn glowing-btn pulse"
                         style={{ fontSize: '12px', padding: '8px 20px', borderColor: '#00ff64', color: '#00ff64' }}
@@ -5301,6 +5390,11 @@ export default function LeagueDashboard() {
                       >
                         ⚽ RENEW CONTRACT WITH {playerTeamObj?.name}
                       </button>
+                    )}
+                    {seasonRolloverMeta?.canRenew === false && (
+                      <p style={{ color: '#ffb74d', textAlign: 'center', fontSize: '11.5px', margin: 0 }}>
+                        {seasonRolloverMeta.exitReason} Choose an incoming Job Offer below to continue your career.
+                      </p>
                     )}
                   </div>
                 );
@@ -6363,10 +6457,10 @@ export default function LeagueDashboard() {
                                 fontSize: '9px',
                                 padding: '2px 6px',
                                 borderRadius: '3px',
-                                background: verdict.tier !== "decent_sacked" ? 'rgba(0, 255, 100, 0.1)' : 'rgba(255, 51, 81, 0.1)',
-                                color: verdict.tier !== "decent_sacked" ? '#00ff64' : '#ff3333'
+                                background: (verdict.tier !== "decent_sacked" && seasonRolloverMeta?.canRenew !== false) ? 'rgba(0, 255, 100, 0.1)' : 'rgba(255, 51, 81, 0.1)',
+                                color: (verdict.tier !== "decent_sacked" && seasonRolloverMeta?.canRenew !== false) ? '#00ff64' : '#ff3333'
                               }}>
-                                {verdict.tier !== "decent_sacked" ? "OFFERED" : "SACKED"}
+                                {seasonRolloverMeta?.canRenew === false ? "LEAGUE EXIT" : (verdict.tier !== "decent_sacked" ? "OFFERED" : "SACKED")}
                               </span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -6377,7 +6471,7 @@ export default function LeagueDashboard() {
                               </div>
                             </div>
 
-                            {verdict.tier !== "decent_sacked" ? (
+                            {verdict.tier !== "decent_sacked" && seasonRolloverMeta?.canRenew !== false ? (
                               <button
                                 className="play-match-btn glowing-btn pulse"
                                 style={{
@@ -6408,7 +6502,7 @@ export default function LeagueDashboard() {
                                   cursor: 'not-allowed'
                                 }}
                               >
-                                🔒 CONTRACT TERMINATED
+                                {seasonRolloverMeta?.canRenew === false ? "⚠️ CLUB DEPARTED LEAGUE" : "🔒 CONTRACT TERMINATED"}
                               </button>
                             )}
                           </div>

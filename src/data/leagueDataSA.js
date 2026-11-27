@@ -1,4 +1,5 @@
 // South American league data imports
+import arg88Data from './leagues/arg/arg88.json';
 import arg89Data from './leagues/arg/arg89.json';
 import arg90Data from './leagues/arg/arg90.json';
 import arg91Data from './leagues/arg/arg91.json';
@@ -38,6 +39,7 @@ import arg24Data from './leagues/arg/arg24.json';
 import arg25Data from './leagues/arg/arg25.json';
 import arg26Data from './leagues/arg/arg26.json';
 
+import bra88Data from './leagues/bra/bra88.json';
 import bra89Data from './leagues/bra/bra89.json';
 import bra90Data from './leagues/bra/bra90.json';
 import bra91Data from './leagues/bra/bra91.json';
@@ -78,6 +80,7 @@ import bra25Data from './leagues/bra/bra25.json';
 import bra26Data from './leagues/bra/bra26.json';
 
 // colombia
+import col88Data from './leagues/col/col88.json';
 import col89Data from './leagues/col/col89.json';
 import col90Data from './leagues/col/col90.json';
 import col91Data from './leagues/col/col91.json';
@@ -118,6 +121,7 @@ import col25Data from './leagues/col/col25.json';
 import col26Data from './leagues/col/col26.json';
 
 export const leagueDataMapSA = {
+  "1988": { argentina: arg88Data, brazil: bra88Data, colombia: col88Data },
   "1989": { argentina: arg89Data, brazil: bra89Data, colombia: col89Data },
   "1990": { argentina: arg90Data, brazil: bra90Data, colombia: col90Data },
   "1991": { argentina: arg91Data, brazil: bra91Data, colombia: col91Data },

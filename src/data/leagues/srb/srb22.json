@@ -1,0 +1,178 @@
+[
+  {
+    "idnum": 0,
+    "id": "srb22",
+    "name": "Red Star Belgrade",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "cl90/5.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "srb22",
+    "name": "TSC Backa Topola",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#003399",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "srb22",
+    "name": "Cukaricki",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/3.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "srb22",
+    "name": "Partizan",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/3.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "srb22",
+    "name": "FK Vojvodina",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "srb22",
+    "name": "Novi Pazar",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "srb22",
+    "name": "Vozdovac",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "srb22",
+    "name": "Radnicki 1923",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "srb22",
+    "name": "Napredak Krusevac",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "srb22",
+    "name": "Spartak Subotica",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "srb22",
+    "name": "Mladost Lucani",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "srb22",
+    "name": "Javor Ivanjica",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#005EB8"
+  },
+  {
+    "idnum": 12,
+    "id": "srb22",
+    "name": "Kolubara",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 13,
+    "id": "srb22",
+    "name": "Radnicki Nis",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "srb22",
+    "name": "Radnik Surdulica",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "srb22",
+    "name": "Mladost GAT",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  }
+]

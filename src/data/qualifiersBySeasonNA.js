@@ -1,6 +1,17 @@
 // North American continental qualifiers by season (1989-2026)
 // Defines domestic spots for CONCACAF Champions Cup / Champions League (cl)
 export const qualifiersBySeasonNA = {
+  "1988": {
+    "cl": {
+      "mexico": [
+        "Cruz Azul",
+        "Morelia"
+      ]
+    },
+    "uefa": {
+      "mexico": []
+    }
+  },
   "1989": {
     "cl": {
       "mexico": [

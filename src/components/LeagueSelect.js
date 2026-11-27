@@ -28,6 +28,7 @@ import {
 import { getPreferredTeamFormation } from './FormationTactics';
 import { applyTeamTheme } from '../utils/themeManager';
 import { calculateBoardExpectation } from '../utils/boardExpectationEngine';
+import { isSameEuropeanClubName } from '../utils/europeanQualifierHelper';
 
 
 // Inline premium vector Team Flag component
@@ -65,8 +66,8 @@ const TeamFlag = ({ primaryColor, secondaryColor, size = 120 }) => {
 
 const getLeagueRoundCycles = (countryKey, teamsCount) => {
   if (countryKey === "usa") return 1;
-  if ((countryKey === "scotland" || countryKey === "denmark") && teamsCount === 12) return 3;
-  if (countryKey === "scotland" && teamsCount === 10) return 4;
+  if ((countryKey === "scotland" || countryKey === "denmark" || countryKey === "croatia" || countryKey === "serbia" || countryKey === "fr_yugoslavia") && teamsCount === 12) return 3;
+  if ((countryKey === "scotland" || countryKey === "croatia") && teamsCount === 10) return 4;
   return 2;
 };
 
@@ -225,7 +226,12 @@ const EUROPE_LEAGUES = [
   { id: 'sweden', name: 'Sweden', getTitle: () => 'Allsvenskan' },
   { id: 'denmark', name: 'Denmark', getTitle: () => 'Superliga' },
   { id: 'russia', name: 'Russia', getTitle: () => 'Russian Premier' },
-  { id: 'ukraine', name: 'Ukraine', getTitle: () => 'Ukrainian Premier' }
+  { id: 'ukraine', name: 'Ukraine', getTitle: () => 'Ukrainian Premier' },
+  { id: 'yugoslavia', name: 'Yugoslavia', getTitle: () => 'Yugoslav First League' },
+  { id: 'fr_yugoslavia', name: 'FR Yugoslavia', getTitle: (yr) => (parseInt(yr, 10) >= 2003 ? 'First League (SCG)' : 'First League') },
+  { id: 'serbia', name: 'Serbia', getTitle: () => 'Serbian SuperLiga' },
+  { id: 'croatia', name: 'Croatia', getTitle: () => 'Prva HNL' },
+  { id: 'ussr', name: 'Soviet Union', getTitle: () => 'Soviet Top League' }
 ];
 
 const SOUTH_AMERICA_LEAGUES = [
@@ -685,10 +691,10 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
         if (rules.format === "group_then_knockout") {
           // CL Group Stage setup (e.g. 1994 Champions League)
           const clTeams = JSON.parse(JSON.stringify(rules.teamsData));
-          let playerClTeam = clTeams.find(t => t.name === teamName);
+          let playerClTeam = clTeams.find(t => isSameEuropeanClubName(t.name, teamName));
           if (!playerClTeam && activeQualifiers) {
             const domesticNames = roster.map(t => t.name);
-            let indexToReplace = clTeams.findIndex(t => domesticNames.includes(t.name) && t.name !== teamName);
+            let indexToReplace = clTeams.findIndex(t => domesticNames.some(dn => isSameEuropeanClubName(dn, t.name)) && !isSameEuropeanClubName(t.name, teamName));
             if (indexToReplace === -1) {
               const cupQualifiers = activeQualifiers[europeanCup] || {};
               const mainPlayableClTeams = [
@@ -704,9 +710,14 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                 ...(cupQualifiers.ukraine || []),
                 ...(cupQualifiers.belgium || []),
                 ...(cupQualifiers.sweden || []),
-                ...(cupQualifiers.denmark || [])
+                ...(cupQualifiers.denmark || []),
+                ...(cupQualifiers.yugoslavia || []),
+                ...(cupQualifiers.fr_yugoslavia || []),
+                ...(cupQualifiers.serbia || []),
+                ...(cupQualifiers.croatia || []),
+                ...(cupQualifiers.ussr || [])
               ];
-              indexToReplace = clTeams.findIndex(t => !mainPlayableClTeams.includes(t.name));
+              indexToReplace = clTeams.findIndex(t => !mainPlayableClTeams.some(pn => isSameEuropeanClubName(pn, t.name)));
               if (indexToReplace === -1) {
                 indexToReplace = clTeams.length - 1;
               }
@@ -796,10 +807,10 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
         } else if (rules.format === "league_then_knockout") {
           // CL/EL/UECL 36-team single league setup
           const clTeams = JSON.parse(JSON.stringify(rules.teamsData));
-          let playerClTeam = clTeams.find(t => t.name === teamName);
+          let playerClTeam = clTeams.find(t => isSameEuropeanClubName(t.name, teamName));
           if (!playerClTeam && activeQualifiers) {
             const domesticNames = roster.map(t => t.name);
-            let indexToReplace = clTeams.findIndex(t => domesticNames.includes(t.name) && t.name !== teamName);
+            let indexToReplace = clTeams.findIndex(t => domesticNames.some(dn => isSameEuropeanClubName(dn, t.name)) && !isSameEuropeanClubName(t.name, teamName));
             if (indexToReplace === -1) {
               const cupQualifiers = activeQualifiers[europeanCup] || {};
               const mainPlayableClTeams = [
@@ -815,9 +826,14 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                 ...(cupQualifiers.ukraine || []),
                 ...(cupQualifiers.belgium || []),
                 ...(cupQualifiers.sweden || []),
-                ...(cupQualifiers.denmark || [])
+                ...(cupQualifiers.denmark || []),
+                ...(cupQualifiers.yugoslavia || []),
+                ...(cupQualifiers.fr_yugoslavia || []),
+                ...(cupQualifiers.serbia || []),
+                ...(cupQualifiers.croatia || []),
+                ...(cupQualifiers.ussr || [])
               ];
-              indexToReplace = clTeams.findIndex(t => !mainPlayableClTeams.includes(t.name));
+              indexToReplace = clTeams.findIndex(t => !mainPlayableClTeams.some(pn => isSameEuropeanClubName(pn, t.name)));
               if (indexToReplace === -1) {
                 indexToReplace = clTeams.length - 1;
               }
@@ -868,10 +884,10 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
         } else if (rules.format === "pure_knockout") {
           // Pure Knockout format setup (e.g. 1990 CL, 1990 UEFA, 1994 UEFA)
           const teams = JSON.parse(JSON.stringify(rules.teamsData));
-          let playerTeam = teams.find(t => t.name === teamName);
+          let playerTeam = teams.find(t => isSameEuropeanClubName(t.name, teamName));
           if (!playerTeam && activeQualifiers) {
             const domesticNames = roster.map(t => t.name);
-            let indexToReplace = teams.findIndex(t => domesticNames.includes(t.name) && t.name !== teamName);
+            let indexToReplace = teams.findIndex(t => domesticNames.some(dn => isSameEuropeanClubName(dn, t.name)) && !isSameEuropeanClubName(t.name, teamName));
             if (indexToReplace === -1) {
               const activeQualifiersUefa = activeQualifiers.uefa || {};
               const activeQualifiersCl = activeQualifiers.cl || {};
@@ -888,9 +904,14 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
                 ...(activeQualifiersUefa.ukraine || activeQualifiersCl.ukraine || []),
                 ...(activeQualifiersUefa.belgium || activeQualifiersCl.belgium || []),
                 ...(activeQualifiersUefa.sweden || activeQualifiersCl.sweden || []),
-                ...(activeQualifiersUefa.denmark || activeQualifiersCl.denmark || [])
+                ...(activeQualifiersUefa.denmark || activeQualifiersCl.denmark || []),
+                ...(activeQualifiersUefa.yugoslavia || activeQualifiersCl.yugoslavia || []),
+                ...(activeQualifiersUefa.fr_yugoslavia || activeQualifiersCl.fr_yugoslavia || []),
+                ...(activeQualifiersUefa.serbia || activeQualifiersCl.serbia || []),
+                ...(activeQualifiersUefa.croatia || activeQualifiersCl.croatia || []),
+                ...(activeQualifiersUefa.ussr || activeQualifiersCl.ussr || [])
               ];
-              indexToReplace = teams.findIndex(t => !mainPlayableTeams.includes(t.name));
+              indexToReplace = teams.findIndex(t => !mainPlayableTeams.some(pn => isSameEuropeanClubName(pn, t.name)));
               if (indexToReplace === -1) {
                 indexToReplace = teams.length - 1;
               }
@@ -1032,9 +1053,9 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
     navigate("/league/dashboard");
   };
 
-  // Generate Year Array (1989/90 to 2026/27)
+  // Generate Year Array (1988/89 to 2026/27)
   const seasonsList = [];
-  for (let y = 1989; y <= 2026; y++) {
+  for (let y = 1988; y <= 2026; y++) {
     seasonsList.push(`${y}`);
   }
 
@@ -1051,12 +1072,12 @@ Be highly realistic: Alemannia Aachen in 1999/2000 has a small budget ($1.0M - $
   return (
     <div className="Match team-select-container">
 
-      {/* STEP 1: Season Year Selector (1989/90 - 2026/27) */}
+      {/* STEP 1: Season Year Selector (1988/89 - 2026/27) */}
       {step === "season" && (
         <div className="animated-slide-in" style={{ width: '100%', maxWidth: '880px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
           <div className="matchheader selector-header">
             <h1 className="glowing-header-text">CHOOSE SEASON</h1>
-            <p className="lobby-subtitle">SELECT STARTING CAMPAIGN YEAR (1989/90 – 2026/27)</p>
+            <p className="lobby-subtitle">SELECT STARTING CAMPAIGN YEAR (1988/89 – 2026/27)</p>
           </div>
 
           <div className="team-select-card" style={{ width: '100%', padding: '26px', maxWidth: '880px' }}>

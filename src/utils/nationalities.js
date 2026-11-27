@@ -102,6 +102,8 @@ const ALIASES = {
   'korea republic': 'kr',
   'south korea': 'kr',
   yugoslavia: 'rs',
+  fr_yugoslavia: 'rs',
+  'fr yugoslavia': 'rs',
   'serbia and montenegro': 'rs',
   ussr: 'ru',
   'soviet union': 'ru',

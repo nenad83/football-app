@@ -1,0 +1,178 @@
+[
+  {
+    "idnum": 0,
+    "id": "fry05",
+    "name": "Red Star Belgrade",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "cl90/5.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "fry05",
+    "name": "Partizan",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/3.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "fry05",
+    "name": "Vozdovac",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "fry05",
+    "name": "Hajduk Kula",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#005EB8"
+  },
+  {
+    "idnum": 4,
+    "id": "fry05",
+    "name": "Zeta",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "fry05",
+    "name": "OFK Beograd",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/5.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "fry05",
+    "name": "Zemun",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/5.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#00A651"
+  },
+  {
+    "idnum": 7,
+    "id": "fry05",
+    "name": "Buducnost Banatski Dvor",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "fry05",
+    "name": "FK Vojvodina",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "fry05",
+    "name": "Borac Cacak",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/3.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "fry05",
+    "name": "Smederevo",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#003399",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "fry05",
+    "name": "Javor Ivanjica",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#005EB8"
+  },
+  {
+    "idnum": 12,
+    "id": "fry05",
+    "name": "Rad",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "fry05",
+    "name": "Buducnost Podgorica",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "fry05",
+    "name": "Obilic",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#000080"
+  },
+  {
+    "idnum": 15,
+    "id": "fry05",
+    "name": "Jedinstvo Bijelo Polje",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 1,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#005EB8"
+  }
+]

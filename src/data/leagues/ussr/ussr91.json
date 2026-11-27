@@ -1,0 +1,178 @@
+[
+  {
+    "idnum": 0,
+    "id": "ussr91",
+    "name": "CSKA Moscow",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/2.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#003399"
+  },
+  {
+    "idnum": 1,
+    "id": "ussr91",
+    "name": "Spartak Moscow",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "ussr91",
+    "name": "Torpedo Moscow",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/3.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "ussr91",
+    "name": "Chornomorets Odesa",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/5.png",
+    "primaryColor": "#000080",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 4,
+    "id": "ussr91",
+    "name": "Dynamo Kyiv",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005BAA",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "ussr91",
+    "name": "Dynamo Moscow",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger88/2.png",
+    "primaryColor": "#005BAA",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "ussr91",
+    "name": "Dnipro",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005BAA",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "ussr91",
+    "name": "Ararat Yerevan",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#CC0000"
+  },
+  {
+    "idnum": 8,
+    "id": "ussr91",
+    "name": "Shakhtar Donetsk",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ecu93/1.png",
+    "primaryColor": "#FF8C00",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 9,
+    "id": "ussr91",
+    "name": "Pamir Dushanbe",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#008000"
+  },
+  {
+    "idnum": 10,
+    "id": "ussr91",
+    "name": "Spartak Vladikavkaz",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/5.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "ussr91",
+    "name": "Metalist Kharkiv",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#003399"
+  },
+  {
+    "idnum": 12,
+    "id": "ussr91",
+    "name": "Dinamo Minsk",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#003399",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "ussr91",
+    "name": "Lokomotiv Moscow",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#CC0000"
+  },
+  {
+    "idnum": 14,
+    "id": "ussr91",
+    "name": "Pakhtakor Tashkent",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005BAA",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "ussr91",
+    "name": "Metalurh Zaporizhzhia",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/4.png",
+    "primaryColor": "#CC0000",
+    "secondaryColor": "#FFFF00"
+  }
+]

@@ -170,7 +170,7 @@ export function resolveHistoricalFormationOverride(teamName, managerName, season
   }
 
   if (t.includes('manchester united') || t === 'man utd') {
-    if (yr >= 1989 && yr <= 2006) return '4-4-2';
+    if (yr >= 1988 && yr <= 2006) return '4-4-2';
     if (yr >= 2014 && yr <= 2024) return '4-2-3-1';
     if (yr >= 2025 || m.includes('amorim')) return '3-4-2-1';
   }
@@ -181,7 +181,7 @@ export function resolveHistoricalFormationOverride(teamName, managerName, season
   }
 
   if (t === 'arsenal') {
-    if (yr >= 1989 && yr <= 2005) return '4-4-2';
+    if (yr >= 1988 && yr <= 2005) return '4-4-2';
     if (yr >= 2009 && yr <= 2016) return '4-2-3-1';
     if (yr === 2020) return '3-4-3';
     if (yr >= 2021 && yr <= 2022) return '4-2-3-1';
@@ -204,7 +204,7 @@ export function resolveHistoricalFormationOverride(teamName, managerName, season
   }
 
   if (t.includes('milan') && !t.includes('inter')) {
-    if (yr >= 1989 && yr <= 1995) return '4-4-2';
+    if (yr >= 1988 && yr <= 1995) return '4-4-2';
     if (yr >= 2002 && yr <= 2006) return '4-3-1-2';
     if (yr >= 2007 && yr <= 2008) return '4-3-2-1';
     if (yr >= 2010 && yr <= 2012) return '4-3-1-2';
@@ -237,13 +237,13 @@ export function resolveHistoricalFormationOverride(teamName, managerName, season
   }
 
   if (t.includes('barcelona') && !t.includes('sc') && !t.includes('guayaquil')) {
-    if (yr >= 1989 && yr <= 1996) return '4-3-3';
+    if (yr >= 1988 && yr <= 1996) return '4-3-3';
     if (yr >= 2004 && yr <= 2023) return '4-3-3';
     if (yr >= 2024) return '4-2-3-1';
   }
 
   if (t.includes('bayern')) {
-    if (yr >= 1989 && yr <= 1998) return '5-3-2';
+    if (yr >= 1988 && yr <= 1998) return '5-3-2';
     if (yr >= 2010 && yr <= 2012) return '4-2-3-1';
     if (yr >= 2013 && yr <= 2015) return '4-1-4-1';
     if (yr >= 2016) return '4-2-3-1';
@@ -739,7 +739,7 @@ export function getRetirementChance(age, position, isAbsentFromNextDb = false) {
  * - Safeguards minimum GK (2) and squad depth (16) from the club's next-season DB newcomers
  * - Persists retro_roster_*, retro_lineup_*, retro_roles_*, and retro_captain_* for nextSeason
  */
-export function advancePlayerSquadForNextSeason({ teamName, prevSeason, nextSeason }) {
+export function advancePlayerSquadForNextSeason({ teamName, prevTeamName = teamName, prevSeason, nextSeason }) {
   if (!teamName || !prevSeason || !nextSeason) {
     return { squad: [], retiredPlayers: [] };
   }
@@ -751,8 +751,8 @@ export function advancePlayerSquadForNextSeason({ teamName, prevSeason, nextSeas
   // 1. Load outgoing squad from prevSeason (localStorage first, fallback to DB)
   let outgoingRaw = null;
   if (typeof window !== "undefined" && window.localStorage) {
-    const savedPrev = localStorage.getItem(`retro_roster_${teamName}_${prevSeason}`) ||
-                      localStorage.getItem(`retro_roster_${teamName}_${prevYear}`);
+    const savedPrev = localStorage.getItem(`retro_roster_${prevTeamName}_${prevSeason}`) ||
+                      localStorage.getItem(`retro_roster_${prevTeamName}_${prevYear}`);
     if (savedPrev) {
       try {
         const parsed = JSON.parse(savedPrev);
@@ -763,11 +763,11 @@ export function advancePlayerSquadForNextSeason({ teamName, prevSeason, nextSeas
     }
   }
   if (!outgoingRaw) {
-    outgoingRaw = getPrebuiltRosterSync(teamName, prevSeason) || [];
+    outgoingRaw = getPrebuiltRosterSync(prevTeamName, prevSeason) || getPrebuiltRosterSync(teamName, prevSeason) || [];
   }
 
   // Apply ledger against prevSeason before rolling into nextSeason
-  const cleanedOutgoing = applyCareerLedgerToSquad(teamName, outgoingRaw, prevSeason) || [];
+  const cleanedOutgoing = applyCareerLedgerToSquad(prevTeamName, outgoingRaw, prevSeason) || [];
 
   // 2. Refresh skills/ages from nextSeason DB & collect retirement candidates
   const updatedCandidates = cleanedOutgoing.map((p, idx) => {
@@ -843,8 +843,8 @@ export function advancePlayerSquadForNextSeason({ teamName, prevSeason, nextSeas
     const survivorByKey = new Map(keptSquad.map(p => [normalizePlayerNameKey(p.name), p]));
 
     // Carry over Starting Lineup (updating player stats to nextSeason versions, clearing retirees)
-    const prevLineupRaw = localStorage.getItem(`retro_lineup_${teamName}_${prevSeason}`) ||
-                          localStorage.getItem(`retro_lineup_${teamName}_${prevYear}`);
+    const prevLineupRaw = localStorage.getItem(`retro_lineup_${prevTeamName}_${prevSeason}`) ||
+                          localStorage.getItem(`retro_lineup_${prevTeamName}_${prevYear}`);
     if (prevLineupRaw) {
       try {
         const parsedLineup = JSON.parse(prevLineupRaw);
@@ -862,8 +862,8 @@ export function advancePlayerSquadForNextSeason({ teamName, prevSeason, nextSeas
     }
 
     // Carry over Roles (removing retired players)
-    const prevRolesRaw = localStorage.getItem(`retro_roles_${teamName}_${prevSeason}`) ||
-                         localStorage.getItem(`retro_roles_${teamName}_${prevYear}`);
+    const prevRolesRaw = localStorage.getItem(`retro_roles_${prevTeamName}_${prevSeason}`) ||
+                         localStorage.getItem(`retro_roles_${prevTeamName}_${prevYear}`);
     if (prevRolesRaw) {
       try {
         const parsedRoles = JSON.parse(prevRolesRaw);
@@ -878,8 +878,8 @@ export function advancePlayerSquadForNextSeason({ teamName, prevSeason, nextSeas
     }
 
     // Carry over Captain (replacing if retired)
-    const prevCap = localStorage.getItem(`retro_captain_${teamName}_${prevSeason}`) ||
-                    localStorage.getItem(`retro_captain_${teamName}_${prevYear}`);
+    const prevCap = localStorage.getItem(`retro_captain_${prevTeamName}_${prevSeason}`) ||
+                    localStorage.getItem(`retro_captain_${prevTeamName}_${prevYear}`);
     if (prevCap) {
       const capSurvivor = survivorByKey.get(normalizePlayerNameKey(prevCap));
       if (capSurvivor) {

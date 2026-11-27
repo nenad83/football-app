@@ -1,0 +1,222 @@
+[
+  {
+    "idnum": 0,
+    "id": "fry94",
+    "name": "Red Star Belgrade",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "cl90/5.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "fry94",
+    "name": "Partizan",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/3.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "fry94",
+    "name": "FK Vojvodina",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "fry94",
+    "name": "Becej",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "fry94",
+    "name": "Zemun",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/5.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#00A651"
+  },
+  {
+    "idnum": 5,
+    "id": "fry94",
+    "name": "Rad",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "fry94",
+    "name": "Radnicki Nis",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "fry94",
+    "name": "Borac Cacak",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/3.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "fry94",
+    "name": "Hajduk Kula",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#005EB8"
+  },
+  {
+    "idnum": 9,
+    "id": "fry94",
+    "name": "Buducnost Podgorica",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "fry94",
+    "name": "Proleter Zrenjanin",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "fry94",
+    "name": "Napredak Krusevac",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "fry94",
+    "name": "OFK Beograd",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/5.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "fry94",
+    "name": "Sloboda Uzice",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 14,
+    "id": "fry94",
+    "name": "Spartak Subotica",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "fry94",
+    "name": "Radnicki Beograd",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/4.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFD700"
+  },
+  {
+    "idnum": 16,
+    "id": "fry94",
+    "name": "Obilic",
+    "attack": 4,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#000080"
+  },
+  {
+    "idnum": 17,
+    "id": "fry94",
+    "name": "Loznica",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 18,
+    "id": "fry94",
+    "name": "Sutjeska Niksic",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 19,
+    "id": "fry94",
+    "name": "Rudar Pljevlja",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  }
+]

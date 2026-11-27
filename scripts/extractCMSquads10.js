@@ -305,6 +305,11 @@ const COUNTRY_MAP = {
   bel: "belgium",
   swe: "sweden",
   den: "denmark",
+  yug: "yugoslavia",
+  fry: "fr_yugoslavia",
+  srb: "serbia",
+  cro: "croatia",
+  ussr: "ussr",
   mex: "mexico",
   usa: "usa",
   cl: "europe_cl",
@@ -524,7 +529,7 @@ function resolveHistoricalFormationOverride(teamName, managerName, seasonYear) {
 
   // 3. Manchester United
   if (t.includes('manchester united') || t === 'man utd') {
-    if (yr >= 1989 && yr <= 2006) return '4-4-2';   // Sir Alex Ferguson classic 4-4-2
+    if (yr >= 1988 && yr <= 2006) return '4-4-2';   // Sir Alex Ferguson classic 4-4-2
     if (yr >= 2014 && yr <= 2024) return '4-2-3-1'; // van Gaal / Mourinho / Solskjaer / ten Hag
     if (yr >= 2025 || m.includes('amorim')) return '3-4-2-1'; // Rúben Amorim
   }
@@ -537,7 +542,7 @@ function resolveHistoricalFormationOverride(teamName, managerName, seasonYear) {
 
   // 5. Arsenal
   if (t === 'arsenal') {
-    if (yr >= 1989 && yr <= 2005) return '4-4-2';   // George Graham / Wenger Invincibles 4-4-2
+    if (yr >= 1988 && yr <= 2005) return '4-4-2';   // George Graham / Wenger Invincibles 4-4-2
     if (yr >= 2009 && yr <= 2016) return '4-2-3-1'; // Wenger 4-2-3-1 era
     if (yr === 2020) return '3-4-3';                // Arteta 2020 FA Cup 3-4-3
     if (yr >= 2021 && yr <= 2022) return '4-2-3-1'; // Arteta transition 4-2-3-1
@@ -563,7 +568,7 @@ function resolveHistoricalFormationOverride(teamName, managerName, seasonYear) {
 
   // 8. AC Milan
   if (t.includes('milan') && !t.includes('inter')) {
-    if (yr >= 1989 && yr <= 1995) return '4-4-2';   // Sacchi / Capello 4-4-2
+    if (yr >= 1988 && yr <= 1995) return '4-4-2';   // Sacchi / Capello 4-4-2
     if (yr >= 2002 && yr <= 2006) return '4-3-1-2'; // Ancelotti Rui Costa / Kaká diamond
     if (yr >= 2007 && yr <= 2008) return '4-3-2-1'; // Ancelotti Christmas Tree (Kaká + Seedorf behind Inzaghi)
     if (yr >= 2010 && yr <= 2012) return '4-3-1-2'; // Allegri Scudetto
@@ -599,14 +604,14 @@ function resolveHistoricalFormationOverride(teamName, managerName, seasonYear) {
     if (yr >= 2024) return '4-3-3';
   }
   if (t.includes('barcelona') && !t.includes('sc') && !t.includes('guayaquil')) {
-    if (yr >= 1989 && yr <= 1996) return '4-3-3';   // Cruyff Dream Team
+    if (yr >= 1988 && yr <= 1996) return '4-3-3';   // Cruyff Dream Team
     if (yr >= 2004 && yr <= 2023) return '4-3-3';   // Rijkaard / Guardiola / Luis Enrique / Xavi
     if (yr >= 2024) return '4-2-3-1';               // Hansi Flick 4-2-3-1
   }
 
   // 13. Bayern Munich, Borussia Dortmund & Bayer Leverkusen
   if (t.includes('bayern')) {
-    if (yr >= 1989 && yr <= 1998) return '5-3-2';   // German Libero era
+    if (yr >= 1988 && yr <= 1998) return '5-3-2';   // German Libero era
     if (yr >= 2010 && yr <= 2012) return '4-2-3-1'; // van Gaal / Heynckes Treble
     if (yr >= 2013 && yr <= 2015) return '4-1-4-1'; // Guardiola Bayern
     if (yr >= 2016) return '4-2-3-1';               // Heynckes / Flick Sextuple / Nagelsmann / Tuchel / Kompany
@@ -1222,7 +1227,136 @@ const NAME_ALIASES = {
   "b 93": ["boldklubben af 1893", "b 93", "b93"],
   "bronshoj": ["bronshoj bk", "broenshoej bk", "bronshoj", "broenshoej"],
   "b 1913": ["boldklubben 1913", "b 1913", "b1913"],
-  "fredericia": ["fc fredericia", "fredericia"]
+  "fredericia": ["fc fredericia", "fredericia"],
+  // Ex-Yugoslavia (SFR Yugoslavia / FR Yugoslavia / Serbia / Croatia)
+  "red star belgrade": ["crvena zvezda", "fk crvena zvezda", "red star", "red star belgrade"],
+  "partizan": ["partizan", "fk partizan", "partizan belgrade", "partizan beograd"],
+  "partizan belgrade": ["partizan", "fk partizan", "partizan belgrade", "partizan beograd"],
+  "fk vojvodina": ["fk vojvodina", "vojvodina novi sad", "vojvodina"],
+  "ofk beograd": ["ofk beograd", "ofk belgrade", "beograd"],
+  "rad": ["fk rad", "rad belgrade", "rad beograd", "rad"],
+  "radnicki nis": ["fk radnicki nis", "radnicki nis"],
+  "spartak subotica": ["fk spartak subotica", "spartak zlatibor voda", "spartak subotica", "spartak"],
+  "napredak krusevac": ["fk napredak krusevac", "napredak krusevac", "napredak"],
+  "zemun": ["fk zemun", "zemun"],
+  "proleter zrenjanin": ["fk proleter zrenjanin", "proleter zrenjanin"],
+  "obilic": ["fk obilic", "obilic belgrade", "obilic"],
+  "cukaricki": ["fk cukaricki", "cukaricki stankom", "cukaricki belgrade", "cukaricki"],
+  "hajduk kula": ["fk hajduk kula", "hajduk kula", "hajduk rodić mb kula"],
+  "zeleznik": ["fk zeleznik", "zeleznik belgrade", "zeleznik"],
+  "sartid smederevo": ["fk sartid", "sartid smederevo", "fk smederevo", "smederevo"],
+  "smederevo": ["fk smederevo", "smederevo", "fk sartid", "sartid smederevo"],
+  "vozdovac": ["fk vozdovac", "vozdovac belgrade", "vozdovac"],
+  "borac cacak": ["fk borac cacak", "borac cacak"],
+  "mladost lucani": ["fk mladost lucani", "mladost lucani"],
+  "javor ivanjica": ["fk javor ivanjica", "javor matis", "javor ivanjica", "javor"],
+  "jagodina": ["fk jagodina", "jagodina"],
+  "sloboda uzice": ["fk sloboda uzice", "sloboda point sevojno", "sloboda uzice", "sevojno"],
+  "radnicki kragujevac": ["fk radnicki kragujevac", "radnicki kragujevac", "radnicki 1923"],
+  "radnicki 1923": ["fk radnicki 1923", "radnicki 1923", "radnicki kragujevac"],
+  "novi pazar": ["fk novi pazar", "novi pazar"],
+  "tsc backa topola": ["fk tsc", "tsc backa topola", "backa topola"],
+  "radnik surdulica": ["fk radnik surdulica", "radnik surdulica"],
+  "becej": ["fk becej", "becej"],
+  "ofk kikinda": ["ofk kikinda", "kikinda"],
+  "radnicki beograd": ["fk radnicki novi beograd", "radnicki jugopetrol", "radnicki beograd", "radnicki nb"],
+  "milicionar": ["fk milicionar", "milicionar"],
+  "pristina": ["fk pristina", "pristina"],
+  "loznica": ["fk loznica", "loznica"],
+  "mladost apatin": ["fk mladost apatin", "mladost apatin"],
+  "zvezdara": ["fk zvezdara", "zvezdara"],
+  "radnicki obrenovac": ["fk radnicki obrenovac", "radnicki obrenovac"],
+  "buducnost banatski dvor": ["fk buducnost banatski dvor", "buducnost banatski dvor"],
+  "banat zrenjanin": ["fk banat zrenjanin", "banat zrenjanin"],
+  "hajduk beograd": ["fk hajduk beograd", "hajduk lion", "hajduk beograd"],
+  "bezanija": ["fk bezanija", "bezanija"],
+  "bsk borca": ["fk bsk borca", "bsk borca"],
+  "indjija": ["fk indjija", "indjija"],
+  "metalac gornji milanovac": ["fk metalac", "metalac gornji milanovac", "metalac gm"],
+  "donji srem": ["fk donji srem", "donji srem"],
+  "backa backa palanka": ["ofk backa", "backa backa palanka"],
+  "macva sabac": ["fk macva sabac", "macva sabac"],
+  "proleter novi sad": ["fk proleter novi sad", "proleter novi sad"],
+  "kolubara": ["fk kolubara", "kolubara"],
+  "imt novi beograd": ["fk imt", "imt novi beograd"],
+  "zeleznicar pancevo": ["fk zeleznicar pancevo", "zeleznicar pancevo"],
+  "buducnost podgorica": ["fk buducnost podgorica", "fk buducnost titograd", "buducnost podgorica", "buducnost"],
+  "sutjeska niksic": ["fk sutjeska niksic", "sutjeska niksic", "sutjeska"],
+  "mogren": ["fk mogren", "mogren budva", "mogren"],
+  "rudar pljevlja": ["fk rudar pljevlja", "rudar pljevlja"],
+  "zeta": ["fk zeta", "zeta golubovci", "zeta"],
+  "kom": ["fk kom", "kom podgorica"],
+  "jedinstvo bijelo polje": ["fk jedinstvo bijelo polje", "jedinstvo bijelo polje"],
+  "sarajevo": ["fk sarajevo", "sarajevo"],
+  "zeljeznicar": ["fk zeljeznicar", "zeljeznicar sarajevo", "zeljeznicar"],
+  "velez mostar": ["fk velez mostar", "velez mostar", "velez"],
+  "sloboda tuzla": ["fk sloboda tuzla", "sloboda tuzla"],
+  "borac banja luka": ["fk borac banja luka", "borac banja luka"],
+  "celik zenica": ["nk celik zenica", "celik zenica", "celik"],
+  "vardar": ["fk vardar", "vardar skopje", "vardar"],
+  "pelister bitola": ["fk pelister", "pelister bitola", "pelister"],
+  "olimpija ljubljana": ["nk olimpija", "olimpija ljubljana", "olimpija"],
+  "dinamo zagreb": ["nk dinamo", "nk dinamo zagreb", "dinamo zagreb", "croatia zagreb", "nk croatia", "hask gradjanski"],
+  "croatia zagreb": ["nk croatia", "croatia zagreb", "nk dinamo", "nk dinamo zagreb", "dinamo zagreb"],
+  "hask gradjanski": ["nk croatia", "hask gradjanski", "nk dinamo", "nk dinamo zagreb", "dinamo zagreb"],
+  "hajduk split": ["hnk hajduk split", "hnk hajduk", "hajduk split", "hajduk"],
+  "rijeka": ["hnk rijeka", "nk rijeka", "rijeka"],
+  "nk osijek": ["nk osijek", "osijek"],
+  "nk zagreb": ["nk zagreb", "zagreb"],
+  "varteks": ["nk varteks", "varteks varazdin", "varteks", "nk varazdin", "varazdin"],
+  "varazdin": ["nk varazdin", "varazdin", "nk varteks", "varteks varazdin", "varteks"],
+  "slaven belupo": ["nk slaven belupo", "slaven belupo", "slaven"],
+  "cibalia": ["hnk cibalia", "hnk cibalia vinkovci", "cibalia", "dinamo vinkovci"],
+  "sibenik": ["hnk sibenik", "nk sibenik", "sibenik"],
+  "zadar": ["nk zadar", "zadarkomerc", "zadar"],
+  "istra": ["nk istra", "istra pula", "istra"],
+  "pula 1856": ["nk pula 1856", "pula 1856", "pula staro cesko", "nk istra 1961", "istra 1961"],
+  "istra 1961": ["nk istra 1961", "istra 1961", "nk pula 1856", "pula 1856"],
+  "inker zapresic": ["nk inker zapresic", "inker zapresic", "nk inter zapresic", "inter zapresic"],
+  "inter zapresic": ["nk inter zapresic", "inter zapresic", "nk inker zapresic", "inker zapresic"],
+  "hrvatski dragovoljac": ["nk hrvatski dragovoljac", "hrvatski dragovoljac"],
+  "lokomotiva": ["nk lokomotiva zagreb", "nk lokomotiva", "lokomotiva zagreb", "lokomotiva"],
+  "gorica": ["hnk gorica", "gorica", "velika gorica"],
+  "rnk split": ["rnk split", "nk split", "split"],
+  "kamen ingrad": ["nk kamen ingrad", "kamen ingrad"],
+  "segesta": ["hnk segesta", "segesta sisak", "segesta"],
+  "marsonia": ["nk marsonia", "marsonia"],
+  "dubrovnik": ["hnk dubrovnik", "nk dubrovnik", "dubrovnik"],
+  "belisce": ["nk belisce", "belisce"],
+  "pazinka": ["nk pazinka", "pazinka"],
+  "radnik velika gorica": ["nk radnik velika gorica", "radnik vg"],
+  "dubrava": ["nk dubrava", "dubrava"],
+  "primorac stobrec": ["nk primorac", "primorac stobrec"],
+  "neretva": ["nk neretva", "neretva"],
+  "mladost 127": ["nk mladost 127", "mladost suhopolje", "mladost 127"],
+  "orijent": ["hnk orijent", "orijent rijeka", "orijent"],
+  "samobor": ["nk samobor", "samobor"],
+  "vukovar 91": ["hnk vukovar 91", "vukovar 91"],
+  "vukovar 1991": ["hnk vukovar 1991", "vukovar 1991", "hnk vukovar 91"],
+  "cakovec": ["nk cakovec", "cakovec"],
+  "pomorac kostrena": ["nk pomorac", "pomorac kostrena", "pomorac"],
+  "tsk topolovac": ["nk tsk topolovac", "tsk topolovac"],
+  "medjimurje": ["nk medjimurje", "nk medimurje", "medjimurje", "medimurje"],
+  "croatia sesvete": ["nk croatia sesvete", "croatia sesvete"],
+  "karlovac": ["nk karlovac", "karlovac"],
+  "lucko": ["nk lucko", "lucko"],
+  "rudes": ["nk rudes", "rudes"],
+  // Soviet Union (1988-1991)
+  "zenit leningrad": ["zenith st petersburg", "zenit st petersburg", "zenit leningrad", "zenit", "zenith"],
+  "spartak vladikavkaz": ["alania vladikavkaz", "alania", "spartak vladikavkaz", "spartak alania"],
+  "rotor volgograd": ["rotor volgograd", "rotor"],
+  "chornomorets odesa": ["chernomorets odessa", "chornomorets odessa", "chornomorets odesa", "chernomorets", "chornomorets"],
+  "dnipro": ["dnepr dnepropetrovsk", "dnipro dnipropetrovsk", "dnepr", "dnipro"],
+  "metalist kharkiv": ["metallist kharkov", "metalist kharkiv", "metallist"],
+  "metalurh zaporizhzhia": ["metallurg zaporozhye", "metalurh zaporizhzhia", "metallurg z"],
+  "zalgiris vilnius": ["fk zalgiris", "zalgiris vilnius", "zalgiris"],
+  "dinamo minsk": ["dinamo minsk", "dynamo minsk", "fc dinamo minsk"],
+  "dinamo tbilisi": ["dinamo tbilisi", "fc dinamo tbilisi"],
+  "ararat yerevan": ["ararat yerevan", "fc ararat yerevan", "ararat"],
+  "neftchi baku": ["neftchi baku", "neftci baku", "neftchi"],
+  "kairat almaty": ["kairat almaty", "kairat alma ata", "kairat"],
+  "pamir dushanbe": ["pamir dushanbe", "pamir", "cska pamir dushanbe"],
+  "pakhtakor tashkent": ["pakhtakor tashkent", "pakhtakor"]
 };
 
 function findBestMatchingClub(teamName, cmClubs, playersByClubId) {

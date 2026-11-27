@@ -1,0 +1,112 @@
+[
+  {
+    "idnum": 0,
+    "id": "cro14",
+    "name": "Dinamo Zagreb",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0033A0",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "cro14",
+    "name": "Rijeka",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#005EB8"
+  },
+  {
+    "idnum": 2,
+    "id": "cro14",
+    "name": "Hajduk Split",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 3,
+    "id": "cro14",
+    "name": "Lokomotiva",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/5.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "cro14",
+    "name": "NK Zagreb",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#D90429"
+  },
+  {
+    "idnum": 5,
+    "id": "cro14",
+    "name": "Slaven Belupo",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 6,
+    "id": "cro14",
+    "name": "RNK Split",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 7,
+    "id": "cro14",
+    "name": "NK Osijek",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/5.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 8,
+    "id": "cro14",
+    "name": "Istra 1961",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "mex86/3.png",
+    "primaryColor": "#FFD700",
+    "secondaryColor": "#008000"
+  },
+  {
+    "idnum": 9,
+    "id": "cro14",
+    "name": "Zadar",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  }
+]

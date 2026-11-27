@@ -54,6 +54,7 @@ import {
   insertEuropeanEventsIntoCalendar,
   resolveTwoLegTie
 } from "../utils/europeanQualifierHelper";
+import { appendAndPruneNews } from "../utils/newsGenerator";
 import {
   getEngineMode,
   setEngineMode,
@@ -3929,7 +3930,7 @@ export default function Match() {
               leagueState.europeanCupState = setup.europeanCupState;
               leagueState.calendar = insertEuropeanEventsIntoCalendar(leagueState.calendar, setup.dynamicSchedules, 2);
 
-              leagueState.newsFeed = [{
+              leagueState.newsFeed = appendAndPruneNews(leagueState.newsFeed, {
                 id: `news_qual_win_${Date.now()}`,
                 round: leagueState.currentRound || 1,
                 dateStr: '3rd Qualifying Round',
@@ -3940,11 +3941,11 @@ export default function Match() {
                 body: `Celebrations are underway after ${pTeam.name} overcame ${opp.name} across two intense qualifying legs (${tieRes.playerAgg}-${tieRes.oppAgg} on aggregate, winning ${decNote})!\n\n${pTeam.name} have officially replaced ${opp.name} in this season's ${qualState.competitionLabel}.`,
                 isRead: false,
                 timestamp: Date.now()
-              }, ...(leagueState.newsFeed || [])];
+              }, leagueState.currentRound || 1);
             } else if (pTeam && opp) {
               leagueState.europeanCup = null;
               leagueState.europeanCupState = null;
-              leagueState.newsFeed = [{
+              leagueState.newsFeed = appendAndPruneNews(leagueState.newsFeed, {
                 id: `news_qual_loss_${Date.now()}`,
                 round: leagueState.currentRound || 1,
                 dateStr: '3rd Qualifying Round',
@@ -3955,7 +3956,7 @@ export default function Match() {
                 body: `Heartbreak in the 3rd Qualifying Round as ${pTeam.name} fell short against ${opp.name} (${tieRes.playerAgg}-${tieRes.oppAgg} on aggregate).\n\nFocus now shifts to the domestic league and cup campaign.`,
                 isRead: false,
                 timestamp: Date.now()
-              }, ...(leagueState.newsFeed || [])];
+              }, leagueState.currentRound || 1);
             }
           }
 

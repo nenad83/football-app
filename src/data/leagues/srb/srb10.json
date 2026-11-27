@@ -1,0 +1,178 @@
+[
+  {
+    "idnum": 0,
+    "id": "srb10",
+    "name": "Partizan",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/3.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "srb10",
+    "name": "Red Star Belgrade",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "cl90/5.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "srb10",
+    "name": "FK Vojvodina",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 3,
+    "id": "srb10",
+    "name": "Rad",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "srb10",
+    "name": "Spartak Subotica",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "srb10",
+    "name": "Sloboda Uzice",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 6,
+    "id": "srb10",
+    "name": "OFK Beograd",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/5.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "srb10",
+    "name": "Javor Ivanjica",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#005EB8"
+  },
+  {
+    "idnum": 8,
+    "id": "srb10",
+    "name": "Borac Cacak",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/3.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 9,
+    "id": "srb10",
+    "name": "Smederevo",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#003399",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "srb10",
+    "name": "BSK Borca",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "srb10",
+    "name": "Jagodina",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "srb10",
+    "name": "Hajduk Kula",
+    "attack": 2,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#005EB8"
+  },
+  {
+    "idnum": 13,
+    "id": "srb10",
+    "name": "Metalac Gornji Milanovac",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 14,
+    "id": "srb10",
+    "name": "Indjija",
+    "attack": 2,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "srb10",
+    "name": "Cukaricki",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/3.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  }
+]

@@ -1,3 +1,4 @@
+import concacaf88Data from './concacaf88.json';
 import concacaf89Data from './concacaf89.json';
 import concacaf90Data from './concacaf90.json';
 import concacaf91Data from './concacaf91.json';
@@ -62,6 +63,12 @@ const groupThenKnockoutSchedule = [
 ];
 
 export const concacafRules = {
+  "1988": {
+    teamsData: concacaf88Data,
+    format: "pure_knockout",
+    stages: ["round_of_16", "quarter_finals", "semi_finals", "final"],
+    calendarSchedules: pureKnockoutSchedule
+  },
   "1989": {
     teamsData: concacaf89Data,
     format: "pure_knockout",

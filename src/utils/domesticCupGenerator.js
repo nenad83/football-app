@@ -38,6 +38,18 @@ export const getCupNameByCountry = (country = "") => {
       return "Svenska Cupen";
     case "denmark":
       return "Danish Cup";
+    case "yugoslavia":
+      return "Yugoslav Cup";
+    case "fr_yugoslavia":
+      return "FR Yugoslav Cup";
+    case "serbia":
+      return "Serbian Cup";
+    case "croatia":
+      return "Croatian Cup";
+    case "ukraine":
+      return "Ukrainian Cup";
+    case "ussr":
+      return "Soviet Cup";
     case "mexico":
       return "Copa MX";
     case "usa":

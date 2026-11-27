@@ -1,0 +1,200 @@
+[
+  {
+    "idnum": 0,
+    "id": "yug89",
+    "name": "Red Star Belgrade",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "cl90/5.png",
+    "primaryColor": "#E30613",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 1,
+    "id": "yug89",
+    "name": "Dinamo Zagreb",
+    "attack": 5,
+    "midfield": 5,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#0033A0",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 2,
+    "id": "yug89",
+    "name": "Hajduk Split",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 3,
+    "id": "yug89",
+    "name": "Partizan",
+    "attack": 5,
+    "midfield": 4,
+    "defense": 4,
+    "kit": "swe92/3.png",
+    "primaryColor": "#000000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 4,
+    "id": "yug89",
+    "name": "Rad",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 5,
+    "id": "yug89",
+    "name": "Rijeka",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#005EB8"
+  },
+  {
+    "idnum": 6,
+    "id": "yug89",
+    "name": "Zeljeznicar",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 7,
+    "id": "yug89",
+    "name": "Olimpija Ljubljana",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/1.png",
+    "primaryColor": "#008000",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 8,
+    "id": "yug89",
+    "name": "Sloboda Tuzla",
+    "attack": 3,
+    "midfield": 2,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#000000"
+  },
+  {
+    "idnum": 9,
+    "id": "yug89",
+    "name": "Buducnost Podgorica",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 10,
+    "id": "yug89",
+    "name": "FK Vojvodina",
+    "attack": 4,
+    "midfield": 4,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 11,
+    "id": "yug89",
+    "name": "Spartak Subotica",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "swe92/0.png",
+    "primaryColor": "#005EB8",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 12,
+    "id": "yug89",
+    "name": "Sarajevo",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/4.png",
+    "primaryColor": "#800020",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 13,
+    "id": "yug89",
+    "name": "Borac Banja Luka",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/2.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#003399"
+  },
+  {
+    "idnum": 14,
+    "id": "yug89",
+    "name": "Radnicki Nis",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 15,
+    "id": "yug89",
+    "name": "NK Osijek",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 3,
+    "kit": "swe92/5.png",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#0033A0"
+  },
+  {
+    "idnum": 16,
+    "id": "yug89",
+    "name": "Velez Mostar",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "ger88/1.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#FFFFFF"
+  },
+  {
+    "idnum": 17,
+    "id": "yug89",
+    "name": "Vardar",
+    "attack": 3,
+    "midfield": 3,
+    "defense": 2,
+    "kit": "cl90/5.png",
+    "primaryColor": "#D90429",
+    "secondaryColor": "#000000"
+  }
+]

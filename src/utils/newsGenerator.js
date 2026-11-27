@@ -8,6 +8,33 @@ import {
 } from '../data/rosters/rosterRegistry';
 import { getCPUFormation } from '../components/FormationTactics';
 
+export const NEWS_RETENTION_ROUNDS = 5;
+
+/**
+ * Prunes news items older than `keepRounds` (default: 5) relative to `currentRound`.
+ */
+export const pruneNewsFeed = (newsFeed = [], currentRound = 1, keepRounds = NEWS_RETENTION_ROUNDS) => {
+  if (!Array.isArray(newsFeed)) return [];
+  const curr = Math.max(1, Number(currentRound) || 1);
+  const windowSize = Math.max(1, Number(keepRounds) || NEWS_RETENTION_ROUNDS);
+  const minRound = curr - (windowSize - 1);
+  return newsFeed.filter((item) => {
+    if (!item) return false;
+    const itemRound = Number(item.round);
+    if (Number.isNaN(itemRound)) return true;
+    return itemRound >= minRound;
+  });
+};
+
+/**
+ * Prepends new items and trims anything older than `keepRounds` rounds.
+ */
+export const appendAndPruneNews = (existingFeed = [], newItems = [], currentRound = 1, keepRounds = NEWS_RETENTION_ROUNDS) => {
+  const items = Array.isArray(newItems) ? newItems.filter(Boolean) : (newItems ? [newItems] : []);
+  const combined = [...items, ...(Array.isArray(existingFeed) ? existingFeed : [])];
+  return pruneNewsFeed(combined, currentRound, keepRounds);
+};
+
 export const CATEGORY_CONFIG = {
   match: { label: 'MATCH RECAP', color: '#00ff64', icon: '⚽' },
   preview: { label: 'TACTICAL PREVIEW', color: '#00e5ff', icon: '🧠' },
@@ -97,12 +124,19 @@ export const RIVALRIES = [
   { teams: ["spartak moscow", "zenit"], name: "Two Capitals Derby", desc: "Moscow and St. Petersburg clash for Russian football supremacy." },
   { teams: ["dynamo moscow", "spartak moscow"], name: "Oldest Moscow Derby", desc: "Decades of history divide Moscow's oldest rivals." },
 
-  // Belgium, Sweden, Denmark
+  // Belgium, Sweden, Denmark, Ex-Yugoslavia
   { teams: ["anderlecht", "club brugge"], name: "De Topper", desc: "Belgium's two most decorated clubs battle for supremacy." },
   { teams: ["anderlecht", "standard liege"], name: "Belgian Clásico", desc: "Brussels vs Liège in Belgium's fiercest historical rivalry." },
-  { teams: ["aik", "djurgarden"], name: "Tvillingderbyt", desc: "Stockholm's twin giants collide in Sweden's fierce capital derby." },
+  { teams: ["aik", "djurgarden"], name: "Tvillingderbyt", desc: "Stockholm's twin giants collide in Sweden's fiercest capital derby." },
   { teams: ["malmo ff", "ifk goteborg"], name: "Swedish Classic", desc: "Sweden's two all-time most successful clubs lock horns." },
   { teams: ["fc copenhagen", "brondby"], name: "The New Firm", desc: "Denmark's fiercely contested Copenhagen derby stops the capital." },
+  { teams: ["red star belgrade", "partizan"], name: "Eternal Derby", desc: "Belgrade splits in half as Serbia's two historic giants clash in the Veciti Derbi." },
+  { teams: ["dinamo zagreb", "hajduk split"], name: "Croatian Eternal Derby", desc: "Zagreb vs Split in Croatia's fiercest and most storied football rivalry." },
+  { teams: ["croatia zagreb", "hajduk split"], name: "Croatian Eternal Derby", desc: "Zagreb vs Split in Croatia's fiercest and most storied football rivalry." },
+  { teams: ["red star belgrade", "dinamo zagreb"], name: "Yugoslav Classic", desc: "Two juggernauts of Yugoslav football face off in an electric encounter." },
+  { teams: ["red star belgrade", "hajduk split"], name: "Yugoslav Big Four Clash", desc: "Classic rivalry between two proud pillars of Yugoslav football." },
+  { teams: ["partizan", "dinamo zagreb"], name: "Yugoslav Big Four Clash", desc: "High-stakes showdown between two of Yugoslavia's most decorated clubs." },
+  { teams: ["spartak moscow", "dynamo kyiv"], name: "Soviet Classic", desc: "Moscow meets Kyiv in the most iconic and fiercely contested rivalry of Soviet football." },
 
   // South America
   { teams: ["boca", "river"], name: "Superclásico", desc: "A visceral, unforgettable football carnival of pure Argentine devotion." },
@@ -255,7 +289,8 @@ export const generateTransferAnnouncementNews = ({
   rivalryName = "",
   isBuy,
   managerName,
-  season
+  season,
+  round = 1
 }) => {
   const timestamp = Date.now();
   const feeStr = fee && Number(fee) > 0 ? `$${Number(fee).toFixed(1)}M` : "Free Transfer";
@@ -305,7 +340,7 @@ The incoming ${feeStr} fee has been added to the club's transfer budget${wageStr
 
   return {
     id: `news_transfer_${timestamp}_${Math.floor(Math.random() * 1000)}`,
-    round: 0,
+    round,
     dateStr: "Transfer Desk",
     category: "transfer",
     categoryLabel: CATEGORY_CONFIG.transfer.label,
@@ -1253,11 +1288,11 @@ In the boardroom, directors confirmed their confidence rating stands at ${boardC
 /**
  * Generate Domestic Cup Draw Announcement story.
  */
-export const generateDomesticCupDrawNews = ({ cupName, stageName, teamName, opponentName, managerName }) => {
+export const generateDomesticCupDrawNews = ({ cupName, stageName, teamName, opponentName, managerName, round = 1 }) => {
   const timestamp = Date.now();
   return {
     id: `news_cup_draw_${timestamp}`,
-    round: 0,
+    round,
     dateStr: "Cup Draw",
     category: "cup",
     categoryLabel: CATEGORY_CONFIG.cup.label,
@@ -1281,7 +1316,8 @@ export const generateDomesticCupMatchNews = ({
   teamName,
   managerName,
   isWinner,
-  nextStageName
+  nextStageName,
+  round = 1
 }) => {
   const timestamp = Date.now();
   const isHome = userFixture.homeName === teamName;
@@ -1319,7 +1355,7 @@ export const generateDomesticCupMatchNews = ({
 
   return {
     id: `news_cup_match_${timestamp}`,
-    round: 0,
+    round,
     dateStr: stageName,
     category: "cup",
     categoryLabel: CATEGORY_CONFIG.cup.label,

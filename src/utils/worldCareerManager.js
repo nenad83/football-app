@@ -23,10 +23,22 @@ import {
   calculateManagerPrestige,
   finalizeStintAndSeasonToProfile
 } from './managerProgression';
+import { HISTORICAL_FEDERATION_COUNTRIES, getClubSplitDestination } from './exYugoslaviaRollover';
+import { appendAndPruneNews } from './newsGenerator';
 
 export const SA_COUNTRIES = new Set(['argentina', 'brazil', 'colombia']);
 export const NA_COUNTRIES = new Set(['usa', 'mexico']);
 export const BIG5_EUROPE = ['england', 'spain', 'italy', 'germany', 'france'];
+export const CORE_EUROPE_TRACKED = [
+  ['england', 1], ['england', 2],
+  ['spain', 1], ['spain', 2],
+  ['germany', 1], ['germany', 2],
+  ['italy', 1], ['italy', 2],
+  ['france', 1],
+  ['portugal', 1],
+  ['netherlands', 1],
+  ['belgium', 1]
+];
 
 // Country manager name pools for generating persistent AI managers when JSON clubs have none.
 const MANAGER_NAME_POOLS = {
@@ -69,6 +81,26 @@ const MANAGER_NAME_POOLS = {
   ukraine: {
     first: ['Valeriy', 'Myron', 'Oleh', 'Serhiy', 'Yuriy', 'Oleksandr', 'Viktor', 'Roman', 'Ruslan', 'Ihor', 'Pavlo', 'Andriy'],
     last: ['Lobanovskyi', 'Markevych', 'Blokhin', 'Rebrov', 'Vernydub', 'Shovkovskyi', 'Skrypnyk', 'Hryhorchuk', 'Rotan', 'Kostiuk', 'Yakovenko', 'Shevchenko']
+  },
+  yugoslavia: {
+    first: ['Miljan', 'Ivica', 'Vujadin', 'Tomislav', 'Branko', 'Ljupko', 'Ante', 'Dragoslav', 'Ilija', 'Slobodan', 'Miroslav', 'Josip'],
+    last: ['Miljanic', 'Osim', 'Boskov', 'Ivic', 'Stankovic', 'Petrovic', 'Mladinic', 'Sekularac', 'Petkovic', 'Santrac', 'Blazevic', 'Skoblar']
+  },
+  fr_yugoslavia: {
+    first: ['Ljubisa', 'Slavoljub', 'Ilija', 'Milovan', 'Zoran', 'Dragoslav', 'Milorad', 'Miodrag', 'Vladimir', 'Radmilo', 'Sima', 'Dejan'],
+    last: ['Tumbakovic', 'Muslin', 'Petkovic', 'Djoric', 'Filipovic', 'Stepanovic', 'Kosanovic', 'Jesic', 'Petrovic', 'Ivancevic', 'Krunic', 'Svilar']
+  },
+  serbia: {
+    first: ['Radomir', 'Vladan', 'Aleksandar', 'Marko', 'Dejan', 'Dragan', 'Mladen', 'Ljubisa', 'Savo', 'Nenad', 'Miroslav', 'Veljko'],
+    last: ['Antic', 'Milojevic', 'Stanojevic', 'Nikolic', 'Stankovic', 'Stojkovic', 'Krstajic', 'Tumbakovic', 'Milosevic', 'Lalatovic', 'Djukic', 'Paunovic']
+  },
+  croatia: {
+    first: ['Miroslav', 'Tomislav', 'Otto', 'Zlatko', 'Slaven', 'Branko', 'Igor', 'Matjaz', 'Sergej', 'Nenad', 'Zoran', 'Ante'],
+    last: ['Blazevic', 'Ivic', 'Baric', 'Kranjcar', 'Bilic', 'Ivankovic', 'Stimac', 'Kek', 'Jakirovic', 'Bjelica', 'Vulic', 'Cacic']
+  },
+  ussr: {
+    first: ['Valeriy', 'Konstantin', 'Oleg', 'Pavel', 'Eduard', 'Anatoly', 'Nodar', 'Yevhen', 'Nikolai', 'Yuri', 'Nikita', 'Boris'],
+    last: ['Lobanovskyi', 'Beskov', 'Romantsev', 'Sadyrin', 'Malofeyev', 'Byshovets', 'Akhalkatsi', 'Kucherevskyi', 'Morozov', 'Semin', 'Simonyan', 'Ignatyev']
   },
   russia: {
     first: ['Oleg', 'Yuri', 'Valery', 'Gurban', 'Leonid', 'Stanislav', 'Sergei', 'Dmitri', 'Vadim', 'Vladimir', 'Igor', 'Mikhail'],
@@ -117,8 +149,8 @@ export function normalizeClubKey(country = '', clubName = '') {
 
 export function getLeagueRoundCycles(countryKey, teamsCount) {
   if (countryKey === 'usa') return 1;
-  if ((countryKey === 'scotland' || countryKey === 'denmark') && teamsCount === 12) return 3;
-  if (countryKey === 'scotland' && teamsCount === 10) return 4;
+  if ((countryKey === 'scotland' || countryKey === 'denmark' || countryKey === 'croatia' || countryKey === 'serbia' || countryKey === 'fr_yugoslavia') && teamsCount === 12) return 3;
+  if ((countryKey === 'scotland' || countryKey === 'croatia') && teamsCount === 10) return 4;
   return 2;
 }
 
@@ -296,8 +328,8 @@ export function getRawTeamsForLeague(country, seasonShort, division = 1) {
 
 /**
  * Determines which background leagues should simulate live:
- * - All D1 (and available D2) leagues from the player's current continent/region
- * - PLUS Europe Big 5 (ENG, ESP, ITA, GER, FRA) when playing in SA or NA.
+ * - Current continent D1 leagues (when in SA or NA)
+ * - PLUS core tracked Europe set (ENG 1&2, ESP 1&2, GER 1&2, ITA 1&2, FRA 1, POR 1, NED 1, BEL 1) across all regions.
  */
 export function getTrackedLeagueSpecs(region = 'europe', seasonShort = '2001') {
   const yr = String(seasonShort).split('/')[0];
@@ -317,16 +349,13 @@ export function getTrackedLeagueSpecs(region = 'europe', seasonShort = '2001') {
   if (region === 'south_america') {
     const saYr = resolveSeasonYearKey(leagueDataMapSA, yr);
     Object.keys(leagueDataMapSA[saYr] || {}).forEach((c) => pushSpec(c, 1));
-    BIG5_EUROPE.forEach((c) => pushSpec(c, 1));
+    CORE_EUROPE_TRACKED.forEach(([c, d]) => pushSpec(c, d));
   } else if (region === 'north_america') {
     const naYr = resolveSeasonYearKey(leagueDataMapNA, yr);
     Object.keys(leagueDataMapNA[naYr] || {}).forEach((c) => pushSpec(c, 1));
-    BIG5_EUROPE.forEach((c) => pushSpec(c, 1));
+    CORE_EUROPE_TRACKED.forEach(([c, d]) => pushSpec(c, d));
   } else {
-    const euYr = resolveSeasonYearKey(leagueDataMap, yr);
-    Object.keys(leagueDataMap[euYr] || {}).forEach((c) => pushSpec(c, 1));
-    const d2Yr = resolveSeasonYearKey(leagueDataMapD2, yr);
-    Object.keys(leagueDataMapD2[d2Yr] || {}).forEach((c) => pushSpec(c, 2));
+    CORE_EUROPE_TRACKED.forEach(([c, d]) => pushSpec(c, d));
   }
 
   return specs;
@@ -501,12 +530,16 @@ export function initializeWorldState({
   ensureLeagueEntryManagers(teams, country, season, stateBag, userClubKey);
 
   const specs = getTrackedLeagueSpecs(region, seasonShort);
+  const allowedSpecKeys = new Set(specs.map((s) => s.key));
   const trackedLeagues = existingWorldState?.trackedLeagues
     ? JSON.parse(JSON.stringify(existingWorldState.trackedLeagues))
     : {};
 
   const activeKey = `${country}_d${division}`;
   delete trackedLeagues[activeKey];
+  Object.keys(trackedLeagues).forEach((k) => {
+    if (!allowedSpecKeys.has(k)) delete trackedLeagues[k];
+  });
 
   specs.forEach((spec) => {
     if (spec.key === activeKey) return;
@@ -550,11 +583,34 @@ export function carryoverWorldForNextSeason({
   playerTeamId = null
 }) {
   const prev = prevWorldState || {};
-  const carriedClubMap = { ...(prev.clubManagerMap || {}) };
-  // Clear prior 'USER' marker from old club if player moved; new playerTeamId gets marked 'USER' below
-  Object.keys(carriedClubMap).forEach((k) => {
-    if (carriedClubMap[k] === 'USER') {
-      delete carriedClubMap[k];
+  const nextStartYr = parseInt(String(nextSeasonStr || '').split('/')[0], 10);
+  const rawClubMap = { ...(prev.clubManagerMap || {}) };
+  const carriedClubMap = {};
+  const nextAiManagers = prev.aiManagers ? JSON.parse(JSON.stringify(prev.aiManagers)) : {};
+
+  // Clear prior 'USER' marker & migrate federation splits / club renames across seasons
+  Object.entries(rawClubMap).forEach(([clubKey, mgrId]) => {
+    if (!mgrId || mgrId === 'USER') return;
+    const colonIdx = clubKey.indexOf(':');
+    if (colonIdx === -1) {
+      carriedClubMap[clubKey] = mgrId;
+      return;
+    }
+    const oldCountry = clubKey.slice(0, colonIdx);
+    const oldName = clubKey.slice(colonIdx + 1);
+    if (HISTORICAL_FEDERATION_COUNTRIES.has(oldCountry) && !Number.isNaN(nextStartYr)) {
+      const split = getClubSplitDestination({ country: oldCountry, clubName: oldName, nextStartYr });
+      if (split.canRenew && split.country) {
+        const nextKey = normalizeClubKey(split.country, split.nextName || oldName);
+        carriedClubMap[nextKey] = mgrId;
+        if (nextAiManagers[mgrId]) {
+          nextAiManagers[mgrId].currentClubKey = nextKey;
+        }
+      } else if (nextAiManagers[mgrId]) {
+        nextAiManagers[mgrId].currentClubKey = null;
+      }
+    } else {
+      carriedClubMap[clubKey] = mgrId;
     }
   });
 
@@ -566,7 +622,7 @@ export function carryoverWorldForNextSeason({
     teams: nextTeams,
     playerTeamId,
     existingWorldState: {
-      aiManagers: prev.aiManagers || {},
+      aiManagers: nextAiManagers,
       clubManagerMap: carriedClubMap,
       freeAgents: prev.freeAgents || [],
       trackedLeagues: {}, // Reset tables to Round 0 for the fresh season
@@ -820,7 +876,9 @@ export function syncWorldProgressAndJobs({
     existingWorldState: leagueState.worldState
   });
 
-  if (!forceTick && worldState.lastTickKey === tickKey) {
+  const prevTrackedCount = Object.keys(leagueState.worldState?.trackedLeagues || {}).length;
+  const nextTrackedCount = Object.keys(worldState.trackedLeagues || {}).length;
+  if (!forceTick && worldState.lastTickKey === tickKey && prevTrackedCount === nextTrackedCount) {
     return { worldState, newsItems: [], changed: false };
   }
 
@@ -1517,7 +1575,7 @@ export function executeMidSeasonTakeoverCore({
     budget: resolvedBudget,
     payrollBudget: typeof newClubPayroll === 'number' ? newClubPayroll : prevState.payrollBudget,
     worldState,
-    newsFeed: [takeoverNews, ...(prevState.newsFeed || [])]
+    newsFeed: appendAndPruneNews(prevState.newsFeed, takeoverNews, nextCurrentRound)
   };
 
   return { nextLeagueState, updatedProfile, takeoverNews, newTeamObj };
@@ -1621,7 +1679,7 @@ export function enterUnemployedMode({ leagueState, managerProfile, reason = 'Sac
       playerTeamId: null,
       stintBaseline: null,
       worldState,
-      newsFeed: [newsItem, ...(stateCopy.newsFeed || [])]
+      newsFeed: appendAndPruneNews(stateCopy.newsFeed, newsItem, stateCopy.currentRound || 1)
     },
     updatedProfile
   };
@@ -1713,7 +1771,7 @@ export function simulateUnemployedWeek(leagueState, managerPrestige = 0) {
   });
   stateCopy.worldState = synced.worldState;
   if (synced.newsItems.length > 0) {
-    stateCopy.newsFeed = [...synced.newsItems, ...(stateCopy.newsFeed || [])];
+    stateCopy.newsFeed = appendAndPruneNews(stateCopy.newsFeed, synced.newsItems, stateCopy.currentRound || 1);
   }
 
   return { nextLeagueState: stateCopy, simulatedType, simulatedFixtures };

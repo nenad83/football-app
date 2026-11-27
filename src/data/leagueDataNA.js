@@ -1,4 +1,5 @@
-// North American league data imports (Mexico 1989-2026, USA MLS 1996-2026)
+// North American league data imports (Mexico 1988-2026, USA MLS 1996-2026)
+import mex88Data from './leagues/mex/mex88.json';
 import mex89Data from './leagues/mex/mex89.json';
 import mex90Data from './leagues/mex/mex90.json';
 import mex91Data from './leagues/mex/mex91.json';
@@ -71,6 +72,7 @@ import usa25Data from './leagues/usa/usa25.json';
 import usa26Data from './leagues/usa/usa26.json';
 
 export const leagueDataMapNA = {
+  "1988": { mexico: mex88Data },
   "1989": { mexico: mex89Data },
   "1990": { mexico: mex90Data },
   "1991": { mexico: mex91Data },

@@ -12,6 +12,7 @@ import {
   transferPlayerBetweenClubs
 } from '../data/rosters/rosterRegistry';
 import {
+  appendAndPruneNews,
   checkDerby,
   generateContractCollapsedNews,
   generateIncomingOfferRejectedNews,
@@ -555,7 +556,7 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
           season
         });
         if (rumor) {
-          updatedNewsFeed = [rumor, ...updatedNewsFeed];
+          updatedNewsFeed = appendAndPruneNews(updatedNewsFeed, rumor, currentRound);
         }
       }
     }
@@ -776,7 +777,7 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
       season
     });
     if (rumorItem) {
-      updatedNewsFeed = [rumorItem, ...updatedNewsFeed];
+      updatedNewsFeed = appendAndPruneNews(updatedNewsFeed, rumorItem, currentRound);
     }
 
     const updatedState = {
@@ -955,7 +956,7 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
       season
     });
     if (rumorItem) {
-      updatedNewsFeed = [rumorItem, ...updatedNewsFeed];
+      updatedNewsFeed = appendAndPruneNews(updatedNewsFeed, rumorItem, currentRound);
     }
 
     const updatedState = {
@@ -1047,7 +1048,7 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
       });
       const updatedState = {
         ...leagueState,
-        newsFeed: [rejNews, ...(leagueState.newsFeed || [])]
+        newsFeed: appendAndPruneNews(leagueState.newsFeed, rejNews, currentRound)
       };
       localStorage.setItem("retro_league_career", JSON.stringify(updatedState));
       setLeagueState(updatedState);
@@ -1131,7 +1132,7 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
         ...leagueState,
         transferTargets: targetsCopy,
         shortlist: shortlistCopy,
-        newsFeed: [rejNews, ...(leagueState.newsFeed || [])]
+        newsFeed: appendAndPruneNews(leagueState.newsFeed, rejNews, currentRound)
       };
       localStorage.setItem("retro_league_career", JSON.stringify(updatedState));
       setLeagueState(updatedState);
@@ -1295,7 +1296,8 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
         rivalryName,
         isBuy: true,
         managerName: leagueState?.managerName || "The Manager",
-        season
+        season,
+        round: currentRound
       });
 
       const updatedState = {
@@ -1304,7 +1306,7 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
         payrollBudget: leagueState.payrollBudget || effectivePayrollBudget,
         transferTargets: targetsCopy,
         shortlist: shortlistCopy,
-        newsFeed: [dealNews, ...(leagueState.newsFeed || [])]
+        newsFeed: appendAndPruneNews(leagueState.newsFeed, dealNews, currentRound)
       };
       localStorage.setItem("retro_league_career", JSON.stringify(updatedState));
       setLeagueState(updatedState);
@@ -1345,7 +1347,7 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
         ...leagueState,
         transferTargets: targetsCopy,
         shortlist: shortlistCopy,
-        newsFeed: [collapseNews, ...(leagueState.newsFeed || [])]
+        newsFeed: appendAndPruneNews(leagueState.newsFeed, collapseNews, currentRound)
       };
       localStorage.setItem("retro_league_career", JSON.stringify(updatedState));
       setLeagueState(updatedState);
@@ -1461,9 +1463,10 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
       wage: freedWage,
       isBuy: false,
       managerName: leagueState?.managerName || "The Manager",
-      season
+      season,
+      round: currentRound
     });
-    const updatedNewsFeed = [sellNews, ...(leagueState.newsFeed || [])];
+    const updatedNewsFeed = appendAndPruneNews(leagueState.newsFeed, sellNews, currentRound);
 
     const updatedState = {
       ...leagueState,
@@ -1492,7 +1495,7 @@ export default function TransferModal({ isOpen, onClose, leagueState, setLeagueS
         fee: offerObj.offerAmount,
         round: currentRound
       });
-      updatedNewsFeed = [rejNews, ...updatedNewsFeed];
+      updatedNewsFeed = appendAndPruneNews(updatedNewsFeed, rejNews, currentRound);
     }
 
     const updatedState = {

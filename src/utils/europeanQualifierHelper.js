@@ -11,9 +11,45 @@ const TOP5_COUNTRIES_TEAMS_FALLBACK = new Set([
   'inter milan', 'ac milan', 'juventus', 'napoli', 'roma', 'atalanta', 'paris saint-germain', 'olympique marseille', 'as monaco'
 ]);
 
+const EURO_CLUB_NAME_ALIASES = {
+  partizan: ['partizan', 'partizan belgrade'],
+  'partizan belgrade': ['partizan', 'partizan belgrade'],
+  'dinamo zagreb': ['dinamo zagreb', 'croatia zagreb', 'hask gradjanski'],
+  'croatia zagreb': ['dinamo zagreb', 'croatia zagreb', 'hask gradjanski'],
+  'hask gradjanski': ['dinamo zagreb', 'croatia zagreb', 'hask gradjanski'],
+  'red star belgrade': ['red star belgrade', 'crvena zvezda'],
+  'crvena zvezda': ['red star belgrade', 'crvena zvezda'],
+  'nk osijek': ['nk osijek', 'osijek'],
+  osijek: ['nk osijek', 'osijek'],
+  dnipro: ['dnipro', 'dnipro dnipropetrovsk'],
+  'dnipro dnipropetrovsk': ['dnipro', 'dnipro dnipropetrovsk'],
+  'zalgiris vilnius': ['zalgiris vilnius', 'žalgiris vilnius'],
+  'žalgiris vilnius': ['zalgiris vilnius', 'žalgiris vilnius'],
+  'zenit st petersburg': ['zenit st petersburg', 'zenit st. petersburg', 'zenit leningrad'],
+  'zenit st. petersburg': ['zenit st petersburg', 'zenit st. petersburg', 'zenit leningrad'],
+  'zenit leningrad': ['zenit st petersburg', 'zenit st. petersburg', 'zenit leningrad']
+};
+
+/**
+ * Compares club names while handling historical club renames & cup naming variants
+ * (e.g. Partizan vs Partizan Belgrade, Croatia Zagreb vs Dinamo Zagreb).
+ */
+export function isSameEuropeanClubName(nameA = '', nameB = '') {
+  const a = String(nameA || '').trim().toLowerCase();
+  const b = String(nameB || '').trim().toLowerCase();
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const aliasesA = EURO_CLUB_NAME_ALIASES[a];
+  if (aliasesA && aliasesA.includes(b)) return true;
+  const aliasesB = EURO_CLUB_NAME_ALIASES[b];
+  return Boolean(aliasesB && aliasesB.includes(a));
+}
+
 /**
  * Checks historical UEFA federation bans so banned nations never enter or receive play-offs.
  * - England 1989/90: full Heysel ban; 1990/91: European Cup (CL) only still barred
+ * - FR Yugoslavia 1992/93 - 1994/95: UN sanctions UEFA ban
+ * - Croatia 1991/92 - 1992/93: pre-UEFA admission transition
  * - Russia 2022/23 onwards: barred from all UEFA club competitions
  */
 export function isUefaCountryBanned(country, seasonYear, cupType = 'all') {
@@ -24,6 +60,12 @@ export function isUefaCountryBanned(country, seasonYear, cupType = 'all') {
   if (c === 'england') {
     if (yr <= 1989) return true;
     if (yr === 1990 && cupType === 'cl') return true;
+  }
+  if (c === 'fr_yugoslavia' && yr >= 1992 && yr <= 1994) {
+    return true;
+  }
+  if (c === 'croatia' && yr <= 1992) {
+    return true;
   }
   if (c === 'russia' && yr >= 2022) {
     return true;

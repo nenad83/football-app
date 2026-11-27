@@ -31,10 +31,14 @@ export default function CountryFlag({ country, size = 20, style = {}, className 
 
   // Capitalize the first letter of the country to match the filename convention: Flag_of_Country.svg
   const normalizedLower = normalizedCountry.toLowerCase();
-  const capitalizedCountry = normalizedLower === "usa"
-    ? "USA"
-    : normalizedCountry.charAt(0).toUpperCase() + normalizedCountry.slice(1);
-  const flagPath = `/flags/Flag_of_${capitalizedCountry}.svg`;
+  const customFlagPaths = {
+    usa: "/flags/Flag_of_USA.svg",
+    croatia: "/flags/Flago_of_Croatia.svg",
+    fr_yugoslavia: "/flags/Flag_of_Yugoslavia_FR.svg",
+    ussr: "/flags/Flag_of_the_Soviet_Union.svg"
+  };
+  const capitalizedCountry = normalizedCountry.charAt(0).toUpperCase() + normalizedCountry.slice(1);
+  const flagPath = customFlagPaths[normalizedLower] || `/flags/Flag_of_${capitalizedCountry}.svg`;
 
   if (imgError) {
     // Premium text-based fallback placeholder

@@ -1,0 +1,17 @@
+[
+  { "idnum": 0,  "id": "col88", "name": "Millonarios",              "attack": 4, "midfield": 4, "defense": 4, "kit": "swe92/0.png", "primaryColor": "#0000FF", "secondaryColor": "#FFFFFF" },
+  { "idnum": 1,  "id": "col88", "name": "Atletico Nacional",        "attack": 4, "midfield": 4, "defense": 4, "kit": "ecu93/2.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 2,  "id": "col88", "name": "America de Cali",          "attack": 4, "midfield": 4, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 3,  "id": "col88", "name": "Junior",                   "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 4,  "id": "col88", "name": "Santa Fe",                 "attack": 3, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FF0000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 5,  "id": "col88", "name": "Deportes Quindio",         "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFD700", "secondaryColor": "#008000" },
+  { "idnum": 6,  "id": "col88", "name": "Cucuta Deportivo",         "attack": 3, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#CC0000", "secondaryColor": "#000000" },
+  { "idnum": 7,  "id": "col88", "name": "Pereira",                  "attack": 2, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFF00", "secondaryColor": "#FF0000" },
+  { "idnum": 8,  "id": "col88", "name": "Independiente Medellin",   "attack": 3, "midfield": 3, "defense": 3, "kit": "ecu93/1.png", "primaryColor": "#FF0000", "secondaryColor": "#0000FF" },
+  { "idnum": 9,  "id": "col88", "name": "Deportivo Cali",           "attack": 3, "midfield": 3, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 10, "id": "col88", "name": "Deportes Tolima",          "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#800020", "secondaryColor": "#FFD700" },
+  { "idnum": 11, "id": "col88", "name": "Bucaramanga",              "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#FFFF00", "secondaryColor": "#008000" },
+  { "idnum": 12, "id": "col88", "name": "Once Caldas",              "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" },
+  { "idnum": 13, "id": "col88", "name": "Union Magdalena",          "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#000080", "secondaryColor": "#FF0000" },
+  { "idnum": 14, "id": "col88", "name": "Sporting de Barranquilla", "attack": 1, "midfield": 2, "defense": 1, "kit": "swe92/1.png", "primaryColor": "#FFFFFF", "secondaryColor": "#000000" }
+]

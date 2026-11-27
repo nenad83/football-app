@@ -1,0 +1,18 @@
+[
+  { "idnum": 0,  "id": "concacaf88", "name": "Cruz Azul",             "attack": 4, "midfield": 4, "defense": 4, "kit": "swe92/0.png", "primaryColor": "#005BAC", "secondaryColor": "#FFFFFF" },
+  { "idnum": 1,  "id": "concacaf88", "name": "Morelia",               "attack": 3, "midfield": 3, "defense": 3, "kit": "ger88/4.png", "primaryColor": "#FFDC00", "secondaryColor": "#CC0000" },
+  { "idnum": 2,  "id": "concacaf88", "name": "CD Olimpia",            "attack": 4, "midfield": 3, "defense": 3, "kit": "swe92/0.png", "primaryColor": "#FFFFFF", "secondaryColor": "#002F6C" },
+  { "idnum": 3,  "id": "concacaf88", "name": "Defence Force",         "attack": 3, "midfield": 3, "defense": 3, "kit": "ger88/4.png", "primaryColor": "#FFDC00", "secondaryColor": "#E31B23" },
+  { "idnum": 4,  "id": "concacaf88", "name": "Alajuelense",           "attack": 3, "midfield": 3, "defense": 3, "kit": "fra84/1.png", "primaryColor": "#E31B23", "secondaryColor": "#000000" },
+  { "idnum": 5,  "id": "concacaf88", "name": "Herediano",             "attack": 3, "midfield": 3, "defense": 3, "kit": "ger88/4.png", "primaryColor": "#FEDD00", "secondaryColor": "#E31B23" },
+  { "idnum": 6,  "id": "concacaf88", "name": "CSD Municipal",         "attack": 3, "midfield": 2, "defense": 2, "kit": "ger88/3.png", "primaryColor": "#C8102E", "secondaryColor": "#0033A0" },
+  { "idnum": 7,  "id": "concacaf88", "name": "Aurora FC",             "attack": 2, "midfield": 2, "defense": 2, "kit": "ger88/1.png", "primaryColor": "#FFD700", "secondaryColor": "#000000" },
+  { "idnum": 8,  "id": "concacaf88", "name": "CD FAS",                "attack": 2, "midfield": 2, "defense": 2, "kit": "ger88/3.png", "primaryColor": "#E31B23", "secondaryColor": "#0033A0" },
+  { "idnum": 9,  "id": "concacaf88", "name": "CD Aguila",             "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/4.png", "primaryColor": "#FF6B00", "secondaryColor": "#000000" },
+  { "idnum": 10, "id": "concacaf88", "name": "CD Marathon",           "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 11, "id": "concacaf88", "name": "Real Espana",           "attack": 2, "midfield": 2, "defense": 2, "kit": "mex86/3.png", "primaryColor": "#FEDD00", "secondaryColor": "#000000" },
+  { "idnum": 12, "id": "concacaf88", "name": "SV Robinhood",          "attack": 2, "midfield": 2, "defense": 2, "kit": "ger88/1.png", "primaryColor": "#CC0000", "secondaryColor": "#008000" },
+  { "idnum": 13, "id": "concacaf88", "name": "Pinar del Rio",         "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/1.png", "primaryColor": "#008000", "secondaryColor": "#FFFFFF" },
+  { "idnum": 14, "id": "concacaf88", "name": "SV Excelsior",          "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#003B71", "secondaryColor": "#FFFFFF" },
+  { "idnum": 15, "id": "concacaf88", "name": "Seattle Mitre Eagles",  "attack": 2, "midfield": 2, "defense": 2, "kit": "swe92/0.png", "primaryColor": "#0033A0", "secondaryColor": "#FFFFFF" }
+]
