@@ -374,9 +374,7 @@ export const qualifiersBySeason = {
       "scotland": [
         "Rangers"
       ],
-      "ukraine": [
-        "Dynamo Kyiv"
-      ],
+      "ukraine": [],
       "belgium": [
         "Anderlecht"
       ],
@@ -602,9 +600,7 @@ export const qualifiersBySeason = {
       "scotland": [
         "Rangers"
       ],
-      "ukraine": [
-        "Dynamo Kyiv"
-      ],
+      "ukraine": [],
       "belgium": [
         "Anderlecht"
       ],
@@ -715,9 +711,7 @@ export const qualifiersBySeason = {
       "scotland": [
         "Rangers"
       ],
-      "ukraine": [
-        "Dynamo Kyiv"
-      ],
+      "ukraine": [],
       "belgium": [
         "Anderlecht"
       ],
@@ -824,9 +818,7 @@ export const qualifiersBySeason = {
       "scotland": [
         "Rangers"
       ],
-      "ukraine": [
-        "Dynamo Kyiv"
-      ],
+      "ukraine": [],
       "belgium": [
         "Anderlecht"
       ],
@@ -946,9 +938,7 @@ export const qualifiersBySeason = {
       "scotland": [
         "Rangers"
       ],
-      "ukraine": [
-        "Dynamo Kyiv"
-      ],
+      "ukraine": [],
       "belgium": [
         "Club Brugge"
       ],
@@ -1084,9 +1074,7 @@ export const qualifiersBySeason = {
       "scotland": [
         "Rangers"
       ],
-      "ukraine": [
-        "Dynamo Kyiv"
-      ],
+      "ukraine": [],
       "belgium": [
         "Lierse"
       ],
@@ -1363,9 +1351,7 @@ export const qualifiersBySeason = {
       "scotland": [
         "Rangers"
       ],
-      "ukraine": [
-        "Dynamo Kyiv"
-      ],
+      "ukraine": [],
       "belgium": [
         "Genk"
       ],
@@ -5390,7 +5376,8 @@ export const qualifiersBySeason = {
       ],
       "scotland": [],
       "ukraine": [
-        "Shakhtar Donetsk"
+        "Shakhtar Donetsk",
+        "Dynamo Kyiv"
       ],
       "belgium": [
         "Club Brugge",
@@ -5443,7 +5430,10 @@ export const qualifiersBySeason = {
       "scotland": [
         "Celtic"
       ],
-      "ukraine": [],
+      "ukraine": [
+        "Kryvbas Kryvyi Rih",
+        "Polissya Zhytomyr"
+      ],
       "belgium": [
         "Genk",
         "Anderlecht"
@@ -5488,7 +5478,10 @@ export const qualifiersBySeason = {
       "scotland": [
         "Hearts"
       ],
-      "ukraine": [],
+      "ukraine": [
+        "FC Oleksandriya",
+        "Rukh Lviv"
+      ],
       "belgium": [
         "Gent",
         "Antwerp"

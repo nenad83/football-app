@@ -1231,7 +1231,7 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
           shortLabel: 'THROUGH',
           icon: '🗡️',
           color: '#ffd700',
-          desc: 'Moves to c1/c3 and plays a killer ball into nearby box (needs diff >= 4). If successful, Striker gets +3 Finishing!'
+          desc: 'Moves to c1/c3 and plays a killer ball into nearby box (needs diff >= 5). If successful, Striker gets +2 Finishing!'
         }
       ];
     }
@@ -1394,11 +1394,11 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
       },
       {
         id: 'through_ball',
-        label: 'Killer Through Ball (+3 Striker)',
+        label: 'Killer Through Ball (+2 Striker)',
         shortLabel: 'THROUGH',
         icon: '🗡️',
         color: '#ffd700',
-        desc: 'Tries to split defense to find a Striker in space (requires diff >= 4 vs DMC/DC). If successful, Striker rolls Finishing with +3!'
+        desc: 'Tries to split defense to find a Striker in space (requires diff >= 5 vs DMC/DC). If successful, Striker rolls Finishing with +2!'
       },
       {
         id: 'dribble',
@@ -1444,7 +1444,7 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
         shortLabel: 'THROUGH',
         icon: '🗡️',
         color: '#ffd700',
-        desc: 'Hits a defence-splitting pass from b2 to c1/c2/c3 (requires diff >= 4). If successful, receiver gets +3 skill on their next move!'
+        desc: 'Hits a defence-splitting pass from b2 to c1/c2/c3 (requires diff >= 5). If successful, receiver gets +2 skill on their next move!'
       },
       {
         id: 'man_mark',
@@ -1470,11 +1470,11 @@ export function getAvailableInstructionsForSlot(slot, player, roleId = 'normal')
       },
       {
         id: 'through_ball',
-        label: 'Through Ball (+3 to Receiver)',
+        label: 'Through Ball (+2 to Receiver)',
         shortLabel: 'THROUGH',
         icon: '🗡️',
         color: '#ffd700',
-        desc: 'Passes from b2 to c1, c2 (if AMC), or c3 requiring diff >= 4 instead of 2! If successful, AMR/AMC/AML is free and rolls with Skill + 3 on their next move!'
+        desc: 'Passes from b2 to c1, c2 (if AMC), or c3 requiring diff >= 5 instead of 2! If successful, AMR/AMC/AML is free and rolls with Skill + 2 on their next move!'
       }
     ];
   }

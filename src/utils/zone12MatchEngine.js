@@ -855,7 +855,8 @@ function runZone12PossessionCore({
   let midMarker = null;
   let midSuccess = false;
   let counterTriggered = false;
-  let step2SkillBonus = 0; // +3 if MC/DMC succeeds a through_ball (diff >= 4)
+  let step2SkillBonus = 0; // +2 if MC/DMC succeeds a through_ball (diff >= 5)
+  let midThroughBallSuccess = false;
   let preChosenChannel = null;
 
   // Picks a valid occupied lateral/back zone & teammate to hold possession on diff 0 or 1
@@ -1039,13 +1040,13 @@ function runZone12PossessionCore({
       : pickRandom(attMids);
     midMarker = activeRecycle ? resolvePressingDefenderForZone(startZone) : pickRandom(defMids);
 
-    // Check MC / DMC Individual Instruction: 'pass' (default, diff >= 2) vs 'through_ball' (diff >= 4, grants +3 skill to receiver!)
+    // Check MC / DMC Individual Instruction: 'pass' (default, diff >= 2) vs 'through_ball' (diff >= 5, grants +2 skill to receiver!)
     const isMidThroughBall = !activeRecycle && (
       testOverrides?.forceStep1ThroughBall
         ? testOverrides.forceStep1ThroughBall === 'through_ball'
         : midPasser.instruction === 'through_ball'
     );
-    const requiredMidDiff = isMidThroughBall ? 4 : 2;
+    const requiredMidDiff = isMidThroughBall ? 5 : 2;
     const ballPlayDcBonus = (['DC', 'CB', 'SW'].includes(midPasser.effectivePos) && midPasser.instruction === 'direct_pass') ? 1 : 0;
 
     const step1Num = getBoxNumericalModifiers(initAttRoster, initDefRoster, startZone, {
@@ -1068,7 +1069,7 @@ function runZone12PossessionCore({
 
     let forcedStep1Diff = null;
     if (testOverrides?.forceStep1Outcome === 'success_2') forcedStep1Diff = requiredMidDiff;
-    else if (testOverrides?.forceStep1Outcome === 'success_4') forcedStep1Diff = 4;
+    else if (testOverrides?.forceStep1Outcome === 'success_4') forcedStep1Diff = 5;
     else if (testOverrides?.forceStep1Outcome === 'hold_0_1') forcedStep1Diff = 0;
     else if (testOverrides?.forceStep1Outcome === 'fail_1') forcedStep1Diff = -1;
     else if (testOverrides?.forceStep1Outcome === 'counter_2') forcedStep1Diff = counterThreshold;
@@ -1084,7 +1085,7 @@ function runZone12PossessionCore({
 
     midSuccess = midDiff >= requiredMidDiff;
     // Hold Possession rule: diff 0 or 1 keeps the ball (recycles to b1/b3/a1/a3/a2 for Home, c1/c3/d1/d3/d2 for Away).
-    // Turnovers only happen on diff <= -1 (or diff 2-3 if attempting a risky through-ball without succeeding).
+    // Turnovers only happen on diff <= -1 (or diff 2-4 if attempting a risky through-ball without succeeding).
     const isHoldPossession = !isMilestoneStopCheck(midSuccess, counterTriggered) && (midDiff === 0 || midDiff === 1);
     function isMilestoneStopCheck() { return false; }
 
@@ -1093,17 +1094,18 @@ function runZone12PossessionCore({
     counterTriggered = !isKickoffRestart && midDiff <= counterThreshold;
 
     if (midSuccess && isMidThroughBall) {
-      step2SkillBonus = 3;
+      step2SkillBonus = 2;
+      midThroughBallSuccess = true;
     }
 
     const holdPick = isHoldPossession ? pickHoldTarget(initAttRoster, startZone, midPasser, initIsHome) : null;
 
     steps.push({
       phase: isKickoffRestart
-        ? (isMidThroughBall ? 'KICKOFF THROUGH-BALL (+3)' : 'KICKOFF RESTART (MIDFIELD)')
+        ? (isMidThroughBall ? 'KICKOFF THROUGH-BALL (+2)' : 'KICKOFF RESTART (MIDFIELD)')
         : (activeRecycle
           ? 'RECYCLED BUILD-UP PASS'
-          : (isMidThroughBall ? 'MIDFIELD THROUGH-BALL (+3)' : 'MIDFIELD BUILD-UP')),
+          : (isMidThroughBall ? 'MIDFIELD THROUGH-BALL (+2)' : 'MIDFIELD BUILD-UP')),
       zone: startZone,
       attacker: midPasser.name,
       attackerPlayer: midPasser,
@@ -1131,7 +1133,7 @@ function runZone12PossessionCore({
       holdTargetZone: holdPick?.zone || null,
       summary: midSuccess
         ? (isMidThroughBall
-          ? `🗡️ ${midPasser.name} splits the defence from [${startZone.toUpperCase()}]! (d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal} vs ${midMarker.name} d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal}, diff +${midDiff} >= 4 → Receiver gets +3 Skill!)`
+          ? `🗡️ ${midPasser.name} splits the defence from [${startZone.toUpperCase()}]! (d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal} vs ${midMarker.name} d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal}, diff +${midDiff} >= 5 → Receiver gets +2 Skill!)`
           : `${midPasser.name} passes cleanly from [${startZone.toUpperCase()}] (d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal} vs ${midMarker.name} d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal}, diff +${midDiff} >= 2)`)
         : (counterTriggered
           ? `⚡ ${midMarker.name} intercepts ${midPasser.name} in [${startZone.toUpperCase()}] and launches an instant counter! (d10:${markDie}+Mark:${markSkill}${fmtBonus(defStep1Bonus)}=${markTotal} vs d10:${passDie}+Pass:${passSkill}${fmtBonus(attStep1Bonus)}=${passTotal})`
@@ -1393,8 +1395,8 @@ function runZone12PossessionCore({
       }
       : {
         text: isKickoffRestart
-          ? `${midEventMin}' ${initAttTeamName} kicks off from midfield — ${midPasser.name} ${step2SkillBonus === 3 ? 'threads a defence-splitting through-ball past' : 'shakes off'} ${midMarker.name} and moves the ball ${channelDestDesc}!`
-          : `${midEventMin}' ${midPasser.name} (${attTeamName}) ${step2SkillBonus === 3 ? 'threads a defence-splitting through-ball past' : 'beats the press of'} ${midMarker.name} and plays the ball ${channelDestDesc}!`,
+          ? `${midEventMin}' ${initAttTeamName} kicks off from midfield — ${midPasser.name} ${midThroughBallSuccess ? 'threads a defence-splitting through-ball past' : 'shakes off'} ${midMarker.name} and moves the ball ${channelDestDesc}!`
+          : `${midEventMin}' ${midPasser.name} (${attTeamName}) ${midThroughBallSuccess ? 'threads a defence-splitting through-ball past' : 'beats the press of'} ${midMarker.name} and plays the ball ${channelDestDesc}!`,
         type: 'chance'
       });
   steps[0].stepLog = step1WinLog;
@@ -2091,10 +2093,10 @@ function runZone12PossessionCore({
       };
     }
 
-    // 3. AMC Instruction: THROUGH BALL ('through_ball', diff >= 4 -> Striker gets +3 Finishing) or PASS ('pass', diff >= 2)
+    // 3. AMC Instruction: THROUGH BALL ('through_ball', diff >= 5 -> Striker gets +2 Finishing) or PASS ('pass', diff >= 2)
     const isAmcThroughBall = amcInstr === 'through_ball';
-    const requiredAmcDiff = isAmcThroughBall ? 4 : 2;
-    const strikerThroughBallBonus = isAmcThroughBall ? 3 : 0;
+    const requiredAmcDiff = isAmcThroughBall ? 5 : 2;
+    const strikerThroughBallBonus = isAmcThroughBall ? 2 : 0;
 
     const tbPassSkill = amcPlayer.skills.passing;
     const tbMarkSkill = oppCentralDef.skills.marking;
@@ -2122,7 +2124,7 @@ function runZone12PossessionCore({
       };
 
     steps.push({
-      phase: isAmcThroughBall ? 'AMC KILLER THROUGH-BALL (+3)' : 'CENTRAL BOX PASS',
+      phase: isAmcThroughBall ? 'AMC KILLER THROUGH-BALL (+2)' : 'CENTRAL BOX PASS',
       zone: secondZone,
       attacker: amcPlayer.name,
       attackerPlayer: amcPlayer,
@@ -2147,7 +2149,7 @@ function runZone12PossessionCore({
       success: tbSuccess,
       stepLog: tbLog,
       summary: tbSuccess
-        ? `${amcPlayer.name} ${isAmcThroughBall ? 'splits the defense (+3 Finishing to Striker!)' : 'passes'} through [${secondZone.toUpperCase()}] past ${oppCentralDef.name}! (d10:${tbPassDie}+Pass:${tbPassSkill}${fmtBonus(tbAttBonus)}=${tbPassTotal} vs d10:${tbMarkDie}+Mark:${tbMarkSkill}${fmtBonus(tbDefBonus)}=${tbMarkTotal}, diff +${tbDiff} >= ${requiredAmcDiff})`
+        ? `${amcPlayer.name} ${isAmcThroughBall ? 'splits the defense (+2 Finishing to Striker!)' : 'passes'} through [${secondZone.toUpperCase()}] past ${oppCentralDef.name}! (d10:${tbPassDie}+Pass:${tbPassSkill}${fmtBonus(tbAttBonus)}=${tbPassTotal} vs d10:${tbMarkDie}+Mark:${tbMarkSkill}${fmtBonus(tbDefBonus)}=${tbMarkTotal}, diff +${tbDiff} >= ${requiredAmcDiff})`
         : `${oppCentralDef.name} intercepts ${amcPlayer.name} in [${secondZone.toUpperCase()}] (d10:${tbPassDie}+Pass:${tbPassSkill}${fmtBonus(tbAttBonus)}=${tbPassTotal} vs d10:${tbMarkDie}+Mark:${tbMarkSkill}${fmtBonus(tbDefBonus)}=${tbMarkTotal}, diff ${tbDiff >= 0 ? `+${tbDiff}` : tbDiff} < ${requiredAmcDiff})`
     });
 
@@ -2209,7 +2211,7 @@ function runZone12PossessionCore({
       };
 
     steps.push({
-      phase: isAmcThroughBall ? 'THROUGH-BALL FINISH (+3)' : 'BOX FINISH (1v1)',
+      phase: isAmcThroughBall ? 'THROUGH-BALL FINISH (+2)' : 'BOX FINISH (1v1)',
       zone: boxZone,
       attacker: striker.name,
       attackerPlayer: striker,
@@ -2367,7 +2369,7 @@ function runZone12PossessionCore({
     const tbAttBonus = flankNum.attBonus + attMentalityMod + step2SkillBonus;
     const tbDefBonus = flankNum.defBonus + defMentalityMod + oppFbTightMarkMod + defTacklingMod;
     const forcedWingTb = testOverrides?.forceStep2Outcome === 'success'
-      ? 4
+      ? 5
       : (testOverrides?.forceStep2Outcome === 'fail' ? 0 : null);
     const wingTbDuel = resolveDuelWithOverride(tbSkill + tbAttBonus, fbSkill + tbDefBonus, forcedWingTb);
     const tbDie = wingTbDuel.attDie;
@@ -2375,7 +2377,7 @@ function runZone12PossessionCore({
     const tbTotal = wingTbDuel.attTotal;
     const fbTotal = wingTbDuel.defTotal;
     const tbDiff = wingTbDuel.diff;
-    const tbSuccess = tbDiff >= 4;
+    const tbSuccess = tbDiff >= 5;
 
     const tbLog = tbSuccess
       ? {
@@ -2388,7 +2390,7 @@ function runZone12PossessionCore({
       };
 
     steps.push({
-      phase: 'FLANK THROUGH-BALL (+3)',
+      phase: 'FLANK THROUGH-BALL (+2)',
       zone: actionZone,
       attacker: winger.name,
       attackerPlayer: winger,
@@ -2409,12 +2411,12 @@ function runZone12PossessionCore({
       defenderDie: fbDie,
       defenderTotal: fbTotal,
       diff: tbDiff,
-      requiredDiff: 4,
+      requiredDiff: 5,
       success: tbSuccess,
       stepLog: tbLog,
       summary: tbSuccess
-        ? `🗡️ ${winger.name} threads a flank through-ball from [${actionZone.toUpperCase()}] (+3 Finishing to Striker)! (d10:${tbDie}+Pass:${tbSkill}${fmtBonus(tbAttBonus)}=${tbTotal} vs d10:${fbDie}+Mark:${fbSkill}${fmtBonus(tbDefBonus)}=${fbTotal}, diff +${tbDiff} >= 4)`
-        : `${oppFullback.name} intercepts ${winger.name}'s flank through-ball in [${actionZone.toUpperCase()}] (diff ${tbDiff >= 0 ? `+${tbDiff}` : tbDiff} < 4)`
+        ? `🗡️ ${winger.name} threads a flank through-ball from [${actionZone.toUpperCase()}] (+2 Finishing to Striker)! (d10:${tbDie}+Pass:${tbSkill}${fmtBonus(tbAttBonus)}=${tbTotal} vs d10:${fbDie}+Mark:${fbSkill}${fmtBonus(tbDefBonus)}=${fbTotal}, diff +${tbDiff} >= 5)`
+        : `${oppFullback.name} intercepts ${winger.name}'s flank through-ball in [${actionZone.toUpperCase()}] (diff ${tbDiff >= 0 ? `+${tbDiff}` : tbDiff} < 5)`
     });
 
     logs.push(tbLog);
@@ -2449,7 +2451,7 @@ function runZone12PossessionCore({
     const boxDef = getBoxDefenseTarget('low_cross');
     const finSkill = striker.skills.finishing;
     const poacherBonus = striker.instruction === 'poacher' ? 1 : 0;
-    const totalFinBonus = attMentalityMod + 3 + poacherBonus + boxNum.attBonus;
+    const totalFinBonus = attMentalityMod + 2 + poacherBonus + boxNum.attBonus;
     const totalDefBonus = defMentalityMod + boxDef.dcInstrBonus + defTacklingMod + boxNum.defBonus;
     const forcedTbFin = testOverrides?.forceStep3Outcome === 'goal'
       ? 3
@@ -2473,7 +2475,7 @@ function runZone12PossessionCore({
       };
 
     steps.push({
-      phase: 'THROUGH-BALL FINISH (+3)',
+      phase: 'THROUGH-BALL FINISH (+2)',
       zone: boxZone,
       attacker: striker.name,
       attackerPlayer: striker,
@@ -3542,7 +3544,7 @@ export function advanceZone12SandboxStep({
           ? true
           : (forceStep1Mode === 'mid_pass' ? false : midPasser.instruction === 'through_ball')
       );
-      const requiredMidDiff = isMidThroughBall ? 4 : 2;
+      const requiredMidDiff = isMidThroughBall ? 5 : 2;
       const ballPlayDcBonus = (['DC', 'CB', 'SW'].includes(midPasser.effectivePos) && midPasser.instruction === 'direct_pass') ? 1 : 0;
       const step1Num = getBoxNumericalModifiers(initAttRoster, initDefRoster, startZone, {
         mode: (startZone === 'b2' || startZone === 'c2') ? 'midfield_step1' : 'exact',
@@ -3563,7 +3565,7 @@ export function advanceZone12SandboxStep({
 
       let forcedStep1Diff = null;
       if (decision === 'success_2') forcedStep1Diff = requiredMidDiff;
-      else if (decision === 'success_4') forcedStep1Diff = 4;
+      else if (decision === 'success_4') forcedStep1Diff = 5;
       else if (decision === 'hold_0_1') forcedStep1Diff = 0;
       else if (decision === 'fail_1') forcedStep1Diff = -1;
       else if (decision === 'counter_2') forcedStep1Diff = counterThreshold;
@@ -3573,7 +3575,7 @@ export function advanceZone12SandboxStep({
       midSuccess = midDiff >= requiredMidDiff;
       counterTriggered = !current.isKickoffRestart && midDiff <= counterThreshold;
       const isHoldPossession = !midSuccess && !counterTriggered && (midDiff === 0 || midDiff === 1);
-      if (midSuccess && isMidThroughBall) step2SkillBonus = 3;
+      if (midSuccess && isMidThroughBall) step2SkillBonus = 2;
 
       const s1Disc = evaluateSandboxDiscipline({
         defSide: oppSide,
@@ -3595,7 +3597,7 @@ export function advanceZone12SandboxStep({
             : `❌ ${midMarker.name} intercepts ${midPasser.name} in [${startZone.toUpperCase()}] — ${initDefTeamName} takes possession! (diff ${midDiff})`));
 
       step1Record = {
-        phase: activeRecycle ? 'RECYCLED BUILD-UP PASS' : (isMidThroughBall ? 'MIDFIELD THROUGH-BALL (+3)' : 'MIDFIELD BUILD-UP'),
+        phase: activeRecycle ? 'RECYCLED BUILD-UP PASS' : (isMidThroughBall ? 'MIDFIELD THROUGH-BALL (+2)' : 'MIDFIELD BUILD-UP'),
         zone: startZone,
         attacker: midPasser.name,
         attackerPlayer: midPasser,
@@ -4298,8 +4300,8 @@ export function advanceZone12SandboxStep({
       } else {
         defBonus += dmcManMark;
         if (activeAction === 'through_ball') {
-          requiredDiff = 4;
-          nextStep3Bonus = 3;
+          requiredDiff = 5;
+          nextStep3Bonus = 2;
         }
       }
     } else {
@@ -4313,8 +4315,8 @@ export function advanceZone12SandboxStep({
         is1v1Keeper = activeAction === 'dribble';
         isSelfFinisher = true;
       } else if (activeAction === 'through_ball') {
-        requiredDiff = 4;
-        nextStep3Bonus = 3;
+        requiredDiff = 5;
+        nextStep3Bonus = 2;
         defBonus += oppFbTight;
         boxDefMode = 'low_cross';
       } else {

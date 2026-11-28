@@ -906,7 +906,7 @@ export default function Zone12EngineTestDemo() {
                 <select value={forceStep1Mode} onChange={(e) => handleStep1ModeChange(e.target.value)} style={{ background: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '4px', padding: '4px', fontSize: '10px' }}>
                   <option value="auto">Auto (GK/MC Instr)</option>
                   <option value="mid_pass">Mid Short/Long (+2)</option>
-                  <option value="mid_through">Through Ball (+4)</option>
+                  <option value="mid_through">Through Ball (+5)</option>
                   <option value="gk_long">GK Long Kick</option>
                 </select>
               </label>
@@ -915,7 +915,7 @@ export default function Zone12EngineTestDemo() {
                 <select value={forceActorInstruction} onChange={(e) => setForceActorInstruction(e.target.value)} style={{ background: '#0f172a', color: '#fff', border: '1px solid #334155', borderRadius: '4px', padding: '4px', fontSize: '10px' }}>
                   <option value="auto">Auto (Slot Instr)</option>
                   <option value="pass">Pass</option>
-                  <option value="through_ball">Through Ball (+3)</option>
+                  <option value="through_ball">Through Ball (+2)</option>
                   <option value="high_cross">High Cross</option>
                   <option value="low_cross">Low Cross</option>
                   <option value="dribble">Dribble (1v1)</option>
@@ -933,7 +933,7 @@ export default function Zone12EngineTestDemo() {
                   ✅ SUCCESS (+2) ➔ STEP 2
                 </button>
                 <button type="button" onClick={() => handleStepDecision('success_4')} style={{ padding: '9px', borderRadius: '6px', border: '1px solid #00e5ff', background: 'rgba(0,229,255,0.22)', color: '#67e8f9', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>
-                  🗡️ BIG SUCCESS (+4)
+                  🗡️ BIG SUCCESS (+5)
                 </button>
                 <button type="button" onClick={() => handleStepDecision('hold_0_1')} style={{ padding: '9px', borderRadius: '6px', border: '1px solid #eab308', background: 'rgba(234,179,8,0.22)', color: '#fde047', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer' }}>
                   🔄 HOLD (0 / +1)
